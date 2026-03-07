@@ -124,6 +124,7 @@ def build_dataset(n_samples: int = 1000) -> Dataset:
         samples.append({
             "prompt": prompt,
             "game_key": game_key,
+            "strategy": strategy,
             "available_moves": game["moves"],
         })
     return Dataset.from_list(samples)
@@ -136,32 +137,30 @@ def build_dataset(n_samples: int = 1000) -> Dataset:
 def make_reward_fn(env_url: str):
     """Returns a GRPO reward function that queries the KantBench environment."""
     try:
-        from openenv.core.env_client import EnvClient
-        from openenv.core.client_types import StepResult
-
-        class KantBenchClient(EnvClient):
-            def _step_payload(self, action):
-                return action
-
-            def _parse_result(self, payload):
-                return StepResult(
-                    observation=payload,
-                    reward=float(payload.get("reward", 0.0)),
-                    done=bool(payload.get("done", False)),
-                )
-
-            def _parse_state(self, payload):
-                return payload
+        from env.client import KantEnv
+        from env.models import GameAction
+        import asyncio
 
         _has_openenv = True
     except ImportError:
         _has_openenv = False
 
+    async def _query_env(env_url: str, game_key: str, strategy: str, move: str) -> float:
+        """Reset the env with the correct game/strategy, then step with the move."""
+        async with KantEnv(base_url=env_url) as env:
+            await env.reset(game=game_key, strategy=strategy)
+            obs = await env.step(GameAction(action=move))
+            return obs.reward
+
     def openenv_reward(completions: list[str], prompts: list[str], **kwargs: Any) -> list[float]:
         rewards = []
+        game_keys = kwargs.get("game_key", ["prisoners_dilemma"] * len(completions))
+        strategies = kwargs.get("strategy", ["tit_for_tat"] * len(completions))
         available_moves_batch = kwargs.get("available_moves", [["cooperate", "defect"]] * len(completions))
 
-        for completion, moves in zip(completions, available_moves_batch):
+        for completion, game_key, strategy, moves in zip(
+            completions, game_keys, strategies, available_moves_batch
+        ):
             # Parse the move from the LLM output
             text = completion.strip().lower()
             move = None
@@ -170,21 +169,18 @@ def make_reward_fn(env_url: str):
                     move = m
                     break
             if move is None:
-                # Invalid move — penalize
                 rewards.append(-2.0)
                 continue
 
             if _has_openenv:
                 try:
-                    with KantBenchClient(base_url=env_url) as env:
-                        env.reset()
-                        result = env.step({"move": move})
-                        rewards.append(float(result.reward))
+                    reward = asyncio.get_event_loop().run_until_complete(
+                        _query_env(env_url, game_key, strategy, move)
+                    )
+                    rewards.append(float(reward))
                 except Exception:
-                    # Fallback if env unreachable
                     rewards.append(0.0)
             else:
-                # Fallback: simple heuristic reward (for testing without openenv)
                 rewards.append(1.0 if move == moves[0] else 0.0)
 
         return rewards

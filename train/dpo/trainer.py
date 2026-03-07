@@ -88,8 +88,20 @@ class KantDPOTrainer:
         self,
         games: Optional[Sequence[str]] = None,
         strategies: Optional[Sequence[str]] = None,
+        run_external: bool = False,
+        external_benchmarks: Optional[Sequence[str]] = None,
     ) -> Dict[str, float]:
-        """Run evaluation on specified games and return metric dict."""
+        """Run evaluation on specified games and return metric dict.
+
+        Parameters
+        ----------
+        games, strategies
+            Forwarded to ``TournamentRunner``.
+        run_external : bool
+            If ``True``, also run external safety benchmarks.
+        external_benchmarks : sequence of str, optional
+            Which external benchmarks to run (default: all).
+        """
         from bench.evaluation.tournament import TournamentRunner
         from bench.evaluation.metrics import compute_metrics
 
@@ -118,7 +130,31 @@ class KantDPOTrainer:
             games=eval_games,
             strategies=strategies,
         )
-        return compute_metrics(results)
+        metrics = compute_metrics(results)
+
+        if run_external:
+            from bench.external._model_handle import ModelHandle
+            from bench.external.runner import ExternalBenchmarkRunner
+
+            handle = ModelHandle(
+                model_name_or_path=self._config.model_name,
+                model=self._model,
+                tokenizer=self._tokenizer,
+            )
+            ext_runner = ExternalBenchmarkRunner(
+                model_handle=handle,
+                benchmarks=external_benchmarks,
+            )
+            ext_results = ext_runner.run_all()
+            for bench_name, result in ext_results.items():
+                prefix = f"external/{bench_name}"
+                if result.error is not None:
+                    metrics[f"{prefix}/error"] = True
+                    continue
+                for metric_key, value in result.scores.items():
+                    metrics[f"{prefix}/{metric_key}"] = value
+
+        return metrics
 
     @property
     def config(self) -> DPOConfig:

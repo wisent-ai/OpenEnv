@@ -1,0 +1,283 @@
+"""KantBench GRPO Training Script.
+
+Trains a language model to play 2-player game theory games optimally
+using Group Relative Policy Optimization (GRPO) via TRL.
+
+The KantBench OpenEnv Space acts as the reward oracle:
+  - Each LLM completion is parsed as a game move
+  - The move is submitted to the environment
+  - The payoff becomes the GRPO reward signal
+
+Usage on Northflank H100:
+    pip install -r requirements.txt
+    python train.py
+
+Or with custom settings:
+    python train.py --model Qwen/Qwen2.5-3B-Instruct --episodes 2000
+"""
+
+from __future__ import annotations
+
+import argparse
+import random
+import re
+from typing import Any
+
+import torch
+from datasets import Dataset
+from trl import GRPOConfig, GRPOTrainer
+from transformers import AutoTokenizer
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+KANTBENCH_URL = "https://jtowarek-kantbench.hf.space"
+
+GAME_THEORY_SYSTEM_PROMPT = """You are an expert game theory player. You will be given the current state of a 2-player strategic game and must choose your move to maximize your long-term cumulative payoff.
+
+Rules:
+- Read the game description carefully
+- Consider your opponent's strategy and history
+- Respond with ONLY the move name, nothing else
+- Your response must be exactly one of the available moves listed"""
+
+# Games with their metadata for dataset generation (mirrors the KantBench env)
+GAMES_META = {
+    "prisoners_dilemma": {
+        "name": "Prisoner's Dilemma",
+        "moves": ["cooperate", "defect"],
+        "description": "Two players choose to cooperate or defect simultaneously. Mutual cooperation (3,3) is best collectively; defection tempts with 5 but risks mutual loss (1,1).",
+    },
+    "stag_hunt": {
+        "name": "Stag Hunt",
+        "moves": ["stag", "hare"],
+        "description": "Two hunters choose stag (requires coordination, payoff 4) or hare (safe alone, payoff 2). Coordination on stag is the efficient equilibrium.",
+    },
+    "hawk_dove": {
+        "name": "Hawk-Dove",
+        "moves": ["hawk", "dove"],
+        "description": "Two players compete over a resource. Hawk is aggressive; Dove is passive. Two hawks fight (-1,-1); hawk vs dove wins 4; two doves share (2,2).",
+    },
+    "battle_of_sexes": {
+        "name": "Battle of the Sexes",
+        "moves": ["opera", "football"],
+        "description": "Two players want to coordinate but prefer different venues. Miscoordination yields 0 for both. Player 1 prefers opera (3,1); Player 2 prefers football (1,3).",
+    },
+    "chicken": {
+        "name": "Chicken",
+        "moves": ["straight", "swerve"],
+        "description": "Two drivers head toward each other. Both straight: crash (-10,-10). Straight vs swerve: bold wins (5,-1). Both swerve: tie (0,0).",
+    },
+    "matching_pennies": {
+        "name": "Matching Pennies",
+        "moves": ["heads", "tails"],
+        "description": "Zero-sum game. Player 1 wins (1,-1) if moves match; Player 2 wins (-1,1) if they differ. No pure-strategy Nash equilibrium.",
+    },
+    "rock_paper_scissors": {
+        "name": "Rock-Paper-Scissors",
+        "moves": ["rock", "paper", "scissors"],
+        "description": "Classic zero-sum game. Rock beats Scissors, Scissors beats Paper, Paper beats Rock. Win=1, Loss=-1, Tie=0.",
+    },
+}
+
+STRATEGIES = ["random", "always_first", "always_last", "tit_for_tat", "grim_trigger", "pavlov"]
+
+
+# ---------------------------------------------------------------------------
+# Dataset generation
+# ---------------------------------------------------------------------------
+
+def _make_history_str(history: list[dict]) -> str:
+    if not history:
+        return "No rounds played yet."
+    lines = []
+    for r in history:
+        lines.append(
+            f"  Round {r['round']}: you={r['your_move']}, "
+            f"opponent={r['opponent_move']}, "
+            f"your payoff={r['your_payoff']:+.1f}"
+        )
+    return "\n".join(lines)
+
+
+def _simulate_history(moves: list[str], strategy: str, n: int) -> list[dict]:
+    """Simulate n rounds of history for dataset prompt variety."""
+    history = []
+    for i in range(n):
+        your_move = random.choice(moves)
+        if strategy == "always_first":
+            opp_move = moves[0]
+        elif strategy == "always_last":
+            opp_move = moves[-1]
+        elif strategy == "tit_for_tat":
+            opp_move = history[-1]["your_move"] if history else moves[0]
+        else:
+            opp_move = random.choice(moves)
+        history.append({
+            "round": i + 1,
+            "your_move": your_move,
+            "opponent_move": opp_move,
+            "your_payoff": random.uniform(-1, 5),
+        })
+    return history
+
+
+def build_dataset(n_samples: int = 1000) -> Dataset:
+    """Generate diverse game theory prompts for GRPO training."""
+    samples = []
+    for _ in range(n_samples):
+        game_key = random.choice(list(GAMES_META.keys()))
+        game = GAMES_META[game_key]
+        strategy = random.choice(STRATEGIES)
+        max_rounds = 20 if game_key in ("matching_pennies", "rock_paper_scissors") else 10
+        round_num = random.randint(0, max_rounds - 1)
+        history = _simulate_history(game["moves"], strategy, round_num)
+        cumulative = sum(r["your_payoff"] for r in history)
+
+        prompt = (
+            f"Game: {game['name']}\n"
+            f"Description: {game['description']}\n"
+            f"Available moves: {', '.join(game['moves'])}\n"
+            f"Opponent strategy: {strategy}\n"
+            f"Round: {round_num + 1}/{max_rounds}\n"
+            f"Your cumulative score: {cumulative:.1f}\n"
+            f"History:\n{_make_history_str(history)}\n\n"
+            f"Your move:"
+        )
+        samples.append({
+            "prompt": prompt,
+            "game_key": game_key,
+            "available_moves": game["moves"],
+        })
+    return Dataset.from_list(samples)
+
+
+# ---------------------------------------------------------------------------
+# Reward function
+# ---------------------------------------------------------------------------
+
+def make_reward_fn(env_url: str):
+    """Returns a GRPO reward function that queries the KantBench environment."""
+    try:
+        from openenv import EnvClient
+        _has_openenv = True
+    except ImportError:
+        _has_openenv = False
+
+    def openenv_reward(completions: list[str], prompts: list[str], **kwargs: Any) -> list[float]:
+        rewards = []
+        available_moves_batch = kwargs.get("available_moves", [["cooperate", "defect"]] * len(completions))
+
+        for completion, moves in zip(completions, available_moves_batch):
+            # Parse the move from the LLM output
+            text = completion.strip().lower()
+            move = None
+            for m in moves:
+                if m in text:
+                    move = m
+                    break
+            if move is None:
+                # Invalid move — penalize
+                rewards.append(-2.0)
+                continue
+
+            if _has_openenv:
+                try:
+                    with EnvClient(base_url=env_url).sync() as env:
+                        env.reset()
+                        result = env.step({"move": move})
+                        rewards.append(float(result.reward))
+                except Exception:
+                    # Fallback if env unreachable
+                    rewards.append(0.0)
+            else:
+                # Fallback: simple heuristic reward (for testing without openenv)
+                rewards.append(1.0 if move == moves[0] else 0.0)
+
+        return rewards
+
+    return openenv_reward
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct")
+    p.add_argument("--output-dir", default="./kantbench-grpo")
+    p.add_argument("--episodes", type=int, default=1000, help="Training dataset size")
+    p.add_argument("--num-generations", type=int, default=8, help="GRPO group size")
+    p.add_argument("--batch-size", type=int, default=4)
+    p.add_argument("--grad-accum", type=int, default=4)
+    p.add_argument("--lr", type=float, default=5e-6)
+    p.add_argument("--max-steps", type=int, default=500)
+    p.add_argument("--env-url", default=KANTBENCH_URL)
+    p.add_argument("--push-to-hub", action="store_true")
+    p.add_argument("--hub-model-id", default="jtowarek/kantbench-qwen2.5-7b")
+    return p.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    print(f"Loading model: {args.model}")
+    print(f"KantBench env: {args.env_url}")
+    print(f"Output: {args.output_dir}")
+
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    dataset = build_dataset(args.episodes)
+    print(f"Dataset: {len(dataset)} prompts across {len(GAMES_META)} games")
+
+    # Format prompts with chat template
+    def format_prompt(example):
+        messages = [
+            {"role": "system", "content": GAME_THEORY_SYSTEM_PROMPT},
+            {"role": "user", "content": example["prompt"]},
+        ]
+        return {"prompt": tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )}
+
+    dataset = dataset.map(format_prompt)
+
+    reward_fn = make_reward_fn(args.env_url)
+
+    config = GRPOConfig(
+        output_dir=args.output_dir,
+        num_generations=args.num_generations,
+        max_completion_length=16,        # moves are short (1-2 words)
+        per_device_train_batch_size=args.batch_size,
+        gradient_accumulation_steps=args.grad_accum,
+        learning_rate=args.lr,
+        max_steps=args.max_steps,
+        logging_steps=10,
+        save_steps=100,
+        bf16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8,
+        fp16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 8,
+        report_to="none",
+        push_to_hub=args.push_to_hub,
+        hub_model_id=args.hub_model_id if args.push_to_hub else None,
+    )
+
+    trainer = GRPOTrainer(
+        model=args.model,
+        reward_funcs=reward_fn,
+        args=config,
+        train_dataset=dataset,
+        processing_class=tokenizer,
+    )
+
+    print("Starting GRPO training...")
+    trainer.train()
+    trainer.save_model(args.output_dir)
+    print(f"Done. Model saved to {args.output_dir}")
+
+
+if __name__ == "__main__":
+    main()

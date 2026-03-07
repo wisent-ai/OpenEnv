@@ -28,6 +28,8 @@ Usage:
     python -m server.app
 """
 
+from fastapi.responses import RedirectResponse
+
 try:
     from openenv.core.env_server.http_server import create_app
 except Exception as e:  # pragma: no cover
@@ -48,6 +50,11 @@ app = create_app(
     env_name="KantBench",
     max_concurrent_envs=1,  # increase this number to allow more concurrent WebSocket sessions
 )
+
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/web")
 
 
 def main(host: str = "0.0.0.0", port: int = 8000):

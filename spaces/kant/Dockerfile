@@ -80,4 +80,4 @@ ENTRYPOINT []
 
 # Run the FastAPI server
 ENV ENABLE_WEB_INTERFACE=true
-CMD ["sh", "-c", "echo '===== Application Startup at '$(date '+%Y-%m-%d %H:%M:%S')' =====' && cd /app/env && uvicorn server.app:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "echo '===== Application Startup at '$(date '+%Y-%m-%d %H:%M:%S')' =====' && cd /app/env && /app/.venv/bin/uvicorn server.app:app --host 0.0.0.0 --port 8000 2>&1"]

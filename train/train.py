@@ -203,6 +203,7 @@ def parse_args():
     p.add_argument("--lr", type=float, default=5e-6)
     p.add_argument("--max-steps", type=int, default=500)
     p.add_argument("--env-url", default=KANTBENCH_URL)
+    p.add_argument("--report-to", default="wandb", help="Logging backend: wandb, tensorboard, or none")
     p.add_argument("--push-to-hub", action="store_true")
     p.add_argument("--hub-model-id", default="jtowarek/kantbench-qwen2.5-7b")
     return p.parse_args()
@@ -248,7 +249,7 @@ def main():
         save_steps=100,
         bf16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8,
         fp16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 8,
-        report_to="none",
+        report_to=args.report_to,
         push_to_hub=args.push_to_hub,
         hub_model_id=args.hub_model_id if args.push_to_hub else None,
     )

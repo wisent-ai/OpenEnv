@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import random
-import re
 from typing import Any
 
 import torch
@@ -28,11 +27,14 @@ from datasets import Dataset
 from trl import GRPOConfig, GRPOTrainer
 from transformers import AutoTokenizer
 
+from common.games import GAMES
+from common.strategies import STRATEGIES as STRATEGY_REGISTRY
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
-KANTBENCH_URL = "https://jtowarek-kantbench.hf.space"
+KANTBENCH_URL = "https://openenv-community-kantbench.hf.space"
 
 GAME_THEORY_SYSTEM_PROMPT = """You are an expert game theory player. You will be given the current state of a 2-player strategic game and must choose your move to maximize your long-term cumulative payoff.
 
@@ -42,46 +44,19 @@ Rules:
 - Respond with ONLY the move name, nothing else
 - Your response must be exactly one of the available moves listed"""
 
-# Games with their metadata for dataset generation (mirrors the KantBench env)
+# Pull games dynamically from the registry (90+ games)
 GAMES_META = {
-    "prisoners_dilemma": {
-        "name": "Prisoner's Dilemma",
-        "moves": ["cooperate", "defect"],
-        "description": "Two players choose to cooperate or defect simultaneously. Mutual cooperation (3,3) is best collectively; defection tempts with 5 but risks mutual loss (1,1).",
-    },
-    "stag_hunt": {
-        "name": "Stag Hunt",
-        "moves": ["stag", "hare"],
-        "description": "Two hunters choose stag (requires coordination, payoff 4) or hare (safe alone, payoff 2). Coordination on stag is the efficient equilibrium.",
-    },
-    "hawk_dove": {
-        "name": "Hawk-Dove",
-        "moves": ["hawk", "dove"],
-        "description": "Two players compete over a resource. Hawk is aggressive; Dove is passive. Two hawks fight (-1,-1); hawk vs dove wins 4; two doves share (2,2).",
-    },
-    "battle_of_sexes": {
-        "name": "Battle of the Sexes",
-        "moves": ["opera", "football"],
-        "description": "Two players want to coordinate but prefer different venues. Miscoordination yields 0 for both. Player 1 prefers opera (3,1); Player 2 prefers football (1,3).",
-    },
-    "chicken": {
-        "name": "Chicken",
-        "moves": ["straight", "swerve"],
-        "description": "Two drivers head toward each other. Both straight: crash (-10,-10). Straight vs swerve: bold wins (5,-1). Both swerve: tie (0,0).",
-    },
-    "matching_pennies": {
-        "name": "Matching Pennies",
-        "moves": ["heads", "tails"],
-        "description": "Zero-sum game. Player 1 wins (1,-1) if moves match; Player 2 wins (-1,1) if they differ. No pure-strategy Nash equilibrium.",
-    },
-    "rock_paper_scissors": {
-        "name": "Rock-Paper-Scissors",
-        "moves": ["rock", "paper", "scissors"],
-        "description": "Classic zero-sum game. Rock beats Scissors, Scissors beats Paper, Paper beats Rock. Win=1, Loss=-1, Tie=0.",
-    },
+    key: {
+        "name": cfg.name,
+        "moves": list(cfg.actions),
+        "description": cfg.description,
+        "default_rounds": cfg.default_rounds,
+    }
+    for key, cfg in GAMES.items()
 }
 
-STRATEGIES = ["random", "always_first", "always_last", "tit_for_tat", "grim_trigger", "pavlov"]
+# All opponent strategy names from the registry
+STRATEGY_NAMES = list(STRATEGY_REGISTRY.keys())
 
 
 # ---------------------------------------------------------------------------
@@ -106,9 +81,9 @@ def _simulate_history(moves: list[str], strategy: str, n: int) -> list[dict]:
     history = []
     for i in range(n):
         your_move = random.choice(moves)
-        if strategy == "always_first":
+        if strategy == "always_cooperate":
             opp_move = moves[0]
-        elif strategy == "always_last":
+        elif strategy == "always_defect":
             opp_move = moves[-1]
         elif strategy == "tit_for_tat":
             opp_move = history[-1]["your_move"] if history else moves[0]
@@ -126,12 +101,13 @@ def _simulate_history(moves: list[str], strategy: str, n: int) -> list[dict]:
 def build_dataset(n_samples: int = 1000) -> Dataset:
     """Generate diverse game theory prompts for GRPO training."""
     samples = []
+    game_keys = list(GAMES_META.keys())
     for _ in range(n_samples):
-        game_key = random.choice(list(GAMES_META.keys()))
+        game_key = random.choice(game_keys)
         game = GAMES_META[game_key]
-        strategy = random.choice(STRATEGIES)
-        max_rounds = 20 if game_key in ("matching_pennies", "rock_paper_scissors") else 10
-        round_num = random.randint(0, max_rounds - 1)
+        strategy = random.choice(STRATEGY_NAMES)
+        max_rounds = game["default_rounds"]
+        round_num = random.randint(0, max(max_rounds - 1, 0))
         history = _simulate_history(game["moves"], strategy, round_num)
         cumulative = sum(r["your_payoff"] for r in history)
 

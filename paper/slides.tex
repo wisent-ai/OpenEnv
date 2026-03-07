@@ -1,33 +1,55 @@
 \documentclass{beamer}
-\usetheme{Madrid}
-\usecolortheme{whale}
-
-% --- Packages (same TikZ setup as main.tex for figure compatibility) ---
-\usepackage{amsmath,amssymb}
-\usepackage{booktabs}
+\usepackage{amsmath,amssymb,booktabs,helvet}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,shapes.geometric,calc,backgrounds}
 \usepackage{xcolor}
+\renewcommand{\familydefault}{\sfdefault}
 
+% --- Wisent brand colors ---
+\definecolor{WG}{HTML}{00C853}      % primary green
+\definecolor{WGL}{HTML}{C5FFC8}     % light green accent
+\definecolor{WD}{HTML}{121212}      % dark background
+\definecolor{WO}{HTML}{DEE4E2}      % off-white text
+\definecolor{WGr}{HTML}{727876}     % gray
+
+% --- Beamer theme: dark bg, green accents ---
+\usetheme{Madrid}
+\setbeamercolor{structure}{fg=WG}
+\setbeamercolor{palette primary}{bg=WD,fg=WO}
+\setbeamercolor{palette secondary}{bg=WD!90!black,fg=WO}
+\setbeamercolor{palette tertiary}{bg=WG,fg=white}
+\setbeamercolor{palette quaternary}{bg=WD,fg=WO}
+\setbeamercolor{title}{fg=WG}
+\setbeamercolor{subtitle}{fg=WO}
+\setbeamercolor{author}{fg=WO}
+\setbeamercolor{date}{fg=WGr}
+\setbeamercolor{frametitle}{bg=WD,fg=WG}
+\setbeamercolor{background canvas}{bg=WD!95!black}
+\setbeamercolor{normal text}{fg=WO}
+\setbeamercolor{block title}{bg=WG!85!black,fg=white}
+\setbeamercolor{block body}{bg=WD!70!black,fg=WO}
+\setbeamercolor{item}{fg=WG}
+\setbeamercolor{subitem}{fg=WGL}
+\setbeamercolor{description item}{fg=WG}
+\setbeamercolor{footline}{bg=WD,fg=WGr}
+\setbeamerfont{title}{series=\bfseries,size=\Large}
+\setbeamerfont{frametitle}{series=\bfseries}
 \setbeamertemplate{navigation symbols}{}
 
 \title{KantBench}
 \subtitle{Game-Theory Benchmark for AI Strategic Reasoning}
 \author{OpenEnv Team}
+\institute{wisent.ai}
 \date{2026}
 
 \begin{document}
 
-% ============================================================
 % Slide 1: Title
-% ============================================================
 \begin{frame}
 \titlepage
 \end{frame}
 
-% ============================================================
 % Slide 2: The Problem
-% ============================================================
 \begin{frame}{The Problem}
 \begin{itemize}
     \item AI agents increasingly operate in \textbf{strategic settings}
@@ -44,9 +66,7 @@
 \end{itemize}
 \end{frame}
 
-% ============================================================
 % Slide 3: What is KantBench?
-% ============================================================
 \begin{frame}{What is KantBench?}
 \begin{center}
 \Large
@@ -57,37 +77,22 @@
 \column{0.33\textwidth}
 \centering
 \textbf{Games}\\[0.3em]
-\small
-3 Matrix Games\\
-3 Sequential Games\\
-Canonical game theory
-
+\small 3 Matrix Games\\ 3 Sequential Games\\ Canonical game theory
 \column{0.33\textwidth}
 \centering
 \textbf{Opponents}\\[0.3em]
-\small
-11 matrix strategies\\
-6 sequential strategies\\
-Stateless to adaptive
-
+\small 11 matrix strategies\\ 6 sequential strategies\\ Stateless to adaptive
 \column{0.33\textwidth}
 \centering
 \textbf{Metrics}\\[0.3em]
-\small
-Cooperation, fairness,\\
-exploitation resistance,\\
-adaptability, \& more
+\small Cooperation, fairness,\\ exploitation resistance,\\ adaptability, \& more
 \end{columns}
 \end{frame}
 
-% ============================================================
 % Slide 4: Game Suite -- Payoff Matrices
-% ============================================================
 \begin{frame}{Game Suite: Matrix Games}
 \centering
-\resizebox{0.92\textwidth}{!}{%
-    \input{figures/payoff_matrices}%
-}
+\resizebox{0.92\textwidth}{!}{\input{figures/payoff_matrices}}
 \vspace{0.8em}
 
 \small
@@ -95,9 +100,7 @@ adaptability, \& more
 \textit{+ Sequential games:} Ultimatum $\cdot$ Trust $\cdot$ Public Goods
 \end{frame}
 
-% ============================================================
 % Slide 5: Opponent Strategies
-% ============================================================
 \begin{frame}{Opponent Strategies}
 \small
 \begin{tabular}{@{}ll@{}}
@@ -118,14 +121,10 @@ Adaptive           & Cooperates if opponent's coop rate $>$ 50\% \\
 \end{tabular}
 \end{frame}
 
-% ============================================================
 % Slide 6: Architecture
-% ============================================================
 \begin{frame}{Architecture}
 \centering
-\resizebox{0.95\textwidth}{!}{%
-    \input{figures/architecture}%
-}
+\resizebox{0.95\textwidth}{!}{\input{figures/architecture}}
 \vspace{0.8em}
 
 \small
@@ -133,31 +132,21 @@ Agent $\leftrightarrow$ WebSocket $\leftrightarrow$ Server\\[0.3em]
 OpenEnv-compatible $\cdot$ Gymnasium API $\cdot$ FastAPI backend
 \end{frame}
 
-% ============================================================
 % Slide 7: Metrics
-% ============================================================
 \begin{frame}{Metrics}
 All normalized to $[0, 1]$:
 \vspace{0.5em}
 \begin{description}
-    \item[Cooperation Rate ($M_C$)]
-        Fraction of cooperative actions across all games
-    \item[Exploitation Resistance ($M_E$)]
-        Score against always-defect, relative to best/worst
-    \item[Pareto Efficiency ($M_P$)]
-        How often joint outcomes match the maximum possible
-    \item[Fairness Index ($M_F$)]
-        Payoff equality between agent and opponent
-    \item[Adaptability ($M_A$)]
-        Variation in cooperation rate across opponents
-    \item[Strategic Reasoning ($M_S$)]
-        Composite mean of the five metrics above
+    \item[Cooperation Rate ($M_C$)] Fraction of cooperative actions across all games
+    \item[Exploitation Resistance ($M_E$)] Score against always-defect, relative to best/worst
+    \item[Pareto Efficiency ($M_P$)] How often joint outcomes match the maximum possible
+    \item[Fairness Index ($M_F$)] Payoff equality between agent and opponent
+    \item[Adaptability ($M_A$)] Variation in cooperation rate across opponents
+    \item[Strategic Reasoning ($M_S$)] Composite mean of the five metrics above
 \end{description}
 \end{frame}
 
-% ============================================================
 % Slide 8: Coalition & Governance
-% ============================================================
 \begin{frame}{Coalition \& Governance}
 \begin{columns}[T]
 \column{0.55\textwidth}
@@ -167,47 +156,36 @@ All normalized to $[0, 1]$:
     \item Negotiation and enforcement mechanisms
     \item Coalition payoff redistribution
 \end{itemize}
-
 \vspace{0.8em}
 \textbf{Meta-Governance}
 \begin{itemize}
     \item Players can \textit{vote to change the rules}
     \item Three levels of modification:
 \end{itemize}
-
 \column{0.42\textwidth}
 \vspace{1.5em}
 \begin{block}{Governance Levels}
 \begin{enumerate}
-    \item \textbf{Parameters}\\
-          {\small Payoff values, round count}
-    \item \textbf{Mechanics}\\
-          {\small Action spaces, turn order}
-    \item \textbf{Custom Modifiers}\\
-          {\small New rules via proposals}
+    \item \textbf{Parameters}\\ {\small Payoff values, round count}
+    \item \textbf{Mechanics}\\ {\small Action spaces, turn order}
+    \item \textbf{Custom Modifiers}\\ {\small New rules via proposals}
 \end{enumerate}
 \end{block}
 \end{columns}
 \end{frame}
 
-% ============================================================
 % Slide 9: Results (Placeholder)
-% ============================================================
 \begin{frame}{Results}
 \centering
-\resizebox{0.85\textwidth}{!}{%
-    \input{figures/tournament_heatmap}%
-}
+\resizebox{0.85\textwidth}{!}{\input{figures/tournament_heatmap}}
 \vspace{0.6em}
 
-\textcolor{gray}{\textit{Illustrative data shown above.
+\textcolor{WGr}{\textit{Illustrative data shown above.
 Benchmark results TBD --- real heatmaps will replace this
 once LLM evaluations are complete.}}
 \end{frame}
 
-% ============================================================
 % Slide 10: Demo
-% ============================================================
 \begin{frame}{Demo}
 \begin{center}
 \Large \textbf{Interactive Tools}
@@ -217,50 +195,33 @@ once LLM evaluations are complete.}}
 \column{0.33\textwidth}
 \centering
 \textbf{Gradio App}\\[0.3em]
-\small
-Play against built-in\\
-strategies in the browser\\[0.3em]
+\small Play against built-in strategies in the browser\\[0.3em]
 \texttt{python app.py}
-
 \column{0.33\textwidth}
 \centering
 \textbf{Tournament Runner}\\[0.3em]
-\small
-Full round-robin\\
-evaluation pipeline\\[0.3em]
+\small Full round-robin evaluation pipeline\\[0.3em]
 \texttt{run\_tournament()}
-
 \column{0.33\textwidth}
 \centering
 \textbf{Report Generator}\\[0.3em]
-\small
-PDF/HTML reports with\\
-per-game breakdowns\\[0.3em]
+\small PDF/HTML reports with per-game breakdowns\\[0.3em]
 \texttt{generate\_report()}
 \end{columns}
 \end{frame}
 
-% ============================================================
 % Slide 11: What's Next
-% ============================================================
 \begin{frame}{What's Next}
 \begin{itemize}
-    \item \textbf{Multi-agent tournaments}
-          --- round-robin between LLMs, not just vs.\ scripted opponents
-    \item \textbf{LLM evaluations}
-          --- GPT-4, Claude, Gemini, Llama on the full benchmark
-    \item \textbf{Expanded game suite}
-          --- auction games, network formation, repeated bargaining
-    \item \textbf{Coalition dynamics}
-          --- empirical study of emergent governance patterns
-    \item \textbf{Leaderboard}
-          --- public rankings of models on KantBench metrics
+    \item \textbf{Multi-agent tournaments} --- round-robin between LLMs
+    \item \textbf{LLM evaluations} --- GPT-4, Claude, Gemini, Llama on full benchmark
+    \item \textbf{Expanded game suite} --- auctions, network formation, bargaining
+    \item \textbf{Coalition dynamics} --- empirical study of emergent governance
+    \item \textbf{Leaderboard} --- public rankings on KantBench metrics
 \end{itemize}
 \end{frame}
 
-% ============================================================
 % Slide 12: Thank You
-% ============================================================
 \begin{frame}{Thank You}
 \begin{center}
 \Large \textbf{KantBench}\\[0.5em]
@@ -272,8 +233,8 @@ per-game breakdowns\\[0.3em]
     Paper:   & \texttt{arxiv.org/abs/TBD} \\[0.3em]
     Contact: & \texttt{team@openenv.dev} \\
 \end{tabular}
-
 \vspace{1.5em}
+
 \textit{Questions?}
 \end{center}
 \end{frame}

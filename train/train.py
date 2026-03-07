@@ -160,7 +160,23 @@ def build_dataset(n_samples: int = 1000) -> Dataset:
 def make_reward_fn(env_url: str):
     """Returns a GRPO reward function that queries the KantBench environment."""
     try:
-        from openenv import EnvClient
+        from openenv.core.env_client import EnvClient
+        from openenv.core.client_types import StepResult
+
+        class KantBenchClient(EnvClient):
+            def _step_payload(self, action):
+                return action
+
+            def _parse_result(self, payload):
+                return StepResult(
+                    observation=payload,
+                    reward=float(payload.get("reward", 0.0)),
+                    done=bool(payload.get("done", False)),
+                )
+
+            def _parse_state(self, payload):
+                return payload
+
         _has_openenv = True
     except ImportError:
         _has_openenv = False
@@ -184,7 +200,7 @@ def make_reward_fn(env_url: str):
 
             if _has_openenv:
                 try:
-                    with EnvClient(base_url=env_url).sync() as env:
+                    with KantBenchClient(base_url=env_url) as env:
                         env.reset()
                         result = env.step({"move": move})
                         rewards.append(float(result.reward))

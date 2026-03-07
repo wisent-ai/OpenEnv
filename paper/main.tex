@@ -15,6 +15,7 @@
 \usepackage{subcaption}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{appendix}
 
 \hypersetup{
     colorlinks=true,
@@ -24,8 +25,8 @@
 }
 
 % --- Title ---
-\title{KantBench: A Game-Theory Benchmark for Evaluating\\
-Strategic Reasoning in AI Agents}
+\title{Kant: Teaching Ethical Reasoning to Language Models\\
+via Comprehensive Game-Theoretic Training}
 
 \author{
     Author One\thanks{Affiliation. Email: \texttt{author1@example.com}} \and
@@ -38,39 +39,64 @@ Strategic Reasoning in AI Agents}
 
 \maketitle
 
-% --- Front matter: abstract and introduction ---
+% === Abstract and Introduction (Section 1) ===
 \input{sections/front_matter}
 
-% --- Background and benchmark design ---
+% === Related Work (Section 3) ===
 \input{sections/background}
 
-% --- Architecture figure ---
+% === Framework Architecture (Section 4) ===
+% Architecture figure
 \begin{figure}[t]
     \centering
     \input{figures/architecture}
-    \caption{KantBench system architecture. The agent communicates with the
+    \caption{Kant system architecture. The agent communicates with the
     environment server over a WebSocket connection following the Gymnasium API
     convention. The server dispatches observations and computes payoffs via the
     game engine and strategy module.}
     \label{fig:architecture}
 \end{figure}
 
-% --- Technical details ---
 \input{sections/technical}
 
-% --- Payoff matrices figure ---
+% === Game Library (Section 5) ===
+\input{sections/games/library}
+
+% Payoff matrices figure
 \begin{figure}[t]
     \centering
     \input{figures/payoff_matrices}
-    \caption{Normal-form payoff matrices for the three matrix games in
-    KantBench. Each cell shows (row player, column player) payoffs.}
+    \caption{Normal-form payoff matrices for the classical matrix games.
+    Each cell shows (row player, column player) payoffs.}
     \label{fig:payoff-matrices}
 \end{figure}
 
-% --- Results and discussion ---
-\input{sections/results}
+% === N-Player Extensions (Section 6) ===
+\input{sections/games/nplayer}
 
-% --- Tournament heatmap figure ---
+% === Coalition Formation (Section 7) ===
+\input{sections/games/coalition}
+
+% === Meta-Governance Engine (Section 8) ===
+\input{sections/games/governance}
+
+% Governance flow figure
+\begin{figure}[t]
+    \centering
+    \input{figures/governance_flow}
+    \caption{Meta-governance proposal--vote--apply flow. Between object-game
+    rounds, players propose rule modifications, vote democratically, and
+    approved changes are applied via composable mechanisms.}
+    \label{fig:governance-flow}
+\end{figure}
+
+% === Dynamic Game Creation (Section 9) ===
+\input{sections/games/dynamic}
+
+% === Evaluation Protocol (Section 10) ===
+\input{sections/methods/eval_protocol}
+
+% Tournament heatmap figure
 \begin{figure}[t]
     \centering
     \input{figures/tournament_heatmap}
@@ -79,11 +105,43 @@ Strategic Reasoning in AI Agents}
     \label{fig:heatmap}
 \end{figure}
 
-% --- Conclusion ---
+% === Training Pipeline (Section 11) ===
+\input{sections/methods/training}
+
+% Training pipeline figure
+\begin{figure}[t]
+    \centering
+    \input{figures/training_pipeline}
+    \caption{GRPO/DPO training pipeline. The LLM policy interacts with game
+    environments to collect trajectories, which are processed through either
+    GRPO (group relative rewards) or DPO (preference pairs) to update the
+    policy. A curriculum schedule progressively expands game domains.}
+    \label{fig:training-pipeline}
+\end{figure}
+
+% === Safety Transfer Evaluation (Section 12) ===
+\input{sections/methods/safety}
+
+% === Discussion (Section 13) ===
+\input{sections/methods/discussion}
+
+% === Results stub (inputs from methods/) ===
+\input{sections/results}
+
+% === Conclusion and Future Work (Section 14) ===
 \input{sections/conclusion}
 
 % --- References ---
 \bibliographystyle{plainnat}
 \bibliography{references}
+
+% --- Appendices ---
+\begin{appendices}
+\input{sections/appendix/games_catalog}
+\input{sections/appendix/formal}
+\input{sections/appendix/implementation}
+\input{sections/appendix/results_ext}
+\input{sections/appendix/reproducibility}
+\end{appendices}
 
 \end{document}

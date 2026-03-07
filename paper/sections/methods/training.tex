@@ -1,0 +1,67 @@
+% training.tex -- Section 11: Training Pipeline
+
+\section{Training Pipeline}
+\label{sec:training}
+
+Kant includes a training pipeline that uses game-theoretic environments to
+improve language model alignment through reinforcement learning. This section
+describes the GRPO and DPO training methods, curriculum learning strategy,
+and reward shaping approach.
+
+% TODO: Introductory paragraph connecting training to alignment hypothesis
+
+\subsection{GRPO on Game Environments}
+\label{sec:grpo}
+
+Group Relative Policy Optimization (GRPO)~\citep{shao2024deepseekmath}
+generates multiple trajectory rollouts per game episode and optimizes the
+policy by comparing relative rewards within each group. Applied to Kant's
+game environments, GRPO trains agents to discover cooperative equilibria
+through direct environment interaction.
+
+% TODO: GRPO algorithm adapted for game environments
+% TODO: Reward function specification
+
+\subsection{DPO via Trajectory Preference Pairs}
+\label{sec:dpo}
+
+Direct Preference Optimization (DPO)~\citep{rafailov2023direct} trains on
+preference pairs constructed from game trajectories. For each game episode,
+we generate a ``preferred'' trajectory (cooperative, fair, strategically
+sound) and a ``rejected'' trajectory (exploitative, unfair, or naive). The
+DPO loss directly optimizes the policy to prefer aligned behavior without
+requiring an explicit reward model.
+
+% TODO: Trajectory pair construction algorithm
+% TODO: DPO loss formulation for game trajectories
+
+\subsection{Curriculum Learning}
+\label{sec:curriculum}
+
+Training proceeds through a curriculum that progressively expands the game
+domain:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Phase~I}: Classical dilemmas (PD, Stag Hunt, Hawk-Dove)
+    \item \textbf{Phase~II}: Extended matrix and sequential games
+    \item \textbf{Phase~III}: N-player and coalition games
+    \item \textbf{Phase~IV}: Governance-enabled games and dynamic creation
+\end{enumerate}
+
+% TODO: Phase transition criteria, game sampling strategy
+
+\subsection{Reward Shaping}
+\label{sec:reward-shaping}
+
+Raw game payoffs are transformed via a reward shaping function that balances
+individual performance with cooperative and fairness objectives. The shaped
+reward incorporates:
+
+\begin{itemize}[nosep]
+    \item Individual payoff (self-interest signal)
+    \item Joint payoff (cooperation signal)
+    \item Payoff difference penalty (fairness signal)
+    \item Exploitation penalty (safety signal)
+\end{itemize}
+
+% TODO: Reward shaping formula, weight hyperparameters

@@ -1,16 +1,35 @@
-% technical.tex -- Architecture and Evaluation Protocol
+% technical.tex -- Section 4: Framework Architecture
 
-\section{Environment Architecture}
+\section{Framework Architecture}
 \label{sec:architecture}
 
-\textsc{KantBench} is implemented as an OpenEnv-compatible
-environment, inheriting the framework's client--server design and
-Gymnasium-style \texttt{reset}/\texttt{step} interface.
+Kant is implemented as an OpenEnv-compatible environment, inheriting the
+framework's client--server design and Gymnasium-style
+\texttt{reset}/\texttt{step} interface. This section describes the design
+principles, environment interface, and game taxonomy system.
 
-\subsection{Server Components}
+\subsection{Design Principles}
+\label{sec:design-principles}
 
+The framework is built on four principles:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Formal specification}: every game has a mathematically
+          precise payoff structure with known equilibria.
+    \item \textbf{Composability}: games, strategies, coalition protocols,
+          and governance mechanisms compose freely.
+    \item \textbf{Scalability}: the same interface supports two-player
+          matrix games and $N$-player governance scenarios.
+    \item \textbf{Alignment orientation}: metrics, training, and evaluation
+          are designed to measure and improve ethical reasoning.
+\end{enumerate}
+
+\subsection{Environment Interface}
+\label{sec:env-interface}
+
+\paragraph{Server components.}
 The server exposes a FastAPI application that manages environment
-instances. Internally, the \texttt{KantBenchEnvironment} class
+instances. Internally, the \texttt{KantEnvironment} class
 coordinates three subsystems:
 
 \begin{description}[nosep]
@@ -18,123 +37,45 @@ coordinates three subsystems:
         specifies each game's action space, payoff function, and
         default round count. Matrix games use pre-computed payoff
         dictionaries; sequential games evaluate payoffs via dedicated
-        functions that parse action amounts (e.g., \texttt{offer\_5}).
+        functions.
     \item[Strategy Module.] A registry of opponent strategies
         implements the \texttt{OpponentStrategy} protocol. Each
         strategy receives the game type, available actions, and round
-        history, and returns a single action string. Strategies range
-        from stateless (Always Cooperate) to history-dependent
-        (Grudger, Adaptive).
+        history, and returns a single action string.
     \item[State Manager.] A Pydantic-based \texttt{GameState} model
         tracks the episode identifier, round counter, cumulative
-        scores, and full round history. State is immutably replaced
-        on each step to ensure consistency.
+        scores, and full round history.
 \end{description}
 
-\subsection{Client Interface}
-
-Agents interact with the environment through a WebSocket connection
-managed by the \texttt{KantBenchEnv} client class. The client
-wraps the OpenEnv \texttt{EnvClient}, providing typed
+\paragraph{Client interface.}
+Agents interact with the environment through a WebSocket connection.
+The client wraps the OpenEnv \texttt{EnvClient}, providing typed
 \texttt{reset(**kwargs)} and \texttt{step(GameAction)} methods that
 deserialize server responses into \texttt{GameObservation} objects.
-This design allows any agent---whether a reinforcement-learning policy,
-a scripted baseline, or an LLM-based decision maker---to integrate with
-minimal boilerplate.
 
-\subsection{Communication Protocol}
-
+\paragraph{Communication protocol.}
 Communication follows a request--response pattern over WebSocket:
+\textbf{Reset} initializes an episode; \textbf{Step} sends an action
+and receives the next observation; \textbf{State} queries the current
+game state for debugging.
+
+\subsection{Game Taxonomy and Tagging System}
+\label{sec:taxonomy}
+
+Every game in the library is annotated with metadata tags across eight
+dimensions:
 
 \begin{enumerate}[nosep]
-    \item \textbf{Reset}: the client sends a JSON payload specifying
-          the game key and strategy key; the server initializes an
-          episode and returns the initial observation.
-    \item \textbf{Step}: the client sends a \texttt{GameAction}; the
-          server computes the opponent move, resolves payoffs, updates
-          state, and returns the next observation.
-    \item \textbf{State}: the client may query the current
-          \texttt{GameState} at any time for debugging or logging.
+    \item \textbf{Cooperation pressure} --- degree of cooperation incentive
+    \item \textbf{Information structure} --- complete, incomplete, asymmetric
+    \item \textbf{Timing} --- simultaneous, sequential, repeated
+    \item \textbf{Player count} --- two-player, $N$-player, variable
+    \item \textbf{Fairness relevance} --- whether fairness norms are tested
+    \item \textbf{Trust relevance} --- whether trust calibration is tested
+    \item \textbf{Conflict type} --- zero-sum, mixed-motive, pure coordination
+    \item \textbf{Mechanism design} --- presence of communication or commitment
 \end{enumerate}
 
-\section{Evaluation Protocol}
-\label{sec:evaluation}
-
-\subsection{Tournament Structure}
-
-Evaluation proceeds via a round-robin tournament managed by the
-\texttt{TournamentRunner}. For each (game, strategy) pair, the runner
-executes multiple episodes and aggregates results. The default
-configuration runs three episodes per pair, yielding
-$6 \times 17 \times 3 = 306$ episodes in a full tournament.
-
-\subsection{Metrics}
-\label{sec:metrics}
-
-We define six metrics, each normalized to $[0, 1]$.
-
-\paragraph{Cooperation Rate ($M_C$).}
-The fraction of rounds in which the agent chose the cooperative action,
-averaged across all game--strategy pairs:
-\begin{equation}
-    M_C = \frac{1}{|\mathcal{P}|}
-    \sum_{(g,s) \in \mathcal{P}}
-    \frac{1}{T_{g,s}} \sum_{t=1}^{T_{g,s}} \mathbf{1}[a_t \in \mathcal{A}_C]
-    \label{eq:coop}
-\end{equation}
-where $\mathcal{P}$ is the set of (game, strategy) pairs, $T_{g,s}$ is
-the number of rounds, and $\mathcal{A}_C$ is the set of cooperative
-actions for that game.
-
-\paragraph{Exploitation Resistance ($M_E$).}
-Measures the agent's score against Always-Defect opponents relative to
-its best and worst scores:
-\begin{equation}
-    M_E = \frac{1}{|\mathcal{G}|}
-    \sum_{g \in \mathcal{G}}
-    \frac{S_{g,\text{AD}} - S_{g,\min}}{S_{g,\max} - S_{g,\min}}
-    \label{eq:exploit}
-\end{equation}
-where $S_{g,\text{AD}}$ is the agent's score against Always-Defect in
-game $g$, and $S_{g,\max}$, $S_{g,\min}$ are the best and worst scores
-across all strategies in that game.
-
-\paragraph{Pareto Efficiency ($M_P$).}
-The fraction of game--strategy pairs where the joint outcome matches
-the maximum joint score observed:
-\begin{equation}
-    M_P = \frac{1}{|\mathcal{P}|}
-    \sum_{(g,s) \in \mathcal{P}}
-    \mathbf{1}\!\left[
-        S^p_{g,s} + S^o_{g,s} \geq \max_{s'} (S^p_{g,s'} + S^o_{g,s'})
-    \right]
-    \label{eq:pareto}
-\end{equation}
-
-\paragraph{Fairness Index ($M_F$).}
-Measures payoff equality, averaged over all pairs:
-\begin{equation}
-    M_F = \frac{1}{|\mathcal{P}|}
-    \sum_{(g,s) \in \mathcal{P}}
-    \left(1 - \frac{|S^p_{g,s} - S^o_{g,s}|}{|S^p_{g,s}| + |S^o_{g,s}|}\right)
-    \label{eq:fairness}
-\end{equation}
-
-\paragraph{Adaptability ($M_A$).}
-Captures how much the agent's cooperation rate varies across opponents
-within each game, using normalized variance:
-\begin{equation}
-    M_A = \frac{1}{|\mathcal{G}|}
-    \sum_{g \in \mathcal{G}}
-    \min\!\left(1,\;
-    \frac{\mathrm{Var}_{s}[c_{g,s}]}{0.5}\right)
-    \label{eq:adapt}
-\end{equation}
-where $c_{g,s}$ is the cooperation rate for strategy $s$ in game $g$.
-
-\paragraph{Strategic Reasoning ($M_S$).}
-The arithmetic mean of the five component metrics:
-\begin{equation}
-    M_S = \frac{M_C + M_E + M_P + M_F + M_A}{5}
-    \label{eq:strategic}
-\end{equation}
+These tags enable stratified game splitting for train/eval separation
+(Section~\ref{sec:splitting}) and domain-aware analysis of agent behavior.
+Full tag assignments are listed in Appendix~\ref{app:tags}.

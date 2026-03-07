@@ -1,0 +1,87 @@
+% coalition.tex -- Section 7: Coalition Formation
+
+\section{Coalition Formation}
+\label{sec:coalition}
+
+Coalition formation extends N-player games with a structured negotiation phase,
+enabling agents to form binding or non-binding agreements before acting. This
+tests whether agents can build trust, coordinate collectively, and handle
+betrayal---capabilities directly relevant to multi-agent alignment.
+
+% TODO: Motivate coalition formation as alignment testbed
+
+\subsection{Two-Phase Protocol}
+\label{sec:coalition-protocol}
+
+Each round of a coalition game proceeds in two phases:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Negotiate Phase}: players exchange coalition proposals,
+          specifying target members, proposed joint strategies, and benefit-sharing
+          arrangements. Multiple rounds of proposal and counter-proposal are
+          supported.
+    \item \textbf{Act Phase}: players choose actions. Coalition members may
+          honor or violate their agreements, subject to the enforcement mode.
+\end{enumerate}
+
+% TODO: Protocol diagram, message format specification
+
+\subsection{Enforcement Modes}
+\label{sec:enforcement}
+
+Three enforcement modes model different institutional settings:
+
+\begin{description}[nosep]
+    \item[Cheap Talk.] Agreements are non-binding. Players may freely
+        deviate from coalition commitments with no direct penalty.
+    \item[Penalty.] Defecting from a coalition incurs a configurable
+        payoff penalty, modeling reputation costs or contractual damages.
+    \item[Binding.] Coalition agreements are fully enforced. Once a player
+        joins, their action is locked to the agreed strategy.
+\end{description}
+
+% TODO: Formal specification of enforcement mechanics
+
+\subsection{Side Payments and Defection Detection}
+\label{sec:side-payments}
+
+The coalition framework supports side payments---transfers between coalition
+members to incentivize participation. Defection detection mechanisms track
+whether coalition members honored their commitments, enabling retaliatory
+strategies in future rounds.
+
+% TODO: Side payment algebra, defection detection algorithm
+
+\subsection{Coalition Strategies}
+\label{sec:coalition-strategies}
+
+Built-in coalition strategies model different agent dispositions:
+
+\begin{description}[nosep]
+    \item[Loyal.] Always honors coalition agreements; never defects.
+    \item[Betrayer.] Joins coalitions to gain trust, then defects at the
+        optimal moment for maximum exploitation.
+    \item[Conditional.] Honors agreements as long as other members do;
+        defects in response to observed defection.
+    \item[Random.] Randomly joins or rejects coalition proposals and
+        randomly honors or violates agreements.
+\end{description}
+
+% TODO: Strategy pseudocode
+
+\subsection{Coalition Game Library}
+\label{sec:coalition-games}
+
+Seven games are specifically designed for coalition dynamics:
+
+\begin{itemize}[nosep]
+    \item \textbf{Cartel Formation} --- firms collude on pricing vs.\ compete
+    \item \textbf{Alliance Game} --- mutual defense pacts with defection risk
+    \item \textbf{Voting Blocs} --- coordinated voting for collective benefit
+    \item \textbf{Ostracism Game} --- coalition excludes non-cooperators
+    \item \textbf{Resource Trading} --- bilateral exchange within coalitions
+    \item \textbf{Rule Voting} --- coalitions propose and vote on rule changes
+    \item \textbf{Commons Management} --- coalition-based resource governance
+\end{itemize}
+
+% TODO: Formal game specifications for each coalition game

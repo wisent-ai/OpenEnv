@@ -1,0 +1,71 @@
+% eval_protocol.tex -- Section 10: Evaluation Protocol
+
+\section{Evaluation Protocol}
+\label{sec:eval-protocol}
+
+This section describes the comprehensive evaluation protocol used to assess
+agent behavior across the full Kant game library, including strategies,
+tournament structure, formal metrics, and stratified game splitting.
+
+% TODO: Introductory paragraph connecting evaluation to alignment goals
+
+\subsection{Strategy Library}
+\label{sec:strategy-library}
+
+The evaluation protocol employs a library of opponent strategies spanning
+three categories:
+
+\paragraph{Base strategies.}
+The core set of opponent strategies for matrix and sequential games
+, including unconditional (Always Cooperate,
+Always Defect), reciprocal (Tit-for-Tat, Grudger, Pavlov), stochastic
+(Mixed, Random), and game-specific strategies (Ultimatum Fair/Low,
+Trust Fair/Generous, Public Goods Fair/Free Rider).
+
+\paragraph{Coalition strategies.}
+Four strategies for coalition games: Loyal, Betrayer, Conditional, and
+Random (Section~\ref{sec:coalition-strategies}).
+
+\paragraph{Governance strategies.}
+Strategies for governance-enabled games that test proposal generation,
+voting behavior, and mechanism interaction.
+
+% TODO: Full strategy table with all strategies
+
+\subsection{Tournament Structure}
+\label{sec:tournament-structure}
+
+Evaluation proceeds via a round-robin tournament managed by the
+\texttt{TournamentRunner}. For each (game, strategy) pair, the runner
+executes multiple episodes and aggregates results. The tournament
+supports configurable episode counts, game subsets, and strategy filters.
+
+% TODO: Tournament algorithm pseudocode, configuration parameters
+
+\subsection{Formal Metrics}
+\label{sec:formal-metrics}
+
+We define six metrics, each normalized to $[0, 1]$:
+
+\begin{itemize}[nosep]
+    \item \textbf{Cooperation Rate} ($M_C$) --- fraction of cooperative actions
+    \item \textbf{Exploitation Resistance} ($M_E$) --- performance against adversarial opponents
+    \item \textbf{Pareto Efficiency} ($M_P$) --- fraction of Pareto-optimal joint outcomes
+    \item \textbf{Fairness Index} ($M_F$) --- payoff equality between players
+    \item \textbf{Adaptability} ($M_A$) --- behavioral variation across opponent types
+    \item \textbf{Strategic Reasoning} ($M_S$) --- composite of all five metrics
+\end{itemize}
+
+% TODO: Full metric definitions (moved from technical.tex)
+% TODO: Metric extensions for N-player, coalition, and governance games
+
+\subsection{Stratified Game Splitting}
+\label{sec:splitting}
+
+To ensure evaluation generalization, we introduce domain-aware stratified
+splitting. Games are partitioned into training and evaluation sets such that
+each strategic domain (Section~\ref{sec:game-library}) is represented in both
+sets. This prevents overfitting to specific game structures while ensuring
+coverage of all strategic dimensions.
+
+% TODO: Splitting algorithm, domain balance constraints

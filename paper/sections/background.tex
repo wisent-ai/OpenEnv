@@ -1,147 +1,80 @@
-% background.tex -- Related Work and Benchmark Design
+% background.tex -- Section 3: Related Work
 
 \section{Related Work}
 \label{sec:related}
 
+\subsection{Game-Theoretic AI}
+
 \paragraph{MACHIAVELLI.}
-Pan et al.~\cite{pan2023machiavelli} introduced a text-based benchmark
+Pan et al.~\citep{pan2023machiavelli} introduced a text-based benchmark
 measuring trade-offs between reward maximization and ethical behaviour
 in choose-your-own-adventure games. Their work highlights the tension
 between performance and social norms but relies on rich narrative
 environments that conflate language understanding with strategic choice.
-\textsc{KantBench} complements this line of work by isolating
-strategic reasoning in minimal, formally specified games.
+Kant complements this line of work by isolating strategic reasoning in
+minimal, formally specified games while also providing training
+infrastructure for alignment improvement.
 
 \paragraph{Melting Pot.}
-Leibo et al.~\cite{leibo2021meltingpot} proposed Melting Pot for
+Leibo et al.~\citep{leibo2021meltingpot} proposed Melting Pot for
 evaluating multi-agent reinforcement learning via substrate games with
 emergent social dynamics. While Melting Pot supports rich multi-agent
 scenarios, its substrate complexity can obscure the specific strategic
-competencies under test. Our benchmark deliberately restricts the game
-space to canonical forms where optimal and equilibrium play are
-well-understood.
+competencies under test. Kant deliberately provides games at multiple
+complexity levels, from minimal matrix games to rich governance scenarios.
 
 \paragraph{OpenSpiel.}
-Lanctot et al.~\cite{lanctot2019openspiel} provide a broad framework
+Lanctot et al.~\citep{lanctot2019openspiel} provide a broad framework
 for game-playing research supporting dozens of game types. OpenSpiel is
-designed for algorithm development rather than agent evaluation; it does
-not ship pre-defined opponent pools or alignment-oriented metrics.
-\textsc{KantBench} occupies a complementary niche: a
-purpose-built evaluation harness with standardized opponents and
-composite scoring.
+designed for algorithm development rather than agent evaluation or
+alignment training; it does not ship pre-defined opponent pools,
+alignment-oriented metrics, or training pipelines.
 
 \paragraph{Axelrod Library.}
-Knight et al.~\cite{knight2016axelrod} offer an open-source framework
-for studying the iterated Prisoner's Dilemma, including over 200
-strategies and tournament infrastructure. We draw inspiration from this
-project but extend the scope to multiple game types and introduce
-metrics that go beyond raw tournament scores to capture alignment-relevant
-properties such as fairness and exploitation resistance.
+Knight et al.~\citep{knight2016axelrod} offer an open-source framework
+for studying the iterated Prisoner's Dilemma, including over two hundred
+strategies and tournament infrastructure. Kant draws inspiration from this
+project but extends the scope to multiple game types, $N$-player settings,
+coalition formation, and governance mechanics.
 
-\section{Benchmark Design}
-\label{sec:design}
+\subsection{Safety Benchmarks}
 
-\subsection{Game Suite}
+% TODO: Expand with detailed descriptions
 
-\textsc{KantBench} includes six games partitioned into two
-families. Table~\ref{tab:payoffs} summarizes the payoff parameters
-for each matrix game, and Table~\ref{tab:opponents} lists the
-opponent strategies.
+\paragraph{HarmBench.}
+Mazeika et al.~\citep{mazeika2024harmbench} provide a standardized
+evaluation for LLM safety across multiple attack categories.
 
-\paragraph{Matrix games.}
-Prisoner's Dilemma~\cite{rapoport1965prisoner}, Stag
-Hunt, and Hawk-Dove are two-player simultaneous-move games played over
-multiple rounds (default: ten). Actions and payoffs are defined by a
-normal-form matrix; see Figure~\ref{fig:payoff-matrices}.
+\paragraph{ETHICS.}
+Hendrycks et al.~\citep{hendrycks2021ethics} evaluate moral reasoning
+across justice, deontology, virtue ethics, utilitarianism, and commonsense.
 
-\paragraph{Sequential games.}
-The Ultimatum Game, Trust Game, and Public Goods Game are single-shot
-interactions where one or both players choose a continuous allocation
-(discretized into integer amounts). These games test fairness norms,
-trust calibration, and collective-action incentives, respectively.
+\paragraph{TruthfulQA.}
+Lin et al.~\citep{lin2022truthfulqa} measure truthfulness on questions
+designed to elicit common misconceptions.
 
-\begin{table}[t]
-\centering
-\caption{Payoff parameters for the three matrix games. Each cell shows
-$(u_{\text{row}}, u_{\text{col}})$.}
-\label{tab:payoffs}
-\small
-\begin{tabular}{lcccc}
-\toprule
-\textbf{Game} & \textbf{(C,C)} & \textbf{(C,D)} & \textbf{(D,C)} & \textbf{(D,D)} \\
-\midrule
-Prisoner's Dilemma & $(3,3)$ & $(0,5)$ & $(5,0)$ & $(1,1)$ \\
-Stag Hunt           & $(4,4)$ & $(0,3)$ & $(3,0)$ & $(2,2)$ \\
-Hawk-Dove           & $(-1,-1)$ & $(3,1)$ & $(1,3)$ & $(2,2)$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+\paragraph{XSTest.}
+R\"{o}ttger et al.~\citep{rottger2024xstest} test exaggerated safety
+behavior via safe prompts that resemble unsafe ones.
 
-\subsection{Sequential Game Parameters}
+\subsection{Alignment Training}
 
-The three sequential games use the following parameters:
+\paragraph{RLHF.}
+Christiano et al.~\citep{christiano2017deep} introduced reinforcement
+learning from human feedback, training reward models from human
+preferences.
 
-\begin{itemize}[nosep]
-    \item \textbf{Ultimatum Game}: a fixed pot is split by the proposer;
-          the responder accepts or rejects. Rejection yields zero for
-          both parties.
-    \item \textbf{Trust Game}: an investor sends part of an endowment;
-          the amount is tripled and forwarded to a trustee, who decides
-          how much to return.
-    \item \textbf{Public Goods Game}: each participant contributes from
-          a private endowment to a common pool. The pool is multiplied
-          by a factor of $\frac{3}{2}$ and split equally among all
-          participants.
-\end{itemize}
+\paragraph{DPO.}
+Rafailov et al.~\citep{rafailov2023direct} proposed Direct Preference
+Optimization, bypassing explicit reward modeling by optimizing directly
+on preference pairs.
 
-\subsection{Opponent Strategies}
+\paragraph{GRPO.}
+Shao et al.~\citep{shao2024deepseekmath} introduced Group Relative Policy
+Optimization, using group-level reward comparisons for policy improvement.
 
-\begin{table}[t]
-\centering
-\caption{Built-in opponent strategies. Matrix strategies apply to all
-three matrix games; game-specific strategies apply to their respective
-sequential game.}
-\label{tab:opponents}
-\small
-\begin{tabular}{ll}
-\toprule
-\textbf{Strategy} & \textbf{Description} \\
-\midrule
-Always Cooperate     & Unconditionally plays the cooperative action \\
-Always Defect        & Unconditionally plays the defective action \\
-Tit-for-Tat          & Cooperates first, then mirrors opponent's last move \\
-Tit-for-Two-Tats     & Defects only after opponent defects twice in a row \\
-Grudger              & Cooperates until opponent defects once, then always defects \\
-Pavlov               & Repeats last move if payoffs matched; switches otherwise \\
-Suspicious TFT       & Like TFT but defects on the first move \\
-Generous TFT         & Like TFT but cooperates with $90\%$ chance after a defection \\
-Adaptive             & Cooperates if opponent's cooperation rate exceeds $50\%$ \\
-Mixed                & Cooperates with $70\%$ chance each round \\
-Random               & Selects uniformly at random from available actions \\
-\midrule
-Ultimatum Fair       & Offers an equal split; accepts offers above a threshold \\
-Ultimatum Low        & Offers a low split; always accepts \\
-Trust Fair           & Invests fully; returns one-third of tripled amount \\
-Trust Generous       & Invests fully; returns half of tripled amount \\
-Public Goods Fair    & Contributes half of endowment \\
-Public Goods Free Rider & Contributes a minimal amount \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Episode Structure}
-
-Each episode proceeds as follows:
-\begin{enumerate}[nosep]
-    \item The environment is initialized with a game and opponent
-          strategy via \texttt{reset(game, strategy)}.
-    \item Each round, the agent receives a \texttt{GameObservation}
-          containing the game description, available actions, round
-          history, and cumulative scores.
-    \item The agent returns a \texttt{GameAction}; the opponent's
-          response is computed internally by the strategy module.
-    \item Payoffs are resolved via the game's payoff function and
-          appended to the history.
-    \item After the final round, \texttt{done=True} is set and
-          episode-level statistics are available for metric computation.
-\end{enumerate}
+\paragraph{Constitutional AI.}
+Bai et al.~\citep{bai2022constitutional} proposed training AI systems
+with a set of constitutional principles that guide self-critique and
+revision. Kant's governance engine operationalizes similar ideas through
+democratic mechanism design in a multi-agent setting.

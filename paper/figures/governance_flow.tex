@@ -1,0 +1,47 @@
+% governance_flow.tex -- TikZ diagram of governance proposal -> vote -> apply flow
+\begin{tikzpicture}[
+    node distance=1.5cm and 2cm,
+    phase/.style={rectangle, draw=blue!70!black, fill=blue!10,
+        minimum width=2.5cm, minimum height=0.8cm, align=center,
+        font=\small\bfseries, rounded corners=3pt},
+    action/.style={rectangle, draw=green!60!black, fill=green!8,
+        minimum width=2.2cm, minimum height=0.7cm, align=center,
+        font=\small, rounded corners=2pt},
+    decision/.style={diamond, draw=orange!70!black, fill=orange!10,
+        minimum width=1.5cm, minimum height=1cm, align=center,
+        font=\small, aspect=2},
+    arrow/.style={-{Stealth[length=6pt]}, thick, draw=gray!70!black},
+    label/.style={font=\scriptsize\itshape, text=gray!60!black}
+]
+
+% Main flow
+\node[phase] (play) {Object Game\\Round $t$};
+\node[phase, right=of play] (propose) {Governance\\Phase};
+\node[action, right=of propose] (vote) {Democratic\\Vote};
+\node[decision, right=of vote] (approve) {Approved?};
+\node[action, above right=0.8cm and 1.2cm of approve] (apply) {Apply\\Mechanism};
+\node[phase, below right=0.8cm and 1.2cm of approve] (next) {Object Game\\Round $t+1$};
+
+% Arrows
+\draw[arrow] (play) -- (propose);
+\draw[arrow] (propose) -- (vote);
+\draw[arrow] (vote) -- (approve);
+\draw[arrow] (approve) -- node[label, above left] {Yes} (apply);
+\draw[arrow] (approve) -- node[label, below left] {No} (next);
+\draw[arrow] (apply) -| (next);
+
+% Proposal types annotation
+\node[below=0.5cm of propose, font=\scriptsize, align=center, text=blue!60!black] {
+    Parameter $|$ Mechanic $|$ Custom
+};
+
+% Mechanism types annotation
+\node[above=0.3cm of apply, font=\scriptsize, align=center, text=green!50!black] {
+    Tax $|$ Redistribute $|$ Insure\\
+    Quota $|$ Subsidize $|$ Veto
+};
+
+% Loop back arrow
+\draw[arrow, dashed] (next.south) -- ++(0,-0.7) -| (play.south);
+
+\end{tikzpicture}

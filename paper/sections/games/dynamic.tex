@@ -1,0 +1,69 @@
+% dynamic.tex -- Section 9: Dynamic Game Creation & Open-Ended Play
+
+\section{Dynamic Game Creation and Open-Ended Play}
+\label{sec:dynamic}
+
+Beyond the static game library, Kant supports runtime construction,
+registration, and unregistration of games. This enables open-ended play
+scenarios where agents themselves can create new strategic environments,
+pushing evaluation beyond fixed benchmarks into emergent territory.
+
+% TODO: Motivate open-ended evaluation paradigm
+
+\subsection{Runtime Game Construction API}
+\label{sec:game-api}
+
+The dynamic game API provides three construction modes:
+
+\begin{description}[nosep]
+    \item[Matrix Construction.] Specify a payoff matrix directly as a nested
+        dictionary. The API validates structural consistency (action count
+        matching, numeric payoffs) and registers the game.
+    \item[Symmetric Construction.] Provide a reduced payoff specification;
+        the API expands it into a full symmetric matrix game.
+    \item[Custom Payoff Function.] Register a callable that computes payoffs
+        from action profiles. Supports arbitrary game logic including
+        sequential, stochastic, and information-asymmetric games.
+\end{description}
+
+% TODO: API code examples, type signatures
+
+\subsection{Dynamic Registration and Unregistration}
+\label{sec:registration}
+
+Games can be registered and unregistered at runtime, allowing the game library
+to evolve during a training or evaluation session. The registry validates new
+games against schema constraints and assigns unique identifiers. Unregistration
+gracefully handles in-progress episodes.
+
+% TODO: Registry protocol, validation schema
+
+\subsection{Open-Ended Play}
+\label{sec:open-ended}
+
+In open-ended play mode, agents are given API access to create games mid-session.
+This enables several novel evaluation scenarios:
+
+\begin{itemize}[nosep]
+    \item \textbf{Game design as capability}: can an agent construct a game
+          that incentivizes cooperation?
+    \item \textbf{Adversarial game design}: can an agent create games that
+          exploit other agents' weaknesses?
+    \item \textbf{Negotiated environments}: can agents agree on game rules
+          before playing?
+    \item \textbf{Curriculum self-play}: can agents create progressively
+          more challenging games for self-improvement?
+\end{itemize}
+
+% TODO: Experimental protocol for open-ended evaluation
+
+\subsection{Implications for Emergent Behavior and Evaluation}
+\label{sec:emergence}
+
+Open-ended play raises fundamental questions about evaluation methodology.
+When agents can modify the game space, fixed metrics become insufficient.
+We discuss approaches to evaluating emergent behavior, including meta-metrics
+that assess the \emph{quality} of games agents create and the stability of
+norms that emerge across dynamically generated environments.
+
+% TODO: Meta-evaluation framework, emergent norm analysis

@@ -1,0 +1,46 @@
+% training_pipeline.tex -- TikZ diagram of GRPO/DPO training loop
+\begin{tikzpicture}[
+    node distance=1.2cm and 1.8cm,
+    component/.style={rectangle, draw=blue!70!black, fill=blue!10,
+        minimum width=2.3cm, minimum height=0.8cm, align=center,
+        font=\small\bfseries, rounded corners=3pt},
+    process/.style={rectangle, draw=green!60!black, fill=green!8,
+        minimum width=2.2cm, minimum height=0.7cm, align=center,
+        font=\small, rounded corners=2pt},
+    data/.style={rectangle, draw=orange!60!black, fill=orange!8,
+        minimum width=2cm, minimum height=0.6cm, align=center,
+        font=\small, rounded corners=2pt},
+    arrow/.style={-{Stealth[length=6pt]}, thick, draw=gray!70!black},
+    label/.style={font=\scriptsize\itshape, text=gray!60!black}
+]
+
+% Game environment
+\node[component] (env) {Game\\Environment};
+\node[component, right=of env] (policy) {LLM\\Policy $\pi_\theta$};
+
+% Trajectory collection
+\node[data, below=of env] (traj) {Trajectories\\$\{\tau_1, \ldots, \tau_K\}$};
+
+% Two training paths
+\node[process, below left=1.2cm and 0.5cm of traj] (grpo) {GRPO\\Group Rewards};
+\node[process, below right=1.2cm and 0.5cm of traj] (dpo) {DPO\\Preference Pairs};
+
+% Policy update
+\node[component, below=2.8cm of traj] (update) {Policy\\Update};
+
+% Curriculum
+\node[data, right=2cm of policy] (curriculum) {Curriculum\\Schedule};
+
+% Arrows
+\draw[arrow] (env) -- (policy) node[midway, above, label] {obs};
+\draw[arrow] (policy) -- (env) node[midway, below, label] {action};
+\draw[arrow] (env) -- (traj);
+\draw[arrow] (policy.south) -- ++(0,-0.4) -| (traj);
+\draw[arrow] (traj) -- (grpo);
+\draw[arrow] (traj) -- (dpo);
+\draw[arrow] (grpo) -- (update);
+\draw[arrow] (dpo) -- (update);
+\draw[arrow] (update) -- ++(3.5,0) |- (policy.east) node[near start, below, label] {$\nabla_\theta$};
+\draw[arrow] (curriculum) -- (env.east |- curriculum) node[midway, above, label] {game domain};
+
+\end{tikzpicture}

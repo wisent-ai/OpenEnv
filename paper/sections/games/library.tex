@@ -1,0 +1,245 @@
+% library.tex -- Section 5: Game Library (87+ games across 9 domains)
+
+\section{Game Library}
+\label{sec:game-library}
+
+The Kant framework provides a library of 87+ games spanning 9 strategic domains.
+Each game is implemented as a \texttt{GameConfig} with formally specified payoff
+structures, action spaces, and metadata tags. This section catalogues every game
+by domain; Appendix~\ref{app:catalog} provides the full specification table.
+
+% TODO: Add introductory paragraph connecting game diversity to alignment coverage
+
+\subsection{Classical Dilemmas}
+\label{sec:classical}
+
+The foundational two-player simultaneous-move games that define the core tensions
+in strategic interaction.
+
+\begin{itemize}[nosep]
+    \item \textbf{Prisoner's Dilemma} --- cooperation vs.\ self-interest
+    \item \textbf{Stag Hunt} --- payoff-dominant vs.\ risk-dominant equilibrium
+    \item \textbf{Hawk-Dove (Chicken)} --- conflict escalation and anti-coordination
+    \item \textbf{Matching Pennies} --- zero-sum mixed-strategy reasoning
+\end{itemize}
+
+% TODO: Add payoff matrices and equilibrium analysis
+
+\subsection{Prisoner's Dilemma Variants}
+\label{sec:pd-variants}
+
+Extensions to the canonical PD that test nuanced cooperative reasoning.
+
+\begin{itemize}[nosep]
+    \item \textbf{Optional PD} --- agents can abstain from interaction
+    \item \textbf{Asymmetric PD} --- unequal payoff structures
+    \item \textbf{Donation Game} --- cost-to-benefit framing of cooperation
+    \item \textbf{Friend-or-Foe} --- binary ally/enemy classification
+    \item \textbf{Peace-War Game} --- geopolitical framing of cooperation/defection
+\end{itemize}
+
+% TODO: Payoff specifications and strategic analysis
+
+\subsection{Extended Matrix Games}
+\label{sec:extended-matrix}
+
+Additional $2 \times 2$ and $3 \times 3$ matrix games covering coordination,
+anti-coordination, and cyclic dominance.
+
+\begin{itemize}[nosep]
+    \item \textbf{Battle of the Sexes} --- coordination with conflicting preferences
+    \item \textbf{Deadlock} --- mutual defection as dominant strategy
+    \item \textbf{Harmony Game} --- mutual cooperation as dominant strategy
+    \item \textbf{Pure Coordination} --- identical preference alignment
+    \item \textbf{Rock-Paper-Scissors} --- cyclic dominance, mixed strategy equilibrium
+    \item \textbf{Rock-Paper-Scissors-Lizard-Spock} --- extended cyclic dominance
+\end{itemize}
+
+% TODO: Add payoff matrices and equilibrium characterization
+
+\subsection{Sequential and Bargaining Games}
+\label{sec:sequential-bargaining}
+
+Games with sequential moves or explicit bargaining protocols testing backward
+induction, trust, and fairness.
+
+\begin{itemize}[nosep]
+    \item \textbf{Ultimatum Game} --- proposer/responder fairness norms
+    \item \textbf{Trust Game} --- investment and reciprocity under risk
+    \item \textbf{Dictator Game} --- altruism without strategic incentive
+    \item \textbf{Centipede Game} --- backward induction vs.\ forward cooperation
+    \item \textbf{Stackelberg Game} --- leader-follower commitment
+    \item \textbf{Rubinstein Bargaining} --- alternating-offer negotiation
+    \item \textbf{Nash Demand Game} --- simultaneous bargaining with disagreement
+    \item \textbf{Double Auction} --- bilateral price discovery
+\end{itemize}
+
+% TODO: Game trees, subgame-perfect equilibria
+
+\subsection{Information and Signaling Games}
+\label{sec:signaling}
+
+Games testing strategic information transmission and belief updating.
+
+\begin{itemize}[nosep]
+    \item \textbf{Beer-Quiche Game} --- signaling under incomplete information
+    \item \textbf{Spence Signaling} --- costly signaling of private type
+    \item \textbf{Cheap Talk} --- costless pre-play communication
+    \item \textbf{Lemon Market} --- adverse selection and quality uncertainty
+    \item \textbf{Bayesian Persuasion} --- strategic information disclosure
+\end{itemize}
+
+% TODO: Bayesian equilibrium analysis
+
+\subsection{Bayesian and Incomplete Information Games}
+\label{sec:bayesian}
+
+Games where players have private information about types, states, or values.
+
+\begin{itemize}[nosep]
+    \item \textbf{Global Game} --- coordination under noisy signals
+    \item \textbf{Jury Voting} --- information aggregation via votes
+    \item \textbf{Information Cascade} --- herding and sequential social learning
+    \item \textbf{Adverse Selection} --- screening under asymmetric information
+\end{itemize}
+
+% TODO: Type distributions and Bayesian Nash equilibria
+
+\subsection{Communication and Mechanism Design}
+\label{sec:mechanism}
+
+Games testing the role of communication channels and mechanism design principles.
+
+\begin{itemize}[nosep]
+    \item \textbf{Cheap Talk PD} --- pre-play communication in the Prisoner's Dilemma
+    \item \textbf{Binding Commitment} --- enforceable pre-play agreements
+    \item \textbf{Correlated Equilibrium} --- coordination via shared signals
+    \item \textbf{Focal Point Game} --- coordination via salience (Schelling points)
+    \item \textbf{Mediation Game} --- third-party recommendation compliance
+\end{itemize}
+
+% TODO: Communication protocols and equilibrium refinements
+
+\subsection{Market Competition}
+\label{sec:market}
+
+Games modeling competitive market interactions and pricing strategies.
+
+\begin{itemize}[nosep]
+    \item \textbf{Cournot Duopoly} --- quantity competition
+    \item \textbf{Bertrand Duopoly} --- price competition
+    \item \textbf{Hotelling Game} --- spatial/product differentiation
+    \item \textbf{Entry Deterrence} --- incumbent vs.\ entrant
+    \item \textbf{Traveler's Dilemma} --- simultaneous claims with penalty/reward
+    \item \textbf{Dollar Auction} --- escalation and sunk cost
+    \item \textbf{Diner's Dilemma} --- multi-player shared cost free-riding
+    \item \textbf{Minority Game} --- anti-coordination in large populations
+\end{itemize}
+
+% TODO: Nash equilibrium computations, market parameters
+
+\subsection{Auctions}
+\label{sec:auctions}
+
+Strategic bidding under various auction mechanisms.
+
+\begin{itemize}[nosep]
+    \item \textbf{First-Price Sealed-Bid} --- bid shading under competition
+    \item \textbf{Vickrey (Second-Price)} --- truthful bidding as dominant strategy
+    \item \textbf{All-Pay Auction} --- full expenditure regardless of outcome
+\end{itemize}
+
+% TODO: Revenue equivalence and optimal bidding strategies
+
+\subsection{Cooperative Game Theory}
+\label{sec:cooperative}
+
+Games testing cooperative solution concepts and fair division.
+
+\begin{itemize}[nosep]
+    \item \textbf{Shapley Value Game} --- marginal contribution-based allocation
+    \item \textbf{Core Allocation} --- coalition stability
+    \item \textbf{Weighted Voting} --- power indices and coalition pivots
+    \item \textbf{Stable Matching} --- two-sided preference matching (Gale-Shapley)
+    \item \textbf{Median Voter} --- policy convergence under single-peaked preferences
+    \item \textbf{Approval Voting} --- multi-candidate approval aggregation
+\end{itemize}
+
+% TODO: Solution concepts and fairness properties
+
+\subsection{Contest and Conflict}
+\label{sec:contest}
+
+Games modeling resource allocation under competition and conflict.
+
+\begin{itemize}[nosep]
+    \item \textbf{Colonel Blotto} --- multi-battlefield resource allocation
+    \item \textbf{War of Attrition} --- timing and endurance
+    \item \textbf{Tullock Contest} --- probabilistic conflict resolution
+    \item \textbf{Inspection Game} --- audit and compliance
+    \item \textbf{Security Game} --- attacker-defender resource allocation
+    \item \textbf{Network Game} --- strategic interaction on graphs
+    \item \textbf{Dueling Game} --- sequential escalation decisions
+\end{itemize}
+
+% TODO: Contest success functions and equilibrium characterization
+
+\subsection{Principal-Agent and Contracts}
+\label{sec:principal-agent}
+
+Games modeling delegation, incentive alignment, and contract design.
+
+\begin{itemize}[nosep]
+    \item \textbf{Moral Hazard} --- hidden action after contracting
+    \item \textbf{Screening Game} --- menu design for type separation
+    \item \textbf{Gift Exchange} --- reciprocity in employment relationships
+\end{itemize}
+
+% TODO: Optimal contract specifications
+
+\subsection{Behavioral and Dynamic Games}
+\label{sec:behavioral}
+
+Games testing bounded rationality, dynamic interaction, and risk assessment.
+
+\begin{itemize}[nosep]
+    \item \textbf{Bank Run} --- coordination failure under panic
+    \item \textbf{Beauty Contest} --- iterated reasoning about others' beliefs
+    \item \textbf{Markov Game} --- state-dependent strategic interaction
+    \item \textbf{Stochastic PD} --- probabilistic continuation
+    \item \textbf{Risk Dominance Game} --- risk vs.\ payoff dominance selection
+    \item \textbf{Threshold Public Good} --- binary provision point
+\end{itemize}
+
+% TODO: Behavioral equilibrium predictions and dynamic analysis
+
+\subsection{Advanced and Evolutionary Games}
+\label{sec:advanced}
+
+Specialized games testing evolutionary stability and advanced strategic concepts.
+
+\begin{itemize}[nosep]
+    \item \textbf{Preemption Game} --- first-mover advantage timing
+    \item \textbf{War of Gifts} --- competitive generosity
+    \item \textbf{Penalty Shootout} --- simultaneous mixed strategy under pressure
+    \item \textbf{Hawk-Dove-Bourgeois} --- property rights and evolutionary stability
+    \item \textbf{Continuous PD} --- cooperation level as continuous choice
+    \item \textbf{Discounted PD} --- time-discounted repeated interaction
+\end{itemize}
+
+% TODO: ESS analysis and evolutionary dynamics
+
+\subsection{Procedural Generation}
+\label{sec:procedural}
+
+Runtime-generated games for open-ended evaluation and generalization testing.
+
+\begin{itemize}[nosep]
+    \item \textbf{Random Symmetric} --- random payoff matrices with symmetry constraint
+    \item \textbf{Random Asymmetric} --- unconstrained random payoff matrices
+    \item \textbf{Random Zero-Sum} --- random matrices satisfying $u_1 + u_2 = 0$
+    \item \textbf{Random Coordination} --- random matrices with coordination bias
+    \item \textbf{Parameterized Chicken} --- continuous parameterization of Hawk-Dove
+\end{itemize}
+
+% TODO: Generation algorithms, distribution parameters, validation

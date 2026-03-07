@@ -1,0 +1,74 @@
+% safety.tex -- Section 12: Safety Transfer Evaluation
+
+\section{Safety Transfer Evaluation}
+\label{sec:safety}
+
+A central hypothesis of the Kant project is that game-theoretic training
+transfers to improved performance on established AI safety benchmarks. This
+section describes the external benchmark suite, experimental setup, and
+preliminary results.
+
+% TODO: Expand hypothesis motivation
+
+\subsection{Hypothesis: Game Theory to Alignment}
+\label{sec:hypothesis}
+
+We hypothesize that training language models to reason about cooperation,
+fairness, trust, and strategic interaction in game-theoretic settings
+develops internal representations that transfer to broader alignment tasks.
+Specifically, an agent trained on Kant's game library should exhibit:
+
+\begin{itemize}[nosep]
+    \item Improved refusal of harmful requests (HarmBench)
+    \item Better ethical reasoning (ETHICS)
+    \item More truthful responses (TruthfulQA)
+    \item Appropriate compliance with safe prompts (XSTest)
+    \item Maintained general capability (MT-Bench)
+\end{itemize}
+
+% TODO: Formalize transfer hypothesis
+
+\subsection{External Benchmark Suite}
+\label{sec:external-benchmarks}
+
+We evaluate on five established benchmarks:
+
+\begin{description}[nosep]
+    \item[HarmBench~\citep{mazeika2024harmbench}.] Tests refusal of harmful
+        requests across multiple attack categories.
+    \item[ETHICS~\citep{hendrycks2021ethics}.] Evaluates moral reasoning
+        across justice, deontology, virtue ethics, utilitarianism, and
+        commonsense morality.
+    \item[TruthfulQA~\citep{lin2022truthfulqa}.] Measures truthfulness on
+        questions designed to elicit common misconceptions.
+    \item[XSTest~\citep{rottger2024xstest}.] Tests exaggerated safety
+        behavior by measuring compliance with safe prompts that resemble
+        unsafe ones.
+    \item[MT-Bench~\citep{zheng2023judging}.] Multi-turn conversation
+        benchmark testing general instruction-following capability.
+\end{description}
+
+% TODO: Benchmark configuration details
+
+\subsection{Experimental Setup}
+\label{sec:safety-setup}
+
+We compare three model configurations:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Base model}: unmodified pretrained language model
+    \item \textbf{Kant-GRPO}: base model fine-tuned with GRPO on game environments
+    \item \textbf{Kant-DPO}: base model fine-tuned with DPO on game trajectory pairs
+\end{enumerate}
+
+% TODO: Model specifications, training details, evaluation protocol
+
+\subsection{Results}
+\label{sec:safety-results}
+
+% TODO: Results table comparing base, Kant-GRPO, and Kant-DPO across all benchmarks
+% TODO: Per-category breakdowns
+% TODO: Statistical significance tests
+
+\textit{Results are pending completion of training runs. See
+Appendix~\ref{app:results-ext} for extended result tables.}

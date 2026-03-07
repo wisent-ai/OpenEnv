@@ -1,0 +1,82 @@
+% discussion.tex -- Section 13: Discussion
+
+\section{Discussion}
+\label{sec:discussion-new}
+
+This section synthesizes findings across the game-theoretic evaluation,
+training pipeline, and safety transfer experiments, and discusses
+implications for AI alignment research.
+
+\subsection{Does Strategic Reasoning Transfer to Safety?}
+\label{sec:transfer-discussion}
+
+% TODO: Analyze whether game-theoretic training improves safety benchmarks
+% TODO: Discuss which game domains contribute most to transfer
+% TODO: Compare GRPO vs DPO transfer effectiveness
+
+The central question of this work is whether strategic reasoning abilities
+developed through game-theoretic training generalize to broader alignment
+objectives. We discuss the evidence from our safety transfer evaluation
+(Section~\ref{sec:safety}) and identify which aspects of game-theoretic
+reasoning---cooperation, fairness calibration, exploitation resistance---most
+strongly predict safety benchmark performance.
+
+\subsection{Coalition Dynamics and Emergent Social Norms}
+\label{sec:coalition-discussion}
+
+% TODO: Analyze emergent coalition behavior
+% TODO: Discuss norm formation in repeated coalition games
+% TODO: Compare enforcement mode effects on cooperation
+
+Coalition formation (Section~\ref{sec:coalition}) creates opportunities for
+emergent social norms. We discuss how different enforcement modes affect the
+stability of cooperative arrangements and whether agents develop
+reputation-based strategies that mirror human social behavior.
+
+\subsection{Meta-Governance as Constitutional AI}
+\label{sec:governance-discussion}
+
+% TODO: Compare governance outcomes to Constitutional AI principles
+% TODO: Analyze what rules agents propose and vote for
+% TODO: Discuss democratic convergence properties
+
+The meta-governance engine (Section~\ref{sec:governance}) operationalizes
+Constitutional AI principles through democratic mechanism design. We discuss
+whether agents converge on fair governance structures and how the quality of
+emergent constitutions compares to hand-crafted constitutional principles.
+
+\subsection{Open-Ended Play and Capability Evaluation}
+\label{sec:openended-discussion}
+
+% TODO: Analyze games created by agents
+% TODO: Discuss implications for capability evaluation
+% TODO: Address dual-use concerns
+
+Dynamic game creation (Section~\ref{sec:dynamic}) enables novel capability
+evaluation. We discuss what the games agents create reveal about their
+strategic understanding and whether open-ended play provides a more robust
+evaluation methodology than fixed benchmarks.
+
+\subsection{Limitations}
+\label{sec:limitations}
+
+Several limitations should guide interpretation of our results:
+
+\begin{itemize}[nosep]
+    \item \textbf{Game abstraction}: formal games simplify real-world
+          strategic interactions; transfer to naturalistic settings
+          remains an open question.
+    \item \textbf{Opponent diversity}: while the strategy library is
+          extensive, it does not capture the full spectrum of adversarial
+          or cooperative behaviors.
+    \item \textbf{Scale}: current experiments use models of moderate size;
+          scaling behavior is unknown.
+    \item \textbf{Evaluation scope}: external benchmarks test specific
+          safety dimensions; other aspects of alignment (e.g., corrigibility,
+          power-seeking) are not directly measured.
+    \item \textbf{Causal attribution}: improvements on safety benchmarks
+          may reflect general capability gains rather than alignment-specific
+          transfer.
+\end{itemize}
+
+% TODO: Expand limitations with experimental evidence

@@ -1,0 +1,51 @@
+% nplayer.tex -- Section 6: N-Player & Social Dilemma Extensions
+
+\section{N-Player Extensions}
+\label{sec:nplayer}
+
+While two-player games isolate fundamental strategic tensions, many real-world
+alignment challenges arise in multi-agent settings. Kant extends the core
+framework to support $N$-player interactions, introducing social dilemma
+structures that test collective action, free-riding, and coordination at scale.
+
+% TODO: Add introductory paragraph on why N-player matters for alignment
+
+\subsection{N-Player Games}
+\label{sec:nplayer-games}
+
+The following games natively support $N > 2$ players:
+
+\begin{itemize}[nosep]
+    \item \textbf{Public Goods Game} --- each of $N$ players contributes from
+          a private endowment; the pool is multiplied and split equally.
+          Tests free-riding incentives as group size grows.
+    \item \textbf{Volunteer's Dilemma} --- at least one player must pay a cost
+          to provide a public benefit. Diffusion of responsibility increases
+          with $N$.
+    \item \textbf{El Farol Bar Problem} --- players independently decide whether
+          to attend a venue with limited capacity. Tests minority coordination.
+    \item \textbf{Tragedy of the Commons} --- players extract from a shared
+          resource; overexploitation depletes it. Tests sustainable cooperation.
+\end{itemize}
+
+% TODO: Formal game specifications with N-player payoff functions
+
+\subsection{Scaling from Dyadic to Multi-Agent}
+\label{sec:scaling}
+
+Extending from two to $N$ players introduces several challenges:
+
+\begin{itemize}[nosep]
+    \item \textbf{Observation space}: agents must reason about $N-1$ opponents
+          rather than a single partner, increasing cognitive demands.
+    \item \textbf{Action aggregation}: payoffs depend on aggregate opponent
+          behavior (e.g., total contributions) rather than individual actions.
+    \item \textbf{Strategy complexity}: the opponent strategy space grows
+          combinatorially; we address this via role-based strategy assignment.
+    \item \textbf{Metric adaptation}: cooperation rate and fairness metrics
+          generalize naturally; exploitation resistance requires redefinition
+          against adversarial coalitions rather than single defectors.
+\end{itemize}
+
+% TODO: Formal metric extensions for N-player settings
+% TODO: Experimental results comparing 2-player vs N-player behavior

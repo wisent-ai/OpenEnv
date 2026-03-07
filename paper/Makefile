@@ -23,5 +23,5 @@ view: $(MAIN).pdf
 
 slides: slides.pdf
 slides.pdf: slides.tex figures/*.tex
-	$(TEX) slides
-	$(TEX) slides
+	xelatex slides
+	xelatex slides

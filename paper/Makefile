@@ -3,7 +3,7 @@ BIB      = bibtex
 MAIN     = main
 OUTDIR   = .
 
-.PHONY: all clean view
+.PHONY: all clean view slides
 
 all: $(MAIN).pdf
 
@@ -20,3 +20,8 @@ clean:
 
 view: $(MAIN).pdf
 	open $(MAIN).pdf
+
+slides: slides.pdf
+slides.pdf: slides.tex figures/*.tex
+	$(TEX) slides
+	$(TEX) slides

@@ -1,11 +1,11 @@
-"""GRPO trainer wrapping TRL with Machiavelli-specific logic."""
+"""GRPO trainer wrapping TRL with Kant-specific logic."""
 
 from __future__ import annotations
 
 import logging
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
-from env.environment import MachiavelliEnvironment
+from env.environment import KantEnvironment
 from env.models import GameAction, GameObservation
 from train.agent import LLMAgent, PromptBuilder, parse_action
 from train.grpo.config import GRPOConfig
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 _ONE = int(bool(True))
 
 
-class MachiavelliGRPOTrainer:
+class KantGRPOTrainer:
     """GRPO trainer for strategic reasoning in game-theory environments.
 
     Wraps TRL's GRPOTrainer with:
@@ -36,7 +36,7 @@ class MachiavelliGRPOTrainer:
         HuggingFace model (or path to load).
     tokenizer : Any
         HuggingFace tokenizer.
-    env : MachiavelliEnvironment, optional
+    env : KantEnvironment, optional
         Environment instance for reward computation.
     """
 
@@ -45,12 +45,12 @@ class MachiavelliGRPOTrainer:
         config: GRPOConfig,
         model: Any = None,
         tokenizer: Any = None,
-        env: Optional[MachiavelliEnvironment] = None,
+        env: Optional[KantEnvironment] = None,
     ) -> None:
         self._config = config
         self._model = model
         self._tokenizer = tokenizer
-        self._env = env if env is not None else MachiavelliEnvironment()
+        self._env = env if env is not None else KantEnvironment()
         self._train_games, self._eval_games = get_train_eval_split()
         self._current_games: List[str] = sorted(self._train_games)[
             :config.curriculum_initial_games

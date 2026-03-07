@@ -4,7 +4,7 @@ import types
 
 sys.path.insert(
     int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/machiaveli",
+    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
 )
 
 _openenv_stub = types.ModuleType("openenv")

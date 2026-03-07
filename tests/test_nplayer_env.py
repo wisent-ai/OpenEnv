@@ -4,7 +4,7 @@ import types
 
 sys.path.insert(
     int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/machiaveli",
+    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
 )
 
 # Stub the openenv package

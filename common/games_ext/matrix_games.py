@@ -1,4 +1,4 @@
-"""Extended matrix (normal-form) games for MachiaveliBench."""
+"""Extended matrix (normal-form) games for KantBench."""
 from __future__ import annotations
 
 from common.games import GAMES, GameConfig, _matrix_payoff_fn

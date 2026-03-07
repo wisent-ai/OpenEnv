@@ -1,4 +1,4 @@
-"""Model-vs-model tournament runner for MachiaveliBench evaluation.
+"""Model-vs-model tournament runner for KantBench evaluation.
 
 Extends the base tournament with the ability to pit agent functions against
 each other rather than against fixed opponent strategies.
@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from env.models import GameAction, GameObservation
 from common.games import GAMES, GameConfig
-from env.environment import MachiavelliEnvironment
+from env.environment import KantEnvironment
 from bench.evaluation.tournament import _compute_episode_cooperation
 from constant_definitions.game_constants import (
     EVAL_DEFAULT_EPISODES,
@@ -58,9 +58,9 @@ class ModelMatchupRunner:
 
     def __init__(
         self,
-        env: Optional[MachiavelliEnvironment] = None,
+        env: Optional[KantEnvironment] = None,
     ) -> None:
-        self._env = env if env is not None else MachiavelliEnvironment()
+        self._env = env if env is not None else KantEnvironment()
 
     def run_model_matchups(
         self,

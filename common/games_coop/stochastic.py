@@ -1,4 +1,4 @@
-"""Stochastic and evolutionary game variants for MachiaveliBench."""
+"""Stochastic and evolutionary game variants for KantBench."""
 from __future__ import annotations
 
 from common.games import GAMES, GameConfig, _matrix_payoff_fn

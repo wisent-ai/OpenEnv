@@ -1,4 +1,4 @@
-"""Game configuration registry and payoff computation for MachiaveliBench."""
+"""Game configuration registry and payoff computation for KantBench."""
 
 from __future__ import annotations
 

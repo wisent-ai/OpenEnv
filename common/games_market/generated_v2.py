@@ -1,4 +1,4 @@
-"""Extended procedurally generated games for MachiaveliBench."""
+"""Extended procedurally generated games for KantBench."""
 from __future__ import annotations
 
 import random as _rand

@@ -1,4 +1,4 @@
-"""Infinite-horizon and continuous games for MachiaveliBench."""
+"""Infinite-horizon and continuous games for KantBench."""
 from __future__ import annotations
 
 from common.games import GAMES, GameConfig, _matrix_payoff_fn

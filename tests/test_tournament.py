@@ -6,7 +6,7 @@ import types
 
 sys.path.insert(
     int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/machiaveli",
+    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
 )
 
 # Stub the openenv package so the environment module can be imported
@@ -42,7 +42,7 @@ for _name, _mod in [
 import pytest
 
 from env.models import GameAction, GameObservation
-from env.environment import MachiavelliEnvironment
+from env.environment import KantEnvironment
 from bench.evaluation.tournament import TournamentRunner
 from bench.evaluation.model_matchups import (
     MatchupResult,
@@ -81,7 +81,7 @@ class TestOpponentFn:
     """Tests that the environment correctly uses opponent_fn."""
 
     def test_opponent_fn_overrides_strategy(self) -> None:
-        env = MachiavelliEnvironment()
+        env = KantEnvironment()
         obs = env.reset(game="prisoners_dilemma", opponent_fn=_always_defect)
         assert obs.opponent_strategy == "agent"
         obs = env.step(GameAction(action="cooperate"))
@@ -95,7 +95,7 @@ class TestOpponentFn:
             received.append(obs)
             return GameAction(action=obs.available_actions[_ZERO])
 
-        env = MachiavelliEnvironment()
+        env = KantEnvironment()
         env.reset(game="prisoners_dilemma", opponent_fn=_spy)
         env.step(GameAction(action="cooperate"))
         env.step(GameAction(action="defect"))
@@ -112,7 +112,7 @@ class TestOpponentFn:
             received.append(obs)
             return GameAction(action="defect")
 
-        env = MachiavelliEnvironment()
+        env = KantEnvironment()
         env.reset(game="prisoners_dilemma", opponent_fn=_spy)
         env.step(GameAction(action="cooperate"))
         env.step(GameAction(action="cooperate"))
@@ -121,7 +121,7 @@ class TestOpponentFn:
         assert second_obs.opponent_score == float(PD_CD_PAYOFF)
 
     def test_strategy_still_works_without_opponent_fn(self) -> None:
-        env = MachiavelliEnvironment()
+        env = KantEnvironment()
         obs = env.reset(game="prisoners_dilemma", strategy="always_cooperate")
         obs = env.step(GameAction(action="defect"))
         assert obs.last_round is not None

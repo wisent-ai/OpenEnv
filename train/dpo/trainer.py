@@ -1,11 +1,11 @@
-"""DPO trainer wrapping TRL with Machiavelli-specific preference learning."""
+"""DPO trainer wrapping TRL with Kant-specific preference learning."""
 
 from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional, Sequence
 
-from env.environment import MachiavelliEnvironment
+from env.environment import KantEnvironment
 from env.models import GameAction, GameObservation
 from train.agent import LLMAgent, PromptBuilder, parse_action
 from train.dpo.config import DPOConfig
@@ -18,7 +18,7 @@ from constant_definitions.game_constants import EVAL_ZERO
 logger = logging.getLogger(__name__)
 
 
-class MachiavelliDPOTrainer:
+class KantDPOTrainer:
     """DPO trainer for strategic reasoning via preference learning.
 
     Wraps TRL's DPOTrainer with:
@@ -93,7 +93,7 @@ class MachiavelliDPOTrainer:
         from bench.evaluation.tournament import TournamentRunner
         from bench.evaluation.metrics import compute_metrics
 
-        env = MachiavelliEnvironment()
+        env = KantEnvironment()
         eval_games = list(games) if games is not None else sorted(self._eval_games)
 
         def _agent_fn(obs: GameObservation) -> GameAction:

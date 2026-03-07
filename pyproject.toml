@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
-name = "openenv-machiaveli"
+name = "openenv-kant"
 version = "0.1.0"
-description = "Machiavelli: Game-theory benchmark for AI agents on OpenEnv"
+description = "Kant: Game-theory benchmark for AI agents on OpenEnv"
 requires-python = ">=3.10"
 license = { text = "BSD-3-Clause" }
 dependencies = [

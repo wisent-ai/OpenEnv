@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from env.models import GameAction, GameObservation, RoundResult
-from env.environment import MachiavelliEnvironment
+from env.environment import KantEnvironment
 from constant_definitions.game_constants import EVAL_ZERO_FLOAT
 
 
@@ -43,7 +43,7 @@ class TrajectoryCollector:
 
     Parameters
     ----------
-    env : MachiavelliEnvironment
+    env : KantEnvironment
         The game environment instance.
     agent : LLMAgent
         An agent with ``last_prompt`` / ``last_completion`` properties,
@@ -56,7 +56,7 @@ class TrajectoryCollector:
 
     def __init__(
         self,
-        env: MachiavelliEnvironment,
+        env: KantEnvironment,
         agent: Any,
         reward_fn: Optional[Callable[..., float]] = None,
         step_reward_fn: Optional[Callable[..., float]] = None,

@@ -2,7 +2,7 @@
 import sys
 import types
 
-sys.path.insert(int(), "/Users/lukaszbartoszcze/Documents/OpenEnv/machiaveli")
+sys.path.insert(int(), "/Users/lukaszbartoszcze/Documents/OpenEnv/kant")
 
 _openenv_stub = types.ModuleType("openenv")
 _core_stub = types.ModuleType("openenv.core")

@@ -1,11 +1,11 @@
-"""Tests for the MachiaveliBench environment."""
+"""Tests for the KantBench environment."""
 import sys
 import types
 from unittest.mock import MagicMock
 
 sys.path.insert(
     int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/machiaveli",
+    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
 )
 
 # Stub the openenv package so the environment module can be imported
@@ -42,7 +42,7 @@ from constant_definitions.game_constants import (
     PD_CC_PAYOFF,
 )
 from env.models import GameAction, GameObservation, GameState
-from env.environment import MachiavelliEnvironment
+from env.environment import KantEnvironment
 
 # ── test-local numeric helpers ──────────────────────────────────────────
 _ZERO = int()
@@ -52,13 +52,13 @@ _THREE = _TWO + _ONE
 
 
 @pytest.fixture()
-def env() -> MachiavelliEnvironment:
+def env() -> KantEnvironment:
     """Return a fresh, un-reset environment."""
-    return MachiavelliEnvironment()
+    return KantEnvironment()
 
 
 @pytest.fixture()
-def pd_env(env: MachiavelliEnvironment) -> MachiavelliEnvironment:
+def pd_env(env: KantEnvironment) -> KantEnvironment:
     """Return an environment reset for Prisoner's Dilemma."""
     env.reset(game="prisoners_dilemma", strategy="always_cooperate")
     return env
@@ -70,45 +70,45 @@ def pd_env(env: MachiavelliEnvironment) -> MachiavelliEnvironment:
 class TestReset:
     """Verify that reset returns a valid initial observation."""
 
-    def test_returns_game_observation(self, env: MachiavelliEnvironment) -> None:
+    def test_returns_game_observation(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="tit_for_tat")
         assert isinstance(obs, GameObservation)
 
-    def test_observation_not_done(self, env: MachiavelliEnvironment) -> None:
+    def test_observation_not_done(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="tit_for_tat")
         assert obs.done is False
 
-    def test_observation_game_name(self, env: MachiavelliEnvironment) -> None:
+    def test_observation_game_name(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="tit_for_tat")
         assert obs.game_name == "prisoners_dilemma"
 
-    def test_observation_available_actions(self, env: MachiavelliEnvironment) -> None:
+    def test_observation_available_actions(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="tit_for_tat")
         assert "cooperate" in obs.available_actions
         assert "defect" in obs.available_actions
 
-    def test_observation_total_rounds(self, env: MachiavelliEnvironment) -> None:
+    def test_observation_total_rounds(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="tit_for_tat")
         assert obs.total_rounds == DEFAULT_NUM_ROUNDS
 
-    def test_observation_current_round_is_zero(self, env: MachiavelliEnvironment) -> None:
+    def test_observation_current_round_is_zero(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="tit_for_tat")
         assert obs.current_round == _ZERO
 
-    def test_scores_start_at_zero(self, env: MachiavelliEnvironment) -> None:
+    def test_scores_start_at_zero(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="tit_for_tat")
         assert obs.player_score == float(_ZERO)
         assert obs.opponent_score == float(_ZERO)
 
-    def test_history_empty(self, env: MachiavelliEnvironment) -> None:
+    def test_history_empty(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="tit_for_tat")
         assert len(obs.history) == _ZERO
 
-    def test_custom_num_rounds(self, env: MachiavelliEnvironment) -> None:
+    def test_custom_num_rounds(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="tit_for_tat", num_rounds=_THREE)
         assert obs.total_rounds == _THREE
 
-    def test_opponent_strategy_field(self, env: MachiavelliEnvironment) -> None:
+    def test_opponent_strategy_field(self, env: KantEnvironment) -> None:
         obs = env.reset(game="prisoners_dilemma", strategy="always_defect")
         assert obs.opponent_strategy == "always_defect"
 
@@ -119,28 +119,28 @@ class TestReset:
 class TestStep:
     """Verify that step processes actions correctly."""
 
-    def test_returns_observation(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_returns_observation(self, pd_env: KantEnvironment) -> None:
         obs = pd_env.step(GameAction(action="cooperate"))
         assert isinstance(obs, GameObservation)
 
-    def test_advances_round(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_advances_round(self, pd_env: KantEnvironment) -> None:
         obs = pd_env.step(GameAction(action="cooperate"))
         assert obs.current_round == _ONE
 
-    def test_records_history(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_records_history(self, pd_env: KantEnvironment) -> None:
         obs = pd_env.step(GameAction(action="cooperate"))
         assert len(obs.history) == _ONE
 
-    def test_reward_is_payoff(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_reward_is_payoff(self, pd_env: KantEnvironment) -> None:
         obs = pd_env.step(GameAction(action="cooperate"))
         assert obs.reward == float(PD_CC_PAYOFF)
 
-    def test_last_round_present(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_last_round_present(self, pd_env: KantEnvironment) -> None:
         obs = pd_env.step(GameAction(action="cooperate"))
         assert obs.last_round is not None
         assert obs.last_round.player_action == "cooperate"
 
-    def test_opponent_action_recorded(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_opponent_action_recorded(self, pd_env: KantEnvironment) -> None:
         obs = pd_env.step(GameAction(action="cooperate"))
         assert obs.last_round is not None
         assert obs.last_round.opponent_action == "cooperate"
@@ -152,7 +152,7 @@ class TestStep:
 class TestEpisodeCompletion:
     """Verify the episode terminates after total_rounds."""
 
-    def test_episode_ends_after_total_rounds(self, env: MachiavelliEnvironment) -> None:
+    def test_episode_ends_after_total_rounds(self, env: KantEnvironment) -> None:
         env.reset(game="prisoners_dilemma", strategy="always_cooperate", num_rounds=_THREE)
         obs = None
         for _ in range(_THREE):
@@ -160,7 +160,7 @@ class TestEpisodeCompletion:
         assert obs is not None
         assert obs.done is True
 
-    def test_not_done_before_final_round(self, env: MachiavelliEnvironment) -> None:
+    def test_not_done_before_final_round(self, env: KantEnvironment) -> None:
         env.reset(game="prisoners_dilemma", strategy="always_cooperate", num_rounds=_THREE)
         obs = None
         for _ in range(_THREE - _ONE):
@@ -175,7 +175,7 @@ class TestEpisodeCompletion:
 class TestScoreAccumulation:
     """Verify scores accumulate over multiple rounds."""
 
-    def test_player_score_accumulates(self, env: MachiavelliEnvironment) -> None:
+    def test_player_score_accumulates(self, env: KantEnvironment) -> None:
         env.reset(game="prisoners_dilemma", strategy="always_cooperate", num_rounds=_THREE)
         obs = None
         for _ in range(_THREE):
@@ -183,7 +183,7 @@ class TestScoreAccumulation:
         assert obs is not None
         assert obs.player_score == float(PD_CC_PAYOFF) * _THREE
 
-    def test_opponent_score_accumulates(self, env: MachiavelliEnvironment) -> None:
+    def test_opponent_score_accumulates(self, env: KantEnvironment) -> None:
         env.reset(game="prisoners_dilemma", strategy="always_cooperate", num_rounds=_TWO)
         obs = None
         for _ in range(_TWO):
@@ -198,19 +198,19 @@ class TestScoreAccumulation:
 class TestStateTracking:
     """Verify the state property reflects game progress."""
 
-    def test_state_returns_game_state(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_state_returns_game_state(self, pd_env: KantEnvironment) -> None:
         assert isinstance(pd_env.state, GameState)
 
-    def test_state_game_name(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_state_game_name(self, pd_env: KantEnvironment) -> None:
         assert pd_env.state.game_name == "prisoners_dilemma"
 
-    def test_state_history_grows(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_state_history_grows(self, pd_env: KantEnvironment) -> None:
         pd_env.step(GameAction(action="cooperate"))
         assert len(pd_env.state.history) == _ONE
         pd_env.step(GameAction(action="defect"))
         assert len(pd_env.state.history) == _TWO
 
-    def test_state_is_done_flag(self, env: MachiavelliEnvironment) -> None:
+    def test_state_is_done_flag(self, env: KantEnvironment) -> None:
         env.reset(game="prisoners_dilemma", strategy="always_cooperate", num_rounds=_ONE)
         assert env.state.is_done is False
         env.step(GameAction(action="cooperate"))
@@ -223,15 +223,15 @@ class TestStateTracking:
 class TestErrorHandling:
     """Verify proper exceptions for invalid usage."""
 
-    def test_step_before_reset_raises_runtime_error(self, env: MachiavelliEnvironment) -> None:
+    def test_step_before_reset_raises_runtime_error(self, env: KantEnvironment) -> None:
         with pytest.raises(RuntimeError):
             env.step(GameAction(action="cooperate"))
 
-    def test_invalid_action_raises_value_error(self, pd_env: MachiavelliEnvironment) -> None:
+    def test_invalid_action_raises_value_error(self, pd_env: KantEnvironment) -> None:
         with pytest.raises(ValueError):
             pd_env.step(GameAction(action="invalid_action"))
 
-    def test_step_after_done_raises_runtime_error(self, env: MachiavelliEnvironment) -> None:
+    def test_step_after_done_raises_runtime_error(self, env: KantEnvironment) -> None:
         env.reset(game="prisoners_dilemma", strategy="always_cooperate", num_rounds=_ONE)
         env.step(GameAction(action="cooperate"))
         with pytest.raises(RuntimeError):
@@ -244,26 +244,26 @@ class TestErrorHandling:
 class TestDifferentGames:
     """Verify the environment works with various game selections."""
 
-    def test_stag_hunt_reset(self, env: MachiavelliEnvironment) -> None:
+    def test_stag_hunt_reset(self, env: KantEnvironment) -> None:
         obs = env.reset(game="stag_hunt", strategy="always_cooperate")
         assert obs.game_name == "stag_hunt"
         assert "stag" in obs.available_actions
 
-    def test_hawk_dove_reset(self, env: MachiavelliEnvironment) -> None:
+    def test_hawk_dove_reset(self, env: KantEnvironment) -> None:
         obs = env.reset(game="hawk_dove", strategy="always_defect")
         assert obs.game_name == "hawk_dove"
         assert "hawk" in obs.available_actions
 
-    def test_ultimatum_single_shot(self, env: MachiavelliEnvironment) -> None:
+    def test_ultimatum_single_shot(self, env: KantEnvironment) -> None:
         obs = env.reset(game="ultimatum", strategy="ultimatum_fair")
         assert obs.total_rounds == SINGLE_SHOT_ROUNDS
 
-    def test_stag_hunt_step(self, env: MachiavelliEnvironment) -> None:
+    def test_stag_hunt_step(self, env: KantEnvironment) -> None:
         env.reset(game="stag_hunt", strategy="always_cooperate")
         obs = env.step(GameAction(action="stag"))
         assert obs.current_round == _ONE
 
-    def test_reset_clears_previous_state(self, env: MachiavelliEnvironment) -> None:
+    def test_reset_clears_previous_state(self, env: KantEnvironment) -> None:
         env.reset(game="prisoners_dilemma", strategy="always_cooperate", num_rounds=_TWO)
         env.step(GameAction(action="cooperate"))
         obs = env.reset(game="stag_hunt", strategy="always_defect")

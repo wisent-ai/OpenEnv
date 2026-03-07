@@ -1,4 +1,4 @@
-"""Contest, conflict, and fair division games for MachiaveliBench."""
+"""Contest, conflict, and fair division games for KantBench."""
 from __future__ import annotations
 
 from common.games import GAMES, GameConfig, _matrix_payoff_fn

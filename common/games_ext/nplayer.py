@@ -1,4 +1,4 @@
-"""N-player social dilemma games for MachiaveliBench.
+"""N-player social dilemma games for KantBench.
 
 Modeled as one agent vs one opponent (representing aggregate of others).
 """

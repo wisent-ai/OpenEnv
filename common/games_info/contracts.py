@@ -1,4 +1,4 @@
-"""Principal-agent and contract theory games for MachiaveliBench."""
+"""Principal-agent and contract theory games for KantBench."""
 from __future__ import annotations
 
 from common.games import GAMES, GameConfig

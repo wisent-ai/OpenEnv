@@ -1,5 +1,5 @@
 spec_version: 1
-name: machiaveli
+name: kant
 type: space
 runtime: fastapi
 app: env.app:app

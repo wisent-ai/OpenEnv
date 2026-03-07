@@ -1,4 +1,4 @@
-"""Opponent strategy module for MachiaveliBench."""
+"""Opponent strategy module for KantBench."""
 from __future__ import annotations
 import random
 from typing import Callable, Protocol

@@ -2,6 +2,6 @@
 
 from train.grpo.config import GRPOConfig
 from train.grpo.dataset import trajectories_to_dataset
-from train.grpo.trainer import MachiavelliGRPOTrainer
+from train.grpo.trainer import KantGRPOTrainer
 
-__all__ = ["GRPOConfig", "trajectories_to_dataset", "MachiavelliGRPOTrainer"]
+__all__ = ["GRPOConfig", "trajectories_to_dataset", "KantGRPOTrainer"]

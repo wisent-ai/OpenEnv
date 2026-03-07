@@ -1,4 +1,4 @@
-"""Report generation for MachiaveliBench evaluation results.
+"""Report generation for KantBench evaluation results.
 
 Produces both a JSON string and a Markdown string from tournament results
 and computed metrics.
@@ -165,7 +165,7 @@ def _md_summary(tr: Dict[str, Any], met: Dict[str, Any]) -> str:
     total_ep = tr.get("total_episodes", EVAL_ZERO)
     score = met.get("strategic_reasoning", EVAL_ZERO_FLOAT)
     lines: List[str] = [
-        "# MachiaveliBench Evaluation Report",
+        "# KantBench Evaluation Report",
         "",
         "## Summary",
         "",

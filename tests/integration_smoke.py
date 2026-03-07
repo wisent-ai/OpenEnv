@@ -4,7 +4,7 @@ import types
 
 sys.path.insert(
     int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/machiaveli",
+    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
 )
 
 # Stub the openenv package
@@ -38,7 +38,7 @@ for _n, _m in [
 
 from common.games import create_matrix_game, GAMES
 from common.games_meta.dynamic import unregister_game
-from env.environment import MachiavelliEnvironment
+from env.environment import KantEnvironment
 from env.models import GameAction
 import common.games_meta.nplayer_games  # noqa: F401 -- register built-ins
 from env.nplayer.environment import NPlayerEnvironment
@@ -66,7 +66,7 @@ def test_dynamic_game_with_two_player_env() -> None:
         register=True,
     )
     assert "dynamic_chicken" in GAMES
-    env = MachiavelliEnvironment()
+    env = KantEnvironment()
     obs = env.reset(game="dynamic_chicken", strategy="random", num_rounds=_THREE)
     assert obs.done is False
     assert obs.game_name == "dynamic_chicken"

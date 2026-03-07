@@ -4,7 +4,7 @@
 As AI agents are deployed in increasingly complex social and economic
 settings, measuring their capacity for strategic reasoning, cooperation,
 and trust becomes essential for alignment research. We introduce
-\textsc{MachiaveliBench}, a game-theory benchmark built on the OpenEnv
+\textsc{KantBench}, a game-theory benchmark built on the OpenEnv
 framework that evaluates AI agents across six canonical games:
 Prisoner's Dilemma, Stag Hunt, Hawk-Dove, the Ultimatum Game, the Trust
 Game, and a Public Goods Game. Each game is paired with a diverse set of
@@ -14,7 +14,7 @@ agent behaviour under varied social pressures. We define six evaluation
 metrics that capture cooperation tendency, exploitation resistance,
 Pareto efficiency, fairness, adaptability, and an aggregate strategic
 reasoning score. By standardizing the game suite, opponent pool, and
-evaluation protocol, \textsc{MachiaveliBench} provides a reproducible
+evaluation protocol, \textsc{KantBench} provides a reproducible
 testbed for studying how language-model agents navigate fundamental
 tensions between self-interest and collective welfare.
 \end{abstract}
@@ -33,7 +33,7 @@ or embed strategic reasoning inside complex, high-dimensional
 environments that make controlled evaluation
 difficult~\cite{pan2023machiavelli,leibo2021meltingpot}.
 
-We present \textsc{MachiaveliBench}, a lightweight, standardized
+We present \textsc{KantBench}, a lightweight, standardized
 benchmark designed to isolate and quantify strategic reasoning in AI
 agents. The benchmark consists of six games spanning the core tensions in
 social decision-making:
@@ -52,7 +52,7 @@ library of classical strategies (e.g., Tit-for-Tat, Grudger, Pavlov,
 Always Defect). This opponent pool lets researchers measure how agents
 adapt to cooperative, adversarial, and mixed partners.
 
-\textsc{MachiaveliBench} integrates with the OpenEnv framework, exposing
+\textsc{KantBench} integrates with the OpenEnv framework, exposing
 a Gymnasium-compatible API that any reinforcement-learning or
 LLM-based agent can consume. A WebSocket client--server architecture
 allows remote evaluation, and a built-in tournament runner automates

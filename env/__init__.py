@@ -1,1 +1,1 @@
-"""OpenEnv server and client integration for Machiavelli."""
+"""OpenEnv server and client integration for Kant."""

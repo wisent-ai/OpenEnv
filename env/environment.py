@@ -1,4 +1,4 @@
-"""Core MachiaveliBench environment implementing the OpenEnv Environment interface."""
+"""Core KantBench environment implementing the OpenEnv Environment interface."""
 from __future__ import annotations
 
 import uuid
@@ -14,7 +14,7 @@ _ONE = int(bool(True))
 _ZERO_F = float()
 
 
-class MachiavelliEnvironment(Environment[GameObservation, GameAction, GameState]):
+class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
     """Game-theory environment hosting multiple classic games.
 
     The agent plays against a built-in opponent strategy or another agent

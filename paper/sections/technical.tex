@@ -3,14 +3,14 @@
 \section{Environment Architecture}
 \label{sec:architecture}
 
-\textsc{MachiaveliBench} is implemented as an OpenEnv-compatible
+\textsc{KantBench} is implemented as an OpenEnv-compatible
 environment, inheriting the framework's client--server design and
 Gymnasium-style \texttt{reset}/\texttt{step} interface.
 
 \subsection{Server Components}
 
 The server exposes a FastAPI application that manages environment
-instances. Internally, the \texttt{MachiaveliBenchEnvironment} class
+instances. Internally, the \texttt{KantBenchEnvironment} class
 coordinates three subsystems:
 
 \begin{description}[nosep]
@@ -34,7 +34,7 @@ coordinates three subsystems:
 \subsection{Client Interface}
 
 Agents interact with the environment through a WebSocket connection
-managed by the \texttt{MachiaveliBenchEnv} client class. The client
+managed by the \texttt{KantBenchEnv} client class. The client
 wraps the OpenEnv \texttt{EnvClient}, providing typed
 \texttt{reset(**kwargs)} and \texttt{step(GameAction)} methods that
 deserialize server responses into \texttt{GameObservation} objects.

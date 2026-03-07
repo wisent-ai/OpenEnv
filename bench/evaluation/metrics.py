@@ -1,4 +1,4 @@
-"""Metric computation for MachiaveliBench tournament results.
+"""Metric computation for KantBench tournament results.
 
 Accepts the nested dict produced by ``TournamentRunner.run_tournament_as_dict``
 (or an equivalent structure) and returns a flat dict of aggregate metrics.

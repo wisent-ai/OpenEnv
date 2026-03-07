@@ -1,4 +1,4 @@
-"""Sequential (extensive-form) games for MachiaveliBench."""
+"""Sequential (extensive-form) games for KantBench."""
 from __future__ import annotations
 
 from common.games import GAMES, GameConfig

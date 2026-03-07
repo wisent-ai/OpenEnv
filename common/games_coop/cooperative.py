@@ -1,4 +1,4 @@
-"""Cooperative game theory and social choice games for MachiaveliBench."""
+"""Cooperative game theory and social choice games for KantBench."""
 from __future__ import annotations
 
 from common.games import GAMES, GameConfig, _matrix_payoff_fn

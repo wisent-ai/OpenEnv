@@ -1,4 +1,4 @@
-"""Tournament runner for MachiaveliBench evaluation.
+"""Tournament runner for KantBench evaluation.
 
 Runs every game-strategy combination over multiple episodes and collects
 structured results for downstream metric computation and reporting.
@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 from env.models import GameAction, GameObservation
 from common.games import GAMES, GameConfig
 from common.strategies import STRATEGIES
-from env.environment import MachiavelliEnvironment
+from env.environment import KantEnvironment
 from constant_definitions.game_constants import (
     EVAL_DEFAULT_EPISODES, EVAL_NEGATIVE_ONE,
     EVAL_ONE, EVAL_TWO, EVAL_ZERO, EVAL_ZERO_FLOAT,
@@ -110,10 +110,10 @@ class TournamentRunner:
 
     def __init__(
         self,
-        env: Optional[MachiavelliEnvironment] = None,
+        env: Optional[KantEnvironment] = None,
         agent_fn: Optional[Callable[[GameObservation], GameAction]] = None,
     ) -> None:
-        self._env = env if env is not None else MachiavelliEnvironment()
+        self._env = env if env is not None else KantEnvironment()
         self._agent_fn = agent_fn if agent_fn is not None else _default_agent_action
 
     def run_tournament(

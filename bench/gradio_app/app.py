@@ -1,4 +1,4 @@
-"""Machiavelli Gradio Demo -- self-contained HuggingFace Spaces app."""
+"""Kant Gradio Demo -- self-contained HuggingFace Spaces app."""
 from __future__ import annotations
 import sys, os, random as _rand
 import gradio as gr
@@ -197,8 +197,8 @@ _TAG_CHOICES = [_ALL_FILTER]
 for _dn, _dt in sorted(_CATEGORY_DIMS.items()):
     _TAG_CHOICES.extend(_dt)
 
-with gr.Blocks(title="Machiavelli Demo") as demo:
-    gr.Markdown("# Machiavelli -- Interactive Game Theory Demo")
+with gr.Blocks(title="Kant Demo") as demo:
+    gr.Markdown("# Kant -- Interactive Game Theory Demo")
     with gr.Tabs():
         with gr.TabItem("Human Play"):
             with gr.Row():

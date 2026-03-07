@@ -17,6 +17,9 @@ from constant_definitions.nplayer.coalition_constants import (
     ENFORCEMENT_CHEAP_TALK,
     COALITION_DEFAULT_SIDE_PAYMENT,
 )
+from env.nplayer.governance.models import (
+    GovernanceProposal, GovernanceResult, GovernanceVote, RuntimeRules,
+)
 from env.nplayer.models import NPlayerObservation, NPlayerRoundResult
 
 
@@ -84,8 +87,22 @@ class CoalitionObservation(BaseModel):
         default_factory=list,
         description="Indices of players currently active in the game",
     )
+    current_rules: Optional[RuntimeRules] = Field(
+        default=DEFAULT_NONE,
+        description="Current governance runtime rules",
+    )
+    pending_governance: list[GovernanceProposal] = Field(
+        default_factory=list,
+        description="Governance proposals pending vote",
+    )
+    governance_history: list[GovernanceResult] = Field(
+        default_factory=list,
+        description="History of governance rounds",
+    )
 
 
 class CoalitionAction(BaseModel):
     proposals: list[CoalitionProposal] = Field(default_factory=list)
     responses: list[CoalitionResponse] = Field(default_factory=list)
+    governance_proposals: list[GovernanceProposal] = Field(default_factory=list)
+    governance_votes: list[GovernanceVote] = Field(default_factory=list)

@@ -1,4 +1,4 @@
-"""Signaling and incomplete information games for MachiaveliBench."""
+"""Signaling and incomplete information games for KantBench."""
 from __future__ import annotations
 
 from common.games import GAMES, GameConfig, _matrix_payoff_fn

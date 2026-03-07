@@ -1,4 +1,4 @@
-"""Machiavelli client for the OpenEnv framework."""
+"""Kant client for the OpenEnv framework."""
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -8,8 +8,8 @@ from env.models import GameAction, GameObservation, GameState
 from constant_definitions.game_constants import SERVER_PORT
 
 
-class MachiavelliEnv(EnvClient):
-    """Gymnasium-style client for the Machiavelli environment.
+class KantEnv(EnvClient):
+    """Gymnasium-style client for the Kant environment.
 
     Wraps the generic EnvClient WebSocket connection with typed helpers
     for the game-theory action and observation schemas.
@@ -17,7 +17,7 @@ class MachiavelliEnv(EnvClient):
     Usage::
 
         url = f"ws://localhost:{SERVER_PORT}"
-        async with MachiavelliEnv(base_url=url) as env:
+        async with KantEnv(base_url=url) as env:
             obs = await env.reset(game="prisoners_dilemma", strategy="tit_for_tat")
             while not obs.done:
                 obs = await env.step(GameAction(action="cooperate"))

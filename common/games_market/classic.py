@@ -1,4 +1,4 @@
-"""Classic dilemma and extended strategic games for MachiaveliBench."""
+"""Classic dilemma and extended strategic games for KantBench."""
 from __future__ import annotations
 
 from common.games import GAMES, GameConfig, _matrix_payoff_fn

@@ -34,7 +34,7 @@ if "openenv" not in sys.modules:
     ]:
         sys.modules[_name] = _mod
 
-from env.environment import MachiavelliEnvironment
+from env.environment import KantEnvironment
 from env.models import GameAction, GameObservation
 from train.trajectory import (
     EpisodeTrajectory,
@@ -104,7 +104,7 @@ def test_episode_trajectory_defaults():
 
 def test_collector_single_episode():
     """TrajectoryCollector should produce a valid trajectory."""
-    env = MachiavelliEnvironment()
+    env = KantEnvironment()
     agent = _AgentWithTracking()
     collector = TrajectoryCollector(
         env=env,
@@ -124,7 +124,7 @@ def test_collector_single_episode():
 
 def test_collector_steps_have_prompts():
     """Each step should have a non-empty prompt."""
-    env = MachiavelliEnvironment()
+    env = KantEnvironment()
     agent = _AgentWithTracking()
     collector = TrajectoryCollector(env=env, agent=agent)
     traj = collector.collect_episode(
@@ -137,7 +137,7 @@ def test_collector_steps_have_prompts():
 
 def test_collector_batch():
     """collect_batch should return trajectories for each combination."""
-    env = MachiavelliEnvironment()
+    env = KantEnvironment()
     agent = _AgentWithTracking()
     collector = TrajectoryCollector(env=env, agent=agent)
     trajectories = collector.collect_batch(
@@ -149,7 +149,7 @@ def test_collector_batch():
 
 def test_collector_with_reward_fn():
     """Providing a reward_fn should produce non-default episode_reward."""
-    env = MachiavelliEnvironment()
+    env = KantEnvironment()
     agent = _AgentWithTracking()
     collector = TrajectoryCollector(
         env=env,

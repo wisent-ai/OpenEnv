@@ -1,0 +1,122 @@
+% results.tex -- Experiments and Discussion
+
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Evaluation Protocol}
+
+We propose the following protocol for evaluating an AI agent on
+\textsc{MachiaveliBench}:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Full tournament}: run three episodes for every
+          (game, strategy) pair, yielding a total of 306 episodes.
+    \item \textbf{Metric computation}: aggregate per-episode results
+          into the six metrics defined in Section~\ref{sec:metrics}.
+    \item \textbf{Reporting}: present per-game breakdowns alongside
+          composite scores to enable fine-grained analysis of
+          behavioural patterns.
+\end{enumerate}
+
+\subsection{Baseline Agents}
+
+To illustrate the benchmark's discriminative power, we outline three
+baseline agent types:
+
+\begin{description}[nosep]
+    \item[Random Agent.] Selects uniformly from available actions each
+        round. This agent serves as a lower bound and is expected to
+        exhibit near-uniform cooperation rates with no adaptability.
+    \item[Tit-for-Tat Agent.] Cooperates on the first round and then
+        mirrors the opponent's previous action. This classic strategy
+        achieves high cooperation with reciprocal partners but is
+        exploitable in the first round by adversarial opponents.
+    \item[LLM Agent.] A language-model agent that receives the
+        observation as a structured prompt and selects an action via
+        natural-language reasoning. The LLM agent's behaviour depends
+        on its pretraining distribution and instruction-tuning,
+        making it the primary subject of interest for alignment
+        research.
+\end{description}
+
+\subsection{Expected Behavioural Patterns}
+
+Based on game-theoretic analysis and prior
+work~\cite{axelrod1984evolution,pan2023machiavelli}, we anticipate the
+following patterns:
+
+\begin{itemize}[nosep]
+    \item \textbf{Cooperation--defection trade-off}: agents optimizing
+          purely for reward will defect in the Prisoner's Dilemma but
+          may cooperate in the Stag Hunt where mutual cooperation is
+          a Nash equilibrium~\cite{nash1950equilibrium}.
+    \item \textbf{Fairness norms}: instruction-tuned LLMs are expected
+          to propose near-equal splits in the Ultimatum Game, reflecting
+          human-like fairness preferences instilled during
+          training~\cite{christiano2017deep}.
+    \item \textbf{Trust calibration}: well-calibrated agents should
+          invest moderately in the Trust Game and adjust returns based
+          on the trustee's observed generosity.
+    \item \textbf{Free-riding incentives}: in the Public Goods Game,
+          purely self-interested agents will contribute minimally,
+          while agents with social preferences will contribute more.
+\end{itemize}
+
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Implications for Alignment}
+
+The metrics defined in \textsc{MachiaveliBench} are directly relevant
+to AI safety concerns identified by Amodei et
+al.~\cite{amodei2016concrete}:
+
+\begin{itemize}[nosep]
+    \item \textbf{Reward hacking}: an agent that achieves high scores
+          by consistently defecting against cooperative opponents
+          exposes a misalignment between reward maximization and
+          socially desirable behaviour.
+    \item \textbf{Safe exploration}: the exploitation resistance
+          metric quantifies how well an agent avoids being exploited
+          by adversarial partners, a prerequisite for safe deployment
+          in open environments.
+    \item \textbf{Scalable oversight}: fairness and Pareto efficiency
+          provide proxy signals for whether an agent's strategy
+          produces outcomes that a human supervisor would endorse.
+\end{itemize}
+
+\subsection{Emergence of Cooperation}
+
+Axelrod's tournaments~\cite{axelrod1984evolution} demonstrated that
+reciprocal strategies outperform exploitative ones in iterated
+settings. \textsc{MachiaveliBench} tests whether modern AI agents
+rediscover this result. An agent that develops conditional cooperation---high
+cooperation with reciprocal partners and measured defection against
+exploiters---demonstrates sophisticated strategic reasoning without
+requiring explicit game-theoretic programming.
+
+\subsection{Trust Calibration}
+
+The Trust Game and Ultimatum Game probe whether agents can calibrate
+their behaviour to the norms of their interaction partner. An
+alignment-oriented agent should be willing to trust generous partners
+more than stingy ones and should reject unfair offers in the Ultimatum
+Game to enforce fairness norms. The adaptability metric captures this
+calibration by measuring variance in cooperation rate across different
+opponent types.
+
+\subsection{Limitations}
+
+Several limitations should guide interpretation of benchmark results:
+
+\begin{itemize}[nosep]
+    \item The opponent pool, while diverse, does not capture the full
+          spectrum of adversarial or cooperative behaviours encountered
+          in real-world multi-agent systems.
+    \item Sequential games are single-shot, limiting the study of
+          reputation effects and long-term trust dynamics.
+    \item The benchmark evaluates dyadic interactions; extending to
+          $n$-player settings would increase ecological validity.
+    \item Payoff structures are fixed; adaptive payoff schedules could
+          test robustness to distributional shift.
+\end{itemize}

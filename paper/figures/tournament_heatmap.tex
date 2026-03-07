@@ -1,0 +1,56 @@
+% tournament_heatmap.tex -- Illustrative cooperation-rate heatmap
+\begin{tikzpicture}[
+    cell/.style={minimum width=2.2cm, minimum height=0.9cm,
+                 font=\small, align=center},
+    header/.style={font=\small\bfseries\sffamily, align=center},
+    lbl/.style={font=\scriptsize\sffamily}
+]
+
+% Color helper: map a value in [0,1] to a green shade
+\newcommand{\heatcell}[4]{%
+    % #1=x, #2=y, #3=value (0-100), #4=display text
+    \fill[green!#3!white] (#1-1.1, #2-0.45) rectangle (#1+1.1, #2+0.45);
+    \draw[black!30] (#1-1.1, #2-0.45) rectangle (#1+1.1, #2+0.45);
+    \node[cell] at (#1, #2) {#4};
+}
+
+% Title
+\node[font=\sffamily\bfseries] at (4.4, 3.5)
+    {Cooperation Rate by Game and Opponent};
+
+% Column headers (strategies)
+\node[header] at (2.2, 2.7) {Always\\Cooperate};
+\node[header] at (4.4, 2.7) {Tit-for-Tat};
+\node[header] at (6.6, 2.7) {Always\\Defect};
+
+% Row headers (games)
+\node[header, anchor=east] at (0.9, 1.6) {PD};
+\node[header, anchor=east] at (0.9, 0.5) {Stag Hunt};
+\node[header, anchor=east] at (0.9,-0.6) {Hawk-Dove};
+
+% Row 1: Prisoner's Dilemma
+\heatcell{2.2}{1.6}{80}{0.85}
+\heatcell{4.4}{1.6}{65}{0.62}
+\heatcell{6.6}{1.6}{15}{0.10}
+
+% Row 2: Stag Hunt
+\heatcell{2.2}{0.5}{90}{0.95}
+\heatcell{4.4}{0.5}{85}{0.88}
+\heatcell{6.6}{0.5}{30}{0.25}
+
+% Row 3: Hawk-Dove
+\heatcell{2.2}{-0.6}{70}{0.72}
+\heatcell{4.4}{-0.6}{55}{0.50}
+\heatcell{6.6}{-0.6}{20}{0.18}
+
+% Color legend
+\begin{scope}[shift={(8.8, 0.5)}]
+    \node[lbl, anchor=south] at (0.4, 1.5) {Legend};
+    \foreach \v/\y/\t in {90/1.0/High, 50/0.2/Mid, 10/-0.6/Low} {
+        \fill[green!\v!white] (0, \y) rectangle (0.8, \y+0.6);
+        \draw[black!30] (0, \y) rectangle (0.8, \y+0.6);
+        \node[lbl, anchor=west] at (1.0, \y+0.3) {\t};
+    }
+\end{scope}
+
+\end{tikzpicture}

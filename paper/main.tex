@@ -1,0 +1,89 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- Packages ---
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,calc,backgrounds}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!70!black,
+    citecolor=green!50!black,
+    urlcolor=blue!60!black
+}
+
+% --- Title ---
+\title{MachiaveliBench: A Game-Theory Benchmark for Evaluating\\
+Strategic Reasoning in AI Agents}
+
+\author{
+    Author One\thanks{Affiliation. Email: \texttt{author1@example.com}} \and
+    Author Two\thanks{Affiliation. Email: \texttt{author2@example.com}}
+}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% --- Front matter: abstract and introduction ---
+\input{sections/front_matter}
+
+% --- Background and benchmark design ---
+\input{sections/background}
+
+% --- Architecture figure ---
+\begin{figure}[t]
+    \centering
+    \input{figures/architecture}
+    \caption{MachiaveliBench system architecture. The agent communicates with the
+    environment server over a WebSocket connection following the Gymnasium API
+    convention. The server dispatches observations and computes payoffs via the
+    game engine and strategy module.}
+    \label{fig:architecture}
+\end{figure}
+
+% --- Technical details ---
+\input{sections/technical}
+
+% --- Payoff matrices figure ---
+\begin{figure}[t]
+    \centering
+    \input{figures/payoff_matrices}
+    \caption{Normal-form payoff matrices for the three matrix games in
+    MachiaveliBench. Each cell shows (row player, column player) payoffs.}
+    \label{fig:payoff-matrices}
+\end{figure}
+
+% --- Results and discussion ---
+\input{sections/results}
+
+% --- Tournament heatmap figure ---
+\begin{figure}[t]
+    \centering
+    \input{figures/tournament_heatmap}
+    \caption{Illustrative tournament heatmap showing cooperation rates across
+    game--strategy combinations. Darker shading indicates higher cooperation.}
+    \label{fig:heatmap}
+\end{figure}
+
+% --- Conclusion ---
+\input{sections/conclusion}
+
+% --- References ---
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

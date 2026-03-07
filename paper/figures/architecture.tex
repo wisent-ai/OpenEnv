@@ -1,0 +1,52 @@
+% architecture.tex -- TikZ system architecture diagram
+\begin{tikzpicture}[
+    node distance=1.8cm and 2.4cm,
+    box/.style={
+        rectangle, draw=black!70, thick,
+        fill=#1, minimum width=2.6cm, minimum height=1cm,
+        font=\small\sffamily, align=center, rounded corners=3pt
+    },
+    box/.default={blue!8},
+    arrow/.style={-{Stealth[length=6pt]}, thick, draw=black!60},
+    lbl/.style={font=\scriptsize\sffamily, text=black!70}
+]
+
+% Agent node
+\node[box=orange!12] (agent) {AI Agent};
+
+% WebSocket bridge
+\node[box=gray!12, right=of agent] (ws) {WebSocket\\Bridge};
+
+% Environment server
+\node[box=blue!12, right=of ws] (server) {Environment\\Server};
+
+% Game engine
+\node[box=green!10, above right=0.9cm and 2cm of server] (engine)
+    {Game Engine\\{\scriptsize (Payoff Functions)}};
+
+% Strategy module
+\node[box=red!8, below right=0.9cm and 2cm of server] (strat)
+    {Strategy Module\\{\scriptsize (Opponent AI)}};
+
+% Arrows: agent <-> websocket <-> server
+\draw[arrow] (agent.east) -- node[above, lbl] {action} (ws.west);
+\draw[arrow] (ws.west) -- ++(0,-0.35) -| node[below, lbl, pos=0.25]
+    {observation} (agent.south east);
+
+\draw[arrow] (ws.east) -- node[above, lbl] {JSON} (server.west);
+\draw[arrow] (server.west) -- ++(0,-0.35) -| node[below, lbl, pos=0.25]
+    {response} (ws.south east);
+
+% Arrows: server -> engine, server -> strategy
+\draw[arrow] (server.east) -- ++(0.5,0) |- node[above, lbl, pos=0.75]
+    {resolve payoffs} (engine.west);
+\draw[arrow] (server.east) -- ++(0.5,0) |- node[below, lbl, pos=0.75]
+    {compute move} (strat.west);
+
+% Return arrows
+\draw[arrow, dashed] (engine.south west) -- ++(-0.8,-0.5) -|
+    ([xshift=3pt]server.north);
+\draw[arrow, dashed] (strat.north west) -- ++(-0.8,0.5) -|
+    ([xshift=3pt]server.south);
+
+\end{tikzpicture}

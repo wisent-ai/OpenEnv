@@ -1,0 +1,74 @@
+% front_matter.tex -- Abstract and Introduction
+
+\begin{abstract}
+As AI agents are deployed in increasingly complex social and economic
+settings, measuring their capacity for strategic reasoning, cooperation,
+and trust becomes essential for alignment research. We introduce
+\textsc{MachiaveliBench}, a game-theory benchmark built on the OpenEnv
+framework that evaluates AI agents across six canonical games:
+Prisoner's Dilemma, Stag Hunt, Hawk-Dove, the Ultimatum Game, the Trust
+Game, and a Public Goods Game. Each game is paired with a diverse set of
+built-in opponent strategies---from unconditional cooperators to
+adaptive and retaliatory policies---enabling controlled measurement of
+agent behaviour under varied social pressures. We define six evaluation
+metrics that capture cooperation tendency, exploitation resistance,
+Pareto efficiency, fairness, adaptability, and an aggregate strategic
+reasoning score. By standardizing the game suite, opponent pool, and
+evaluation protocol, \textsc{MachiaveliBench} provides a reproducible
+testbed for studying how language-model agents navigate fundamental
+tensions between self-interest and collective welfare.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+The deployment of large language model (LLM) agents in real-world
+settings---negotiation, resource allocation, market participation---raises
+a pressing question: \emph{can we reliably measure and predict how these
+agents behave in strategic interactions?} Classical game theory offers a
+rich library of settings that distil key social dilemmas into tractable
+formal games~\cite{nash1950equilibrium,rapoport1965prisoner,axelrod1984evolution}.
+Yet existing AI benchmarks either focus on single-agent decision-making
+or embed strategic reasoning inside complex, high-dimensional
+environments that make controlled evaluation
+difficult~\cite{pan2023machiavelli,leibo2021meltingpot}.
+
+We present \textsc{MachiaveliBench}, a lightweight, standardized
+benchmark designed to isolate and quantify strategic reasoning in AI
+agents. The benchmark consists of six games spanning the core tensions in
+social decision-making:
+
+\begin{itemize}[nosep]
+    \item \textbf{Matrix games} (Prisoner's Dilemma, Stag Hunt,
+          Hawk-Dove) test cooperation, coordination, and conflict
+          resolution under simultaneous choice.
+    \item \textbf{Sequential games} (Ultimatum, Trust, Public Goods)
+          test fairness norms, trust calibration, and free-riding
+          incentives.
+\end{itemize}
+
+Each game is played against a configurable opponent drawn from a
+library of classical strategies (e.g., Tit-for-Tat, Grudger, Pavlov,
+Always Defect). This opponent pool lets researchers measure how agents
+adapt to cooperative, adversarial, and mixed partners.
+
+\textsc{MachiaveliBench} integrates with the OpenEnv framework, exposing
+a Gymnasium-compatible API that any reinforcement-learning or
+LLM-based agent can consume. A WebSocket client--server architecture
+allows remote evaluation, and a built-in tournament runner automates
+round-robin matchups with metric aggregation.
+
+Our contributions are:
+\begin{enumerate}[nosep]
+    \item A curated suite of six game-theory environments with formally
+          specified payoff structures (Section~\ref{sec:design}).
+    \item A library of seventeen opponent strategies covering
+          unconditional, reciprocal, retaliatory, and stochastic play
+          (Section~\ref{sec:design}).
+    \item An evaluation protocol with six metrics designed to capture
+          distinct aspects of strategic and ethical
+          reasoning (Section~\ref{sec:evaluation}).
+    \item An open-source implementation integrated with the OpenEnv
+          framework for reproducible benchmarking
+          (Section~\ref{sec:architecture}).
+\end{enumerate}

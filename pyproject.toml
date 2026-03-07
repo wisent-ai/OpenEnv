@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "openenv-machiaveli"
+version = "0.1.0"
+description = "Machiavelli: Game-theory benchmark for AI agents on OpenEnv"
+requires-python = ">=3.10"
+license = { text = "BSD-3-Clause" }
+dependencies = [
+    "openenv-core[core]>=0.2.1",
+    "fastapi>=0.115.0",
+    "pydantic>=2.0.0",
+    "uvicorn>=0.24.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "pytest-asyncio>=0.21.0"]
+gradio = ["gradio>=4.0.0", "matplotlib>=3.7.0"]
+train = ["transformers>=4.40.0", "trl>=0.12.0", "peft>=0.13.0", "datasets>=2.20.0", "accelerate>=0.34.0", "bitsandbytes>=0.43.0", "wandb>=0.18.0"]
+api = ["openai>=1.0.0", "anthropic>=0.30.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.setuptools.packages.find]
+where = ["."]

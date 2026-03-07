@@ -1,0 +1,6 @@
+spec_version: 1
+name: machiaveli
+type: space
+runtime: fastapi
+app: env.app:app
+port: 8000

@@ -1,0 +1,67 @@
+% conclusion.tex -- Conclusion and Future Work
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have introduced \textsc{MachiaveliBench}, a game-theory benchmark
+for evaluating strategic reasoning in AI agents. The benchmark makes
+three core contributions:
+
+\begin{enumerate}[nosep]
+    \item \textbf{A standardized game suite}: six canonical games---Prisoner's
+          Dilemma, Stag Hunt, Hawk-Dove, the Ultimatum Game, the Trust
+          Game, and a Public Goods Game---that collectively span the
+          fundamental tensions between cooperation and self-interest,
+          trust and exploitation, fairness and free-riding.
+    \item \textbf{A diverse opponent library}: seventeen built-in
+          strategies ranging from unconditional cooperators to
+          retaliatory and stochastic policies, enabling controlled
+          measurement of agent adaptability.
+    \item \textbf{An alignment-oriented evaluation protocol}: six
+          normalized metrics---cooperation rate, exploitation
+          resistance, Pareto efficiency, fairness index, adaptability,
+          and strategic reasoning---that capture distinct facets of
+          agent behaviour relevant to AI safety.
+\end{enumerate}
+
+The benchmark integrates with the OpenEnv framework, providing a
+Gymnasium-compatible API, WebSocket-based client--server communication,
+and an automated tournament runner. This design ensures that any
+agent---whether a reinforcement-learning policy trained via
+PPO~\cite{schulman2017ppo}, an LLM prompted with game descriptions,
+or a hand-crafted heuristic---can be evaluated under identical
+conditions with minimal integration effort.
+
+\subsection{Future Work}
+
+Several directions extend the current benchmark:
+
+\paragraph{Multi-agent tournaments.}
+The current design evaluates a single agent against built-in opponents.
+A natural extension is agent-vs-agent tournaments where multiple
+candidate agents compete in round-robin play, enabling direct
+comparison of strategic capabilities without a fixed opponent pool.
+
+\paragraph{Expanded game library.}
+Additional games such as the Centipede Game, Battle of the Sexes, and
+repeated auction mechanisms would broaden the strategic landscape and
+test new dimensions of reasoning such as backward induction and
+competitive bidding.
+
+\paragraph{Longitudinal evaluation.}
+Running the benchmark at multiple training checkpoints would reveal how
+strategic behaviour evolves during training. This is particularly
+relevant for RLHF-trained
+models~\cite{christiano2017deep}, where human preference data may
+implicitly encode cooperation or fairness norms.
+
+\paragraph{Adaptive opponents.}
+Replacing fixed strategies with learning opponents (e.g., PPO agents
+or LLM-based adversaries) would test robustness to non-stationary
+partners and create a co-evolutionary evaluation paradigm.
+
+\paragraph{Multi-player extensions.}
+Scaling the Public Goods Game and other social dilemmas to larger
+groups would increase ecological validity and test whether insights
+from dyadic settings generalize to $n$-player
+contexts~\cite{leibo2021meltingpot}.

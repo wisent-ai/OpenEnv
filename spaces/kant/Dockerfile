@@ -75,7 +75,9 @@ ENV PYTHONPATH="/app/env:$PYTHONPATH"
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
+# Clear base image ENTRYPOINT so our CMD runs directly
+ENTRYPOINT []
+
 # Run the FastAPI server
-# The module path is constructed to work with the /app/env structure
 ENV ENABLE_WEB_INTERFACE=true
-CMD ["sh", "-c", "cd /app/env && uvicorn server.app:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "echo '===== Application Startup at '$(date '+%Y-%m-%d %H:%M:%S')' =====' && cd /app/env && uvicorn server.app:app --host 0.0.0.0 --port 8000"]

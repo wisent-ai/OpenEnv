@@ -31,7 +31,7 @@ from callbacks import (
     on_category_change, on_mp_filter_change,
     on_game_select, on_game_select_variant,
     on_strategy_change, on_provider_change,
-    _build_reference_md,
+    _build_reference_md, _build_all_matrices_md, _build_matrix_md,
 )
 print("[APP] All imports done.", flush=True)
 
@@ -145,6 +145,27 @@ with gr.Blocks(title="Kant Demo") as demo:
                     inputs=[arena_models],
                     outputs=[arena_md])
                 arena_stop.click(None, cancels=[start_event])
+
+        with gr.TabItem("Payoff Matrices"):
+            gr.Markdown("Browse payoff matrices for all games. Select a game and optional variants to see the matrix.")
+            with gr.Row():
+                matrix_game_dd = gr.Dropdown(
+                    _GAME_NAMES, value=_INIT_GAME, label="Game")
+                matrix_variant_cb = gr.CheckboxGroup(
+                    _HUMAN_VARIANTS, value=[], label="Variants") if _HUMAN_VARIANTS else gr.CheckboxGroup([], value=[], label="Variants", visible=False)
+            matrix_md = gr.Markdown(value=_build_matrix_md(_INIT_GAME, None))
+            gr.Markdown("---")
+            all_matrices_md = gr.Markdown(value=_build_all_matrices_md())
+
+            def _update_matrix(gname, variants):
+                return _build_matrix_md(gname, variants if variants else None)
+
+            matrix_game_dd.change(_update_matrix,
+                                  inputs=[matrix_game_dd, matrix_variant_cb],
+                                  outputs=[matrix_md])
+            matrix_variant_cb.change(_update_matrix,
+                                     inputs=[matrix_game_dd, matrix_variant_cb],
+                                     outputs=[matrix_md])
 
         with gr.TabItem("Game Theory Reference"):
             gr.Markdown(value=_build_reference_md())

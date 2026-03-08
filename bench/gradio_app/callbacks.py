@@ -237,6 +237,60 @@ def on_provider_change(provider):
     return gr.update(choices=models, value=models[_ZERO] if models else "")
 
 
+def _build_matrix_md(game_name, variant_list):
+    """Build a payoff-matrix markdown table for *game_name* with optional variants."""
+    info = _get_game_info(game_name, variant_list if variant_list else None)
+    if not info:
+        return "Game not found."
+    actions = info["actions"]
+    opp_actions = list(info["opponent_actions"]) if info.get("opponent_actions") else actions
+    MAX_ACTIONS = 8
+    row_truncated = len(actions) > MAX_ACTIONS
+    col_truncated = len(opp_actions) > MAX_ACTIONS
+    row_acts = actions[:MAX_ACTIONS]
+    col_acts = opp_actions[:MAX_ACTIONS]
+
+    header = "| P1 \\ P2 | " + " | ".join(f"**{a}**" for a in col_acts)
+    if col_truncated:
+        header += " | ..."
+    header += " |"
+    sep = "|" + "|".join(["---"] * (len(col_acts) + 1 + (1 if col_truncated else 0))) + "|"
+    rows = [header, sep]
+    for ra in row_acts:
+        cells = [f"**{ra}**"]
+        for ca in col_acts:
+            try:
+                p, o = info["payoff_fn"](ra, ca)
+                cells.append(f"{p:g}, {o:g}")
+            except Exception:
+                cells.append("—")
+        if col_truncated:
+            cells.append("…")
+        rows.append("| " + " | ".join(cells) + " |")
+    if row_truncated:
+        rows.append("| ... |" + " |" * (len(col_acts) + (1 if col_truncated else 0)))
+    note = ""
+    if row_truncated or col_truncated:
+        note = f"\n\n*Showing {len(row_acts)}×{len(col_acts)} of {len(actions)}×{len(opp_actions)} actions.*"
+    return "\n".join(rows) + note
+
+
+def _build_all_matrices_md():
+    """Build markdown showing payoff matrices for every base game."""
+    if not _HAS_REGISTRY:
+        return "# Payoff Matrices\n\nFull registry not available."
+    sections = ["# Payoff Matrices\n"]
+    for gname in sorted(_GAME_INFO.keys()):
+        info = _GAME_INFO[gname]
+        if info.get("num_players", _TWO) > _TWO:
+            continue
+        sections.append(f"## {gname}\n")
+        sections.append(f"*{info['description']}*\n")
+        sections.append(_build_matrix_md(gname, None))
+        sections.append("")
+    return "\n\n".join(sections)
+
+
 def _build_reference_md():
     if not _HAS_REGISTRY:
         return "# Game Theory Reference\n\nFull registry not available."

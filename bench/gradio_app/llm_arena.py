@@ -19,8 +19,50 @@ _HDR_MATCH = (f"| Match | Player {_ONE} | Player {_TWO} "
               f"| P{_ONE} Score | P{_TWO} Score | Leader |")
 _SEP_MATCH = "|-------|----------|----------|----------|----------|--------|"
 _HDR_ROUND = (f"| Round | P{_ONE} Action | P{_TWO} Action "
-              f"| P{_ONE} Pay | P{_TWO} Pay |")
-_SEP_ROUND = "|-------|-----------|-----------|--------|--------|"
+              f"| P{_ONE} Pay | P{_TWO} Pay | Rules |")
+_SEP_ROUND = "|-------|-----------|-----------|--------|--------|-------|"
+
+_CONST_PREFIX = "const"
+_EXIT_ACTION = "exit"
+
+
+def _parse_rule_status(p1_action, p2_action, locked_rule):
+    """Parse actions and return (p1_base, p2_base, rule_status_str, new_locked_rule)."""
+    sep = "_"
+    p1_rule, p2_rule = "", ""
+    p1_base, p2_base = p1_action, p2_action
+
+    if p1_action == _EXIT_ACTION:
+        p1_base = _EXIT_ACTION
+    elif p1_action.startswith(_CONST_PREFIX + sep):
+        parts = p1_action.split(sep, _TWO + _ONE)
+        if len(parts) >= _TWO + _ONE:
+            p1_rule = parts[_ONE]
+            p1_base = parts[_TWO]
+
+    if p2_action == _EXIT_ACTION:
+        p2_base = _EXIT_ACTION
+    elif p2_action.startswith(_CONST_PREFIX + sep):
+        parts = p2_action.split(sep, _TWO + _ONE)
+        if len(parts) >= _TWO + _ONE:
+            p2_rule = parts[_ONE]
+            p2_base = parts[_TWO]
+
+    new_locked = locked_rule
+    if locked_rule:
+        status = f"LOCKED: {locked_rule}"
+    elif p1_rule and p2_rule:
+        if p1_rule == p2_rule and p1_rule != "none":
+            status = f"AGREED: {p1_rule}"
+            new_locked = p1_rule
+        else:
+            status = f"{p1_rule} vs {p2_rule}"
+    elif p1_rule or p2_rule:
+        status = f"{p1_rule or '-'} vs {p2_rule or '-'}"
+    else:
+        status = ""
+
+    return p1_base, p2_base, status, new_locked
 
 
 def _call_llm(provider, model, prompt):
@@ -84,7 +126,7 @@ def _init_matchups(models):
                 "p2_prov": p2_prov, "p2_model": p2,
                 "p1_hist": [], "p2_hist": [],
                 "p1_score": float(), "p2_score": float(),
-                "recent": [],
+                "recent": [], "locked_rule": "",
             })
     return matchups
 
@@ -126,10 +168,14 @@ def run_infinite_tournament(game_name, variants, models):
             p1_pay, p2_pay = info["payoff_fn"](act1, act2)
             m["p1_score"] += p1_pay
             m["p2_score"] += p2_pay
+            p1_base, p2_base, rule_status, new_locked = _parse_rule_status(
+                act1, act2, m.get("locked_rule", ""))
+            m["locked_rule"] = new_locked
             m["p1_hist"].append({"round": rnd, "action": act1, "payoff": p1_pay})
             m["p2_hist"].append({"round": rnd, "action": act2, "payoff": p2_pay})
-            m["recent"].append({"round": rnd, "p1_action": act1, "p2_action": act2,
-                                "p1_pay": p1_pay, "p2_pay": p2_pay})
+            m["recent"].append({"round": rnd, "p1_action": p1_base, "p2_action": p2_base,
+                                "p1_pay": p1_pay, "p2_pay": p2_pay,
+                                "rule_status": rule_status})
             if len(m["recent"]) > _DETAIL_LIMIT:
                 m["recent"] = m["recent"][-_DETAIL_LIMIT:]
             if len(m["p1_hist"]) > _HISTORY_WINDOW:
@@ -158,16 +204,21 @@ def _render_state(matchups, current_round):
     for i, m in enumerate(matchups):
         leader = m["p1_label"] if m["p1_score"] > m["p2_score"] else (
             m["p2_label"] if m["p2_score"] > m["p1_score"] else "Tied")
+        locked = m.get("locked_rule", "")
+        rule_col = f" **{locked}**" if locked else " negotiating..."
         lines.append(f"| {i + _ONE} | {m['p1_label']} | {m['p2_label']} | "
                      f"{m['p1_score']:.1f} | {m['p2_score']:.1f} | {leader} |")
     for i, m in enumerate(matchups):
         recent = m["recent"]
+        locked = m.get("locked_rule", "")
+        rule_note = f" -- Rule: **{locked}**" if locked else ""
         lines.extend([
             f"\n### Match {i + _ONE}: {m['p1_label']} vs {m['p2_label']} "
-            f"(last {len(recent)} rounds)\n",
+            f"(last {len(recent)} rounds){rule_note}\n",
             _HDR_ROUND, _SEP_ROUND])
         for rd in recent:
+            rule_str = rd.get("rule_status", "")
             lines.append(
                 f"| {rd['round']} | {rd['p1_action']} | {rd['p2_action']} | "
-                f"{rd['p1_pay']:.1f} | {rd['p2_pay']:.1f} |")
+                f"{rd['p1_pay']:.1f} | {rd['p2_pay']:.1f} | {rule_str} |")
     return "\n".join(lines)

@@ -17,7 +17,7 @@ from registry import (
     NPlayerEnvironment, NPlayerAction,
     PromptBuilder, parse_action, GameObservation, RoundResult,
     _SYS_PROMPT, _LLM_OPPONENT_LABEL, _LLM_MODELS,
-    get_oauth_token,
+    get_env_api_key,
 )
 
 
@@ -100,7 +100,7 @@ def _llm_choose_action(state, info, provider, model):
         opponent_strategy="human")
     prompt = PromptBuilder.build(obs)
     try:
-        token = get_oauth_token(provider)
+        token = get_env_api_key(provider)
         if not token:
             return _rand.choice(info["actions"]), "OAuth token unavailable"
         if provider == "Anthropic":

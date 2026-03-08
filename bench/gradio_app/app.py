@@ -150,4 +150,4 @@ with gr.Blocks(title="Kant Demo") as demo:
             gr.Markdown(value=_build_reference_md())
 
 print("[APP] Launching Gradio...", flush=True)
-demo.launch(server_name="0.0.0.0", server_port=7860, share=False, show_api=False)
+demo.launch(server_name="0.0.0.0", server_port=7860, share=False)

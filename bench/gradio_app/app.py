@@ -227,6 +227,27 @@ _TAG_CHOICES = [_ALL_FILTER]
 for _dn, _dt in sorted(_CATEGORY_DIMS.items()):
     _TAG_CHOICES.extend(_dt)
 
+
+def _build_reference_md():
+    """Generate a markdown reference from the game registry."""
+    if not _HAS_REGISTRY:
+        return "# Game Theory Reference\n\nFull registry not available."
+    sections = []
+    for dim_name, tags in sorted(_CATEGORY_DIMS.items()):
+        sec = [f"## {dim_name.replace('_', ' ').title()}"]
+        for tag in tags:
+            keys = get_games_by_tag(tag)
+            names = sorted(_KEY_TO_NAME[k] for k in keys if k in _KEY_TO_NAME)
+            if names:
+                sec.append(f"**{tag}** ({len(names)}): {', '.join(names)}")
+        sections.append("\n\n".join(sec))
+    vlines = [f"## Composable Variants"]
+    for vname in _HUMAN_VARIANTS:
+        vlines.append(f"- **{vname}**")
+    sections.append("\n".join(vlines))
+    return f"# Game Theory Reference\n\n{len(_GAME_INFO)} games\n\n" + "\n\n---\n\n".join(sections)
+
+
 with gr.Blocks(title="Kant Demo") as demo:
     gr.Markdown("# Kant -- Interactive Game Theory Demo")
     with gr.Tabs():
@@ -262,9 +283,6 @@ with gr.Blocks(title="Kant Demo") as demo:
             variant_cb.change(on_game_change, inputs=[game_dd, strat_dd, variant_cb],
                               outputs=_reset_out)
         with gr.TabItem("Game Theory Reference"):
-            gr.Markdown("# Game Theory Reference\n\nUse the Human Play tab to "
-                        "explore all games. Filter by category to find games by "
-                        "communication level, information structure, payoff type, "
-                        "domain, and more.")
+            gr.Markdown(value=_build_reference_md())
 
 demo.launch()

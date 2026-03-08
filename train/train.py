@@ -251,11 +251,18 @@ def make_reward_fn(base_url: str):
             "available_moves", [["cooperate", "defect"]] * len(completions)
         )
 
-        for completion, game_key, strategy, variant, moves in zip(
+        for i, (completion, game_key, strategy, variant, moves) in enumerate(zip(
             completions, game_keys, strategies, variants, available_moves_batch
-        ):
+        )):
             # Parse move from LLM output
             action_str = parse_action(completion.strip(), moves)
+
+            # Log first few completions per batch for debugging
+            if i < 3:
+                logger.info(
+                    "Completion [%d] game=%s moves=%s -> parsed=%s | raw=%r",
+                    i, game_key, moves, action_str, completion[:200],
+                )
 
             try:
                 # Play a full episode using this move as a consistent strategy

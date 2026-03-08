@@ -17,9 +17,12 @@ three construction modes via the \texttt{GameConfig} dataclass:
 \end{description}
 
 Games are registered in the global \texttt{GAMES} dictionary with a unique
-string key. Extension modules (20 files across \texttt{games\_ext/},
+string key. Extension modules (across \texttt{games\_ext/},
 \texttt{games\_info/}, \texttt{games\_market/}, \texttt{games\_coop/},
-\texttt{games\_meta/}) are loaded dynamically via \texttt{\_load\_extensions()}.
+\texttt{games\_meta/}, \texttt{games\_adaptive/}) are loaded dynamically
+via \texttt{\_load\_extensions()}. Adaptive games are registered as
+factories in \texttt{GAME\_FACTORIES}, producing fresh \texttt{GameConfig}
+instances with mutable state on each instantiation.
 
 \section{Hyperparameters}
 \label{app:hyperparams}

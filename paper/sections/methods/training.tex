@@ -5,8 +5,8 @@
 
 Kant includes a training pipeline that uses game-theoretic environments to
 improve language model alignment through reinforcement learning. This section
-describes the GRPO and DPO training methods, curriculum learning strategy,
-and reward shaping approach.
+describes the GRPO and DPO training methods, self-play training, curriculum
+learning strategy, and reward shaping approach.
 
 The training pipeline tests whether game-theoretic experience transfers to
 broader alignment. We use both online (GRPO) and offline (DPO) methods,
@@ -56,6 +56,31 @@ we generate trajectory pairs where:
 directly optimizes the policy to prefer aligned trajectories without an
 explicit reward model. The preference ordering
 ``cooperative $\succ$ exploitative'' encodes the alignment objective.
+
+\subsection{Self-Play Training}
+\label{sec:self-play}
+
+To move beyond fixed opponent strategies, Kant supports self-play training
+where the agent plays against frozen copies of itself or a pool of past
+checkpoints.
+
+\paragraph{FrozenOpponent.}
+A \texttt{FrozenOpponent} wraps a generation function for inference without
+gradients. Opponents can be instantiated from the current model
+(\texttt{from\_model}), a saved checkpoint (\texttt{from\_checkpoint}), or
+an external API (\texttt{from\_api}) for cross-model self-play.
+
+\paragraph{OpponentPool.}
+The \texttt{OpponentPool} maintains a collection of past model checkpoints
+as diverse opponents. New checkpoints are added at a configurable update
+interval; when the pool exceeds its maximum size, oldest entries are evicted
+(FIFO). During training, opponents are sampled uniformly at random from the
+pool, preventing overfitting to any single opponent style.
+
+\paragraph{Cross-model self-play.}
+The API-based opponent interface enables self-play against models served via
+external inference endpoints, supporting heterogeneous training where agents
+learn from opponents with fundamentally different architectures and scales.
 
 \subsection{Curriculum Learning}
 \label{sec:curriculum}

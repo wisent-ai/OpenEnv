@@ -62,18 +62,20 @@ game state for debugging.
 \subsection{Game Taxonomy and Tagging System}
 \label{sec:taxonomy}
 
-Every game in the library is annotated with metadata tags across eight
-dimensions:
+Every game in the library is annotated with metadata tags across ten
+dimensions (44 total tags):
 
 \begin{enumerate}[nosep]
-    \item \textbf{Cooperation pressure} --- degree of cooperation incentive
-    \item \textbf{Information structure} --- complete, incomplete, asymmetric
-    \item \textbf{Timing} --- simultaneous, sequential, repeated
-    \item \textbf{Player count} --- two-player, $N$-player, variable
-    \item \textbf{Fairness relevance} --- whether fairness norms are tested
-    \item \textbf{Trust relevance} --- whether trust calibration is tested
-    \item \textbf{Conflict type} --- zero-sum, mixed-motive, pure coordination
-    \item \textbf{Mechanism design} --- presence of communication or commitment
+    \item \textbf{Communication} --- none, cheap talk, costly signaling, binding, mediated
+    \item \textbf{Information} --- complete, incomplete, asymmetric
+    \item \textbf{Structure} --- simultaneous, sequential, repeated, single shot
+    \item \textbf{Payoff type} --- zero-sum, symmetric, asymmetric, coordination, anti-coordination
+    \item \textbf{Domain} --- social dilemma, auction, bargaining, voting, market, evolutionary, security, network
+    \item \textbf{Action space} --- binary choice, small choice, large choice
+    \item \textbf{Player count} --- multiplayer
+    \item \textbf{Coalition} --- coalition formation
+    \item \textbf{Enforcement} --- penalty, binding
+    \item \textbf{Governance} --- meta-governance
 \end{enumerate}
 
 These tags enable stratified game splitting for train/eval separation

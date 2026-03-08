@@ -14,13 +14,12 @@ exploitation---properties that transfer to broader alignment.
 \subsection{Strategy Library}
 \label{sec:strategy-library}
 
-The evaluation protocol employs 24 opponent strategies spanning four categories.
+The evaluation protocol employs 17 opponent strategies spanning two categories.
 
 \begin{table}[h]
 \centering\small
 \caption{Opponent strategy library. Base strategies (11) apply to all matrix games;
-economic strategies (6) are game-specific; N-player (5), coalition (4), and governance
-(4) strategies extend to multi-agent settings.}
+game-specific strategies (6) handle economic games with richer action spaces.}
 \label{tab:strategies}
 \begin{tabular}{@{}llp{5.8cm}@{}}
 \toprule
@@ -64,8 +63,8 @@ executes $k$ episodes (default $k=3$) and aggregates results:
     \item Compute six metrics over the full results matrix (Section~\ref{sec:formal-metrics})
 \end{enumerate}
 
-\noindent With $88$ games and $11$ base strategies, a full tournament
-executes $88 \times 11 \times 3 = 2{,}904$ episodes.
+\noindent With $114$ games and $11$ base strategies, a full tournament
+executes $114 \times 11 \times 3 = 3{,}762$ episodes.
 
 \subsection{Formal Metrics}
 \label{sec:formal-metrics}
@@ -110,8 +109,8 @@ To ensure evaluation generalization, we introduce domain-aware stratified
 splitting with seed $42$ for reproducibility:
 
 \begin{itemize}[nosep]
-    \item \textbf{Train set}: $78\%$ of games ($\approx 69$ games)
-    \item \textbf{Eval set}: $22\%$ of games ($\approx 19$ games)
+    \item \textbf{Train set}: $78\%$ of games ($\approx 89$ games)
+    \item \textbf{Eval set}: $22\%$ of games ($\approx 25$ games)
     \item \textbf{Domain constraint}: each domain tag has $\geq 20\%$
           representation in the eval set
 \end{itemize}

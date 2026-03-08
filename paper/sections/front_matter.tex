@@ -6,9 +6,10 @@ settings, ensuring they reason ethically about cooperation, trust, and
 fairness becomes critical for alignment. We present \textsc{Kant}, a
 comprehensive game-theoretic training and evaluation framework that goes
 far beyond simple benchmarking. Built on the OpenEnv platform, Kant
-provides a library of 90+ games spanning nine strategic domains---from
+provides a library of 114 games spanning ten strategic domains---from
 classical dilemmas through information games, market competition, and
-auctions to cooperative game theory. The framework supports $N$-player
+auctions to cooperative game theory and adaptive games with
+history-dependent payoffs. The framework supports $N$-player
 interactions, coalition formation with negotiation and enforcement
 mechanisms, a novel meta-governance engine that allows agents to
 \emph{change the rules of the game during play} through democratic
@@ -16,8 +17,9 @@ proposals and voting, and a reputation system with cross-episode social
 memory backed by knowledge graph queries. Dynamic game creation enables
 open-ended evaluation
 where agents construct new strategic environments at runtime. We define a
-training pipeline using GRPO and DPO on game trajectories with curriculum
-learning across game domains, and evaluate safety transfer on external
+training pipeline using GRPO, DPO, and self-play on game trajectories
+with curriculum learning across game domains, and evaluate safety
+transfer on external
 benchmarks including HarmBench, ETHICS, TruthfulQA, XSTest, and MT-Bench.
 By combining comprehensive game-theoretic environments with alignment
 training, Kant provides a platform for studying whether strategic reasoning
@@ -50,9 +52,9 @@ objectives.
 The framework makes several contributions:
 
 \begin{enumerate}[nosep]
-    \item A library of 90+ games spanning nine strategic domains, from
-          classical dilemmas to auctions, cooperative games, and
-          contests (Section~\ref{sec:game-library}).
+    \item A library of 114 games spanning ten strategic domains, from
+          classical dilemmas to auctions, cooperative games, adaptive
+          games, and contests (Section~\ref{sec:game-library}).
     \item $N$-player extensions and a coalition formation system with
           negotiation, enforcement, and side payments
           (Sections~\ref{sec:nplayer}--\ref{sec:coalition}).
@@ -64,8 +66,11 @@ The framework makes several contributions:
           (Section~\ref{sec:reputation}).
     \item Dynamic game creation for open-ended evaluation
           (Section~\ref{sec:dynamic}).
-    \item A training pipeline using GRPO and DPO on game trajectories
-          with curriculum learning (Section~\ref{sec:training}).
+    \item Five adaptive game factories with history-dependent payoffs
+          that evolve during play (Section~\ref{sec:adaptive}).
+    \item A training pipeline using GRPO, DPO, and self-play on game
+          trajectories with curriculum learning
+          (Section~\ref{sec:training}).
     \item Safety transfer evaluation on external benchmarks
           (Section~\ref{sec:safety}).
     \item An alignment-oriented evaluation protocol with six metrics

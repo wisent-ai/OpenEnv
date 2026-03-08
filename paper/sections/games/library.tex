@@ -1,9 +1,9 @@
-% library.tex -- Section 5: Game Library (90+ games across 9 domains)
+% library.tex -- Section 5: Game Library (114 games across 10 domains)
 
 \section{Game Library}
 \label{sec:game-library}
 
-The Kant framework provides a library of 90+ games spanning 9 strategic domains.
+The Kant framework provides a library of 114 games spanning 10 strategic domains.
 Each game is implemented as a \texttt{GameConfig} with formally specified payoff
 structures, action spaces, and metadata tags. This section catalogues every game
 by domain; Appendix~\ref{app:catalog} provides the full specification table.
@@ -264,6 +264,29 @@ Specialized games testing evolutionary stability and advanced strategic concepts
 
 % HD-Bourgeois adds property rights (ESS when ownership respected).
 % Continuous PD uses $c \in [0,1]$ cooperation level.
+
+\subsection{Adaptive Games}
+\label{sec:adaptive}
+
+Five factory-generated games whose payoff structures evolve based on
+interaction history, testing whether agents can reason about non-stationary
+incentives.
+
+\begin{itemize}[nosep]
+    \item \textbf{Adaptive PD} --- payoff multiplier grows with mutual
+          cooperation, shrinks with mutual defection
+    \item \textbf{Arms Race} --- Hawk-Dove variant where conflict costs
+          escalate on repeated hawk-hawk outcomes
+    \item \textbf{Trust Erosion} --- trust multiplier decays with mutual
+          defection, recovers with cooperation
+    \item \textbf{Market Dynamics} --- Cournot-like duopoly with demand
+          curve shifts based on aggregate output history
+    \item \textbf{Reputation Payoffs} --- PD with payoff bonus
+          proportional to cumulative cooperation rate
+\end{itemize}
+
+\noindent Each factory produces fresh \texttt{GameConfig} instances with
+mutable state, registered in the \texttt{GAME\_FACTORIES} dictionary.
 
 \subsection{Procedural Generation}
 \label{sec:procedural}

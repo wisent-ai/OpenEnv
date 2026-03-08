@@ -3,7 +3,7 @@
 \section{Full Game Catalog}
 \label{app:catalog}
 
-This appendix provides specifications for all 91 games in the Kant library,
+This appendix provides specifications for all 114 games in the Kant library,
 organized by domain.
 
 \subsection{Game Specification Table}
@@ -18,9 +18,9 @@ organized by domain.
 \textbf{Domain} & \textbf{Count} & \textbf{Representative Games} \\
 \midrule
 Classical Dilemmas & 4 & PD, Stag Hunt, Hawk-Dove, Matching Pennies \\
-PD Variants & 5 & Optional, Asymmetric, Donation, Friend-or-Foe, Peace-War \\
+PD Variants & 6 & Optional, Asymmetric, Donation, Finitely Repeated, Peace-War \\
 Extended Matrix & 6 & BoS, Deadlock, Harmony, Pure Coord, RPS, RPSLS \\
-Sequential/Bargaining & 8 & Ultimatum, Trust, Dictator, Centipede, Stackelberg \\
+Sequential/Bargaining & 10 & Ultimatum, Trust, Dictator, Centipede, Divide \& Choose \\
 Info/Signaling & 5 & Beer-Quiche, Spence, Cheap Talk, Lemon, Bayes.\ Persuasion \\
 Bayesian & 4 & Global Game, Jury Voting, Info Cascade, Adverse Selection \\
 Communication/Mech.\ & 5 & Cheap Talk PD, Binding, Correlated Eq, Focal Point \\
@@ -29,13 +29,16 @@ Auctions & 3 & First-Price, Vickrey, All-Pay \\
 Cooperative & 6 & Shapley, Core, Weighted Voting, Stable Matching \\
 Contest/Conflict & 7 & Blotto, Attrition, Tullock, Inspection, Security \\
 Principal-Agent & 3 & Moral Hazard, Screening, Gift Exchange \\
-Behavioral/Dynamic & 6 & Bank Run, Beauty Contest, Markov, Stochastic PD \\
-Advanced/Evolutionary & 6 & Preemption, War of Gifts, HD-Bourgeois, Continuous PD \\
+Behavioral/Dynamic & 11 & Bank Run, Beauty Contest, El Farol, Public Goods, Markov \\
+Advanced/Evolutionary & 7 & Preemption, War of Gifts, HD-Bourgeois, Evolutionary PD \\
 Procedural & 5 & Random Sym/Asym/ZS/Coord, Param.\ Chicken \\
-Coalition & 7 & Cartel, Alliance, Voting Blocs, Ostracism, Commons \\
+Coalition & 8 & Cartel, Alliance, Voting Blocs, Ostracism, Rule Voting \\
 Reputation/Gossip & 3 & Gossip PD, Gossip Stag Hunt, Gossip Hawk-Dove \\
+N-Player & 5 & N-Player PG, N-Player El Farol, N-Player Vol.\ Dilemma \\
+Meta-Governance & 3 & Rule Proposal PD, Rule Proposal SH, Rule Proposal HD \\
+Adaptive & 5 & Adaptive PD, Arms Race, Trust Erosion, Market Dynamics \\
 \midrule
-\textbf{Total} & \textbf{91} & \\
+\textbf{Total} & \textbf{114} & \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -74,20 +77,22 @@ Traveler's & range, bonus & $[2,100], \pm 2$ \\
 \section{Tag Assignments}
 \label{app:tags}
 
-The Kant tagging system assigns metadata across eight dimensions to each
-game, enabling stratified evaluation and domain-aware splitting
-(Section~\ref{sec:splitting}).
+The Kant tagging system assigns metadata across ten dimensions (44 total
+tags) to each game, enabling stratified evaluation and domain-aware
+splitting (Section~\ref{sec:splitting}).
 
 \paragraph{Tag dimensions.}
 \begin{enumerate}[nosep]
-\item \textbf{Cooperation pressure}: none / low / medium / high
-\item \textbf{Information structure}: complete / incomplete / asymmetric
-\item \textbf{Timing}: simultaneous / sequential / repeated
-\item \textbf{Player count}: 2 / N / variable
-\item \textbf{Fairness relevance}: low / medium / high
-\item \textbf{Trust relevance}: low / medium / high
-\item \textbf{Conflict type}: none / competitive / mixed-motive
-\item \textbf{Mechanism design}: none / communication / voting / enforcement
+\item \textbf{Communication}: no communication / cheap talk / costly signaling / binding commitment / mediated
+\item \textbf{Information}: complete / incomplete / asymmetric
+\item \textbf{Structure}: simultaneous / sequential / repeated / single shot
+\item \textbf{Payoff type}: zero sum / symmetric / asymmetric / coordination / anti-coordination
+\item \textbf{Domain}: social dilemma / auction / bargaining / voting / market / evolutionary / security / network
+\item \textbf{Action space}: binary choice / small choice / large choice
+\item \textbf{Player count}: multiplayer
+\item \textbf{Coalition}: coalition formation
+\item \textbf{Enforcement}: penalty / binding
+\item \textbf{Governance}: meta-governance
 \end{enumerate}
 
 Tags enable stratified splitting: the 78/22 train/eval split guarantees

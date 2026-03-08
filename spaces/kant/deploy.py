@@ -21,6 +21,9 @@ SPACE_DIR = Path(__file__).resolve().parent  # spaces/kant/
 REQUIRED_DIRS = ["common", "env", "constant_definitions"]
 
 
+IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".git")
+
+
 def main():
     api = HfApi()
 
@@ -33,7 +36,7 @@ def main():
                 continue
             dest = staging / item.name
             if item.is_dir():
-                shutil.copytree(item, dest)
+                shutil.copytree(item, dest, ignore=IGNORE)
             else:
                 shutil.copy2(item, dest)
 
@@ -41,7 +44,7 @@ def main():
         for dirname in REQUIRED_DIRS:
             src = REPO_ROOT / dirname
             if src.exists():
-                shutil.copytree(src, staging / dirname)
+                shutil.copytree(src, staging / dirname, ignore=IGNORE)
                 print(f"  Included {dirname}/")
             else:
                 print(f"  WARNING: {dirname}/ not found at {src}")

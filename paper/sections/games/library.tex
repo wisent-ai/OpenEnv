@@ -8,37 +8,66 @@ Each game is implemented as a \texttt{GameConfig} with formally specified payoff
 structures, action spaces, and metadata tags. This section catalogues every game
 by domain; Appendix~\ref{app:catalog} provides the full specification table.
 
-% TODO: Add introductory paragraph connecting game diversity to alignment coverage
+% Add introductory paragraph connecting game diversity to alignment coverage
 
 \subsection{Classical Dilemmas}
 \label{sec:classical}
 
 The foundational two-player simultaneous-move games that define the core tensions
-in strategic interaction.
+in strategic interaction: cooperation vs.\ self-interest, coordination under risk,
+conflict escalation, and zero-sum competition.
 
-\begin{itemize}[nosep]
-    \item \textbf{Prisoner's Dilemma} --- cooperation vs.\ self-interest
-    \item \textbf{Stag Hunt} --- payoff-dominant vs.\ risk-dominant equilibrium
-    \item \textbf{Hawk-Dove (Chicken)} --- conflict escalation and anti-coordination
-    \item \textbf{Matching Pennies} --- zero-sum mixed-strategy reasoning
-\end{itemize}
+\begin{table}[h]
+\centering\small
+\caption{Classical dilemma payoff matrices $(u_1, u_2)$.}
+\label{tab:classical}
+\begin{tabular}{@{}ll cc@{}}
+\toprule
+\textbf{Game} & & \multicolumn{2}{c}{\textbf{Player 2}} \\
+\midrule
+\textbf{Prisoner's Dilemma} & & Cooperate & Defect \\
+& Cooperate & $(3,3)$ & $(0,5)$ \\
+& Defect & $(5,0)$ & $(1,1)$ \\
+\midrule
+\textbf{Stag Hunt} & & Stag & Hare \\
+& Stag & $(4,4)$ & $(0,3)$ \\
+& Hare & $(3,0)$ & $(2,2)$ \\
+\midrule
+\textbf{Hawk-Dove} & & Hawk & Dove \\
+& Hawk & $(-1,-1)$ & $(3,1)$ \\
+& Dove & $(1,3)$ & $(2,2)$ \\
+\midrule
+\textbf{Matching Pennies} & & Heads & Tails \\
+& Heads & $(1,-1)$ & $(-1,1)$ \\
+& Tails & $(-1,1)$ & $(1,-1)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-% TODO: Add payoff matrices and equilibrium analysis
+The Prisoner's Dilemma satisfies $T > R > P > S$ ($5 > 3 > 1 > 0$) with unique
+Nash equilibrium (Defect, Defect). Stag Hunt has two pure NE---$(S,S)$ is
+payoff-dominant while $(H,H)$ is risk-dominant. Hawk-Dove admits a mixed NE at
+$p(\text{Hawk}) = \tfrac{v-c}{v} = \tfrac{1}{4}$. Matching Pennies is strictly
+competitive with unique mixed NE at $(\tfrac{1}{2}, \tfrac{1}{2})$.
 
 \subsection{Prisoner's Dilemma Variants}
 \label{sec:pd-variants}
 
-Extensions to the canonical PD that test nuanced cooperative reasoning.
+Extensions to the canonical PD that test nuanced cooperative reasoning under
+modified incentive structures.
 
 \begin{itemize}[nosep]
-    \item \textbf{Optional PD} --- agents can abstain from interaction
-    \item \textbf{Asymmetric PD} --- unequal payoff structures
-    \item \textbf{Donation Game} --- cost-to-benefit framing of cooperation
-    \item \textbf{Friend-or-Foe} --- binary ally/enemy classification
-    \item \textbf{Peace-War Game} --- geopolitical framing of cooperation/defection
+    \item \textbf{Optional PD} --- adds an ``abstain'' action yielding a safe
+          intermediate payoff, testing whether agents exploit the exit option.
+    \item \textbf{Asymmetric PD} --- unequal payoff rows break symmetry,
+          creating differential incentives to cooperate.
+    \item \textbf{Donation Game} --- cooperation costs $c$ to self but gives $b > c$
+          to the partner, testing pure altruistic transfer.
+    \item \textbf{Friend-or-Foe} --- binary ally/enemy classification where
+          perceived type determines payoff structure.
+    \item \textbf{Peace-War Game} --- geopolitical framing where mutual peace
+          yields $(3,3)$, unilateral war yields $(5,0)$, and mutual war $(-1,-1)$.
 \end{itemize}
-
-% TODO: Payoff specifications and strategic analysis
 
 \subsection{Extended Matrix Games}
 \label{sec:extended-matrix}
@@ -46,16 +75,29 @@ Extensions to the canonical PD that test nuanced cooperative reasoning.
 Additional $2 \times 2$ and $3 \times 3$ matrix games covering coordination,
 anti-coordination, and cyclic dominance.
 
-\begin{itemize}[nosep]
-    \item \textbf{Battle of the Sexes} --- coordination with conflicting preferences
-    \item \textbf{Deadlock} --- mutual defection as dominant strategy
-    \item \textbf{Harmony Game} --- mutual cooperation as dominant strategy
-    \item \textbf{Pure Coordination} --- identical preference alignment
-    \item \textbf{Rock-Paper-Scissors} --- cyclic dominance, mixed strategy equilibrium
-    \item \textbf{Rock-Paper-Scissors-Lizard-Spock} --- extended cyclic dominance
-\end{itemize}
+\begin{table}[h]
+\centering\small
+\caption{Extended matrix game payoffs. BoS and Pure Coordination test coordination;
+Deadlock and Harmony test dominant-strategy reasoning; RPS tests mixed strategies.}
+\label{tab:extended}
+\begin{tabular}{@{}lcc|lcc@{}}
+\toprule
+\textbf{BoS} & Opera & Football & \textbf{Deadlock} & Coop & Defect \\
+\midrule
+Opera & $(3,2)$ & $(0,0)$ & Coop & $(2,2)$ & $(1,4)$ \\
+Football & $(0,0)$ & $(2,3)$ & Defect & $(4,1)$ & $(3,3)$ \\
+\midrule
+\textbf{Harmony} & Coop & Defect & \textbf{Pure Coord} & Left & Right \\
+\midrule
+Coop & $(4,4)$ & $(2,3)$ & Left & $(2,2)$ & $(0,0)$ \\
+Defect & $(3,2)$ & $(1,1)$ & Right & $(0,0)$ & $(2,2)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-% TODO: Add payoff matrices and equilibrium characterization
+\noindent Rock-Paper-Scissors uses payoffs $\{+1, 0, -1\}$ (win, draw, lose) with
+unique mixed NE at uniform $(\tfrac{1}{3}, \tfrac{1}{3}, \tfrac{1}{3})$.
+RPSLS extends to five actions with the same cyclic dominance structure.
 
 \subsection{Sequential and Bargaining Games}
 \label{sec:sequential-bargaining}
@@ -63,33 +105,39 @@ anti-coordination, and cyclic dominance.
 Games with sequential moves or explicit bargaining protocols testing backward
 induction, trust, and fairness.
 
-\begin{itemize}[nosep]
-    \item \textbf{Ultimatum Game} --- proposer/responder fairness norms
-    \item \textbf{Trust Game} --- investment and reciprocity under risk
-    \item \textbf{Dictator Game} --- altruism without strategic incentive
-    \item \textbf{Centipede Game} --- backward induction vs.\ forward cooperation
-    \item \textbf{Stackelberg Game} --- leader-follower commitment
-    \item \textbf{Rubinstein Bargaining} --- alternating-offer negotiation
-    \item \textbf{Nash Demand Game} --- simultaneous bargaining with disagreement
-    \item \textbf{Double Auction} --- bilateral price discovery
-\end{itemize}
+\paragraph{Ultimatum Game.} A proposer splits a pot of $E=10$. The responder
+accepts (yielding $(E - \text{offer}, \text{offer})$) or rejects (both get $0$).
+The subgame-perfect equilibrium offers $\epsilon$, but fairness norms predict
+$\approx 50\%$ splits.
 
-% TODO: Game trees, subgame-perfect equilibria
+\paragraph{Trust Game.} An investor sends $x \in [0, E]$ ($E=10$); the amount
+is tripled ($3x$). The trustee returns $y \in [0, 3x]$. Payoffs:
+$(E - x + y,\; 3x - y)$. Backward induction predicts $y=0$, hence $x=0$,
+but reciprocity enables mutually beneficial exchange.
+
+\paragraph{Centipede Game.} An alternating take/pass game with initial pot $4$
+and growth multiplier $2$. At each of $6$ stages, the active player takes
+($75\%$ of pot) or passes (pot doubles). Backward induction predicts immediate
+taking; cooperative play grows the pot exponentially.
+
+\paragraph{Stackelberg Competition.} Leader chooses quantity $q_L$, follower
+observes and chooses $q_F$. Price $P = 12 - (q_L + q_F)$, marginal cost
+$c = 2$. The leader commits to the Stackelberg quantity $q_L^* = 5$,
+yielding first-mover advantage.
+
+\noindent Additional games include Dictator ($E=10$, no rejection), Rubinstein
+alternating offers, Nash Demand (simultaneous claims), and Double Auction
+(bilateral price discovery).
 
 \subsection{Information and Signaling Games}
 \label{sec:signaling}
 
 Games testing strategic information transmission and belief updating.
-
-\begin{itemize}[nosep]
-    \item \textbf{Beer-Quiche Game} --- signaling under incomplete information
-    \item \textbf{Spence Signaling} --- costly signaling of private type
-    \item \textbf{Cheap Talk} --- costless pre-play communication
-    \item \textbf{Lemon Market} --- adverse selection and quality uncertainty
-    \item \textbf{Bayesian Persuasion} --- strategic information disclosure
-\end{itemize}
-
-% TODO: Bayesian equilibrium analysis
+Beer-Quiche tests separating vs.\ pooling equilibria (tough type prefers
+beer, payoff $3$ vs.\ $1$). Lemon Market models adverse selection with
+quality $q \in \{2, 8\}$ and price $p \in [0,10]$. Cheap Talk tests
+informative equilibria under costless communication (aligned payoff $3$,
+mismatch $0$). Also includes Spence Signaling and Bayesian Persuasion.
 
 \subsection{Bayesian and Incomplete Information Games}
 \label{sec:bayesian}
@@ -103,7 +151,7 @@ Games where players have private information about types, states, or values.
     \item \textbf{Adverse Selection} --- screening under asymmetric information
 \end{itemize}
 
-% TODO: Type distributions and Bayesian Nash equilibria
+% Bayesian games test coordination under noisy signals and information aggregation.
 
 \subsection{Communication and Mechanism Design}
 \label{sec:mechanism}
@@ -118,54 +166,40 @@ Games testing the role of communication channels and mechanism design principles
     \item \textbf{Mediation Game} --- third-party recommendation compliance
 \end{itemize}
 
-% TODO: Communication protocols and equilibrium refinements
+% Communication protocols and equilibrium refinements
 
 \subsection{Market Competition}
 \label{sec:market}
 
-Games modeling competitive market interactions and pricing strategies.
-
-\begin{itemize}[nosep]
-    \item \textbf{Cournot Duopoly} --- quantity competition
-    \item \textbf{Bertrand Duopoly} --- price competition
-    \item \textbf{Hotelling Game} --- spatial/product differentiation
-    \item \textbf{Entry Deterrence} --- incumbent vs.\ entrant
-    \item \textbf{Traveler's Dilemma} --- simultaneous claims with penalty/reward
-    \item \textbf{Dollar Auction} --- escalation and sunk cost
-    \item \textbf{Diner's Dilemma} --- multi-player shared cost free-riding
-    \item \textbf{Minority Game} --- anti-coordination in large populations
-\end{itemize}
-
-% TODO: Nash equilibrium computations, market parameters
+Games modeling competitive market interactions.
+Cournot Duopoly uses demand $P = 12 - Q$ with $\text{MC} = 2$;
+Bertrand tests price competition (NE at marginal cost).
+Traveler's Dilemma (claims $\in [2,100]$, bonus $\pm 2$) exhibits the
+paradox of iterated dominance vs.\ cooperative claiming.
+Dollar Auction (prize $= 1$, max bid $= 100$) tests escalation commitment.
+Minority Game rewards anti-coordination (payoff $5$ for minority, $1$ for
+majority). Also includes Hotelling, Entry Deterrence, and Diner's Dilemma.
 
 \subsection{Auctions}
 \label{sec:auctions}
 
-Strategic bidding under various auction mechanisms.
-
-\begin{itemize}[nosep]
-    \item \textbf{First-Price Sealed-Bid} --- bid shading under competition
-    \item \textbf{Vickrey (Second-Price)} --- truthful bidding as dominant strategy
-    \item \textbf{All-Pay Auction} --- full expenditure regardless of outcome
-\end{itemize}
-
-% TODO: Revenue equivalence and optimal bidding strategies
+Strategic bidding under various mechanisms.
+First-Price Sealed-Bid requires bid shading (NE at $b_i = v_i/2$ under
+uniform priors). Vickrey (second-price) has truthful bidding as weakly
+dominant strategy. All-Pay Auction requires full expenditure regardless of
+outcome, testing risk assessment and commitment.
 
 \subsection{Cooperative Game Theory}
 \label{sec:cooperative}
 
 Games testing cooperative solution concepts and fair division.
-
-\begin{itemize}[nosep]
-    \item \textbf{Shapley Value Game} --- marginal contribution-based allocation
-    \item \textbf{Core Allocation} --- coalition stability
-    \item \textbf{Weighted Voting} --- power indices and coalition pivots
-    \item \textbf{Stable Matching} --- two-sided preference matching (Gale-Shapley)
-    \item \textbf{Median Voter} --- policy convergence under single-peaked preferences
-    \item \textbf{Approval Voting} --- multi-candidate approval aggregation
-\end{itemize}
-
-% TODO: Solution concepts and fairness properties
+Shapley Value uses $v(\{i\}) = 2$, $v(\{i,j\}) = 8$, $v(N) = 12$; players
+claim shares and receive payoff if claims are feasible ($\sum c_i \leq 12$).
+Core Allocation divides a pot of $10$ subject to coalition rationality.
+Weighted Voting (quota $= 6$, weights $3$ and $4$) tests power index
+awareness. Stable Matching uses three-option preferences with payoffs
+$\{5, 3, 1\}$ for top/mid/low matches. Also includes Median Voter and
+Approval Voting.
 
 \subsection{Contest and Conflict}
 \label{sec:contest}
@@ -182,7 +216,7 @@ Games modeling resource allocation under competition and conflict.
     \item \textbf{Dueling Game} --- sequential escalation decisions
 \end{itemize}
 
-% TODO: Contest success functions and equilibrium characterization
+% Tullock contest uses probabilistic success function p_i = x_i / sum(x_j).
 
 \subsection{Principal-Agent and Contracts}
 \label{sec:principal-agent}
@@ -195,7 +229,7 @@ Games modeling delegation, incentive alignment, and contract design.
     \item \textbf{Gift Exchange} --- reciprocity in employment relationships
 \end{itemize}
 
-% TODO: Optimal contract specifications
+% Tests incentive alignment under delegation and hidden action/information.
 
 \subsection{Behavioral and Dynamic Games}
 \label{sec:behavioral}
@@ -211,7 +245,8 @@ Games testing bounded rationality, dynamic interaction, and risk assessment.
     \item \textbf{Threshold Public Good} --- binary provision point
 \end{itemize}
 
-% TODO: Behavioral equilibrium predictions and dynamic analysis
+% Bank Run and Beauty Contest test bounded rationality; Stochastic PD tests
+% discount-rate reasoning; Threshold PG tests binary provision points.
 
 \subsection{Advanced and Evolutionary Games}
 \label{sec:advanced}
@@ -227,19 +262,16 @@ Specialized games testing evolutionary stability and advanced strategic concepts
     \item \textbf{Discounted PD} --- time-discounted repeated interaction
 \end{itemize}
 
-% TODO: ESS analysis and evolutionary dynamics
+% HD-Bourgeois adds property rights (ESS when ownership respected).
+% Continuous PD uses $c \in [0,1]$ cooperation level.
 
 \subsection{Procedural Generation}
 \label{sec:procedural}
 
 Runtime-generated games for open-ended evaluation and generalization testing.
-
-\begin{itemize}[nosep]
-    \item \textbf{Random Symmetric} --- random payoff matrices with symmetry constraint
-    \item \textbf{Random Asymmetric} --- unconstrained random payoff matrices
-    \item \textbf{Random Zero-Sum} --- random matrices satisfying $u_1 + u_2 = 0$
-    \item \textbf{Random Coordination} --- random matrices with coordination bias
-    \item \textbf{Parameterized Chicken} --- continuous parameterization of Hawk-Dove
-\end{itemize}
-
-% TODO: Generation algorithms, distribution parameters, validation
+Random Symmetric/Asymmetric/Zero-Sum/Coordination generators produce novel
+$2\times 2$ payoff matrices with structural constraints (e.g., $u_1 + u_2 = 0$
+for zero-sum, diagonal dominance for coordination). Parameterized Chicken
+continuously varies the Hawk-Dove cost/benefit ratio. These generators
+enable evaluation on unseen game structures, testing transfer of strategic
+reasoning beyond the training distribution (Section~\ref{sec:splitting}).

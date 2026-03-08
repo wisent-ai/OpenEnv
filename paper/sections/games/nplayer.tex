@@ -8,7 +8,7 @@ alignment challenges arise in multi-agent settings. Kant extends the core
 framework to support $N$-player interactions, introducing social dilemma
 structures that test collective action, free-riding, and coordination at scale.
 
-% TODO: Add introductory paragraph on why N-player matters for alignment
+% N-player games capture collective action problems central to AI deployment.
 
 \subsection{N-Player Games}
 \label{sec:nplayer-games}
@@ -28,7 +28,16 @@ The following games natively support $N > 2$ players:
           resource; overexploitation depletes it. Tests sustainable cooperation.
 \end{itemize}
 
-% TODO: Formal game specifications with N-player payoff functions
+\paragraph{Public Goods.} With $N=4$ players, endowment $E=20$, and
+multiplier $m = 3/2$: each player contributes $c_i \in [0, E]$; the pool
+$\sum c_i$ is multiplied by $m$ and split equally. Payoff:
+$u_i = E - c_i + \frac{m \sum_j c_j}{N}$. The Nash equilibrium is
+$c_i = 0$; the social optimum is $c_i = E$.
+
+\paragraph{Volunteer's Dilemma.} If at least one player volunteers (cost $c$),
+all receive benefit $b > c$. If none volunteer, all receive $0$.
+With $N$ players, the mixed NE probability of volunteering decreases as
+$p^* = 1 - (c/b)^{1/(N-1)}$, demonstrating diffusion of responsibility.
 
 \subsection{Scaling from Dyadic to Multi-Agent}
 \label{sec:scaling}
@@ -47,5 +56,8 @@ Extending from two to $N$ players introduces several challenges:
           against adversarial coalitions rather than single defectors.
 \end{itemize}
 
-% TODO: Formal metric extensions for N-player settings
-% TODO: Experimental results comparing 2-player vs N-player behavior
+The N-player strategy library includes $5$ strategies (Always Cooperate,
+Always Defect, Random, Tit-for-Tat, Adaptive) adapted for multi-agent
+settings. N-player TFT mirrors the \emph{majority} action of the $N-1$
+other players; Adaptive cooperates if others cooperated $>50\%$ of total
+rounds.

@@ -1,242 +1,233 @@
-\documentclass{beamer}
-\usepackage{amsmath,amssymb,booktabs,helvet}
+\documentclass[aspectratio=169]{beamer}
+\usepackage{amsmath,amssymb,booktabs}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,shapes.geometric,calc,backgrounds}
 \usepackage{xcolor}
+\usepackage{fontspec}
+\setsansfont{Hubot Sans}[
+  BoldFont={Hubot Sans Bold},
+  ItalicFont={Hubot Sans Italic},
+  BoldItalicFont={Hubot Sans Bold Italic}]
 \renewcommand{\familydefault}{\sfdefault}
 
-% --- Wisent brand colors ---
-\definecolor{WG}{HTML}{00C853}      % primary green
-\definecolor{WGL}{HTML}{C5FFC8}     % light green accent
-\definecolor{WD}{HTML}{121212}      % dark background
-\definecolor{WO}{HTML}{DEE4E2}      % off-white text
-\definecolor{WGr}{HTML}{727876}     % gray
+% --- wisent-visuals palette ---
+\definecolor{WAccent}{HTML}{C5FFC8}   % brand accent green (One)
+\definecolor{WRed}{HTML}{FA5A46}      % error red-500 (Two)
+\definecolor{WPurple}{HTML}{B19ECC}   % character purple-500 (Three)
+\definecolor{WDark}{HTML}{121212}     % gray-950 dark bg
+\definecolor{WGrid}{HTML}{2D3130}     % gray-800 grid/card
+\definecolor{WLegend}{HTML}{769978}   % green-600 legend/subtle
+\definecolor{WWhite}{HTML}{FFFFFF}
+\definecolor{WGrayLt}{HTML}{E5E5E5}   % white theme grid
 
-% --- Beamer theme: dark bg, green accents ---
-\usetheme{Madrid}
-\setbeamercolor{structure}{fg=WG}
-\setbeamercolor{palette primary}{bg=WD,fg=WO}
-\setbeamercolor{palette secondary}{bg=WD!90!black,fg=WO}
-\setbeamercolor{palette tertiary}{bg=WG,fg=white}
-\setbeamercolor{palette quaternary}{bg=WD,fg=WO}
-\setbeamercolor{title}{fg=WG}
-\setbeamercolor{subtitle}{fg=WO}
-\setbeamercolor{author}{fg=WO}
-\setbeamercolor{date}{fg=WGr}
-\setbeamercolor{frametitle}{bg=WD,fg=WG}
-\setbeamercolor{background canvas}{bg=WD!95!black}
-\setbeamercolor{normal text}{fg=WO}
-\setbeamercolor{block title}{bg=WG!85!black,fg=white}
-\setbeamercolor{block body}{bg=WD!70!black,fg=WO}
-\setbeamercolor{item}{fg=WG}
-\setbeamercolor{subitem}{fg=WGL}
-\setbeamercolor{description item}{fg=WG}
-\setbeamercolor{footline}{bg=WD,fg=WGr}
-\setbeamerfont{title}{series=\bfseries,size=\Large}
-\setbeamerfont{frametitle}{series=\bfseries}
+% --- Beamer: dark theme (wisent-visuals style 1) ---
+\usetheme{default}
+\setbeamercolor{normal text}{fg=WAccent,bg=WDark}
+\setbeamercolor{structure}{fg=WAccent}
+\setbeamercolor{alerted text}{fg=WRed}
+\setbeamercolor{frametitle}{fg=WAccent,bg=}
+\setbeamercolor{item}{fg=WAccent}
+\setbeamercolor{subitem}{fg=WLegend}
+\setbeamercolor{description item}{fg=WAccent}
+\setbeamerfont{frametitle}{size=\large,series=\bfseries}
 \setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{}
 
-\title{KantBench}
-\subtitle{Game-Theory Benchmark for AI Strategic Reasoning}
-\author{OpenEnv Team}
-\institute{wisent.ai}
-\date{2026}
+% --- Background: dark + 20px-radius inner panel ---
+\setbeamertemplate{background}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[WDark] (current page.south west) rectangle (current page.north east);
+    \fill[WGrid,rounded corners=20pt]
+      ([xshift=10pt,yshift=10pt]current page.south west)
+      rectangle ([xshift=-10pt,yshift=-10pt]current page.north east);
+  \end{tikzpicture}}
+
+% --- Card: rounded WDark container (like chart bg) ---
+\newcommand{\wcard}[2][0.44\textwidth]{%
+  \tikz\node[fill=WDark,rounded corners=20pt,
+    inner sep=12pt,text width=#1,align=left,
+    font=\small\color{WAccent}]{#2};}
+
+% --- Stat: large number in accent/red/purple ---
+\newcommand{\wstat}[3]{%  #1=color, #2=number, #3=label
+  \begin{minipage}[t]{0.28\textwidth}\centering
+    {\fontsize{40}{44}\selectfont\color{#1}\bfseries #2}\\[6pt]
+    {\small\color{WLegend}#3}
+  \end{minipage}}
+
+% --- Pill label ---
+\newcommand{\wpill}[1]{%
+  \tikz[baseline=(p.base)]\node[rounded corners=10pt,fill=WGrid,
+    inner xsep=10pt,inner ysep=3pt,font=\small\color{WLegend}](p){#1};}
 
 \begin{document}
 
-% Slide 1: Title
-\begin{frame}
-\titlepage
-\end{frame}
-
-% Slide 2: The Problem
-\begin{frame}{The Problem}
-\begin{itemize}
-    \item AI agents increasingly operate in \textbf{strategic settings}
-          --- negotiation, resource allocation, multi-agent coordination
-    \item No standardized way to measure:
-    \begin{itemize}
-        \item Can they \textbf{cooperate}?
-        \item Do they \textbf{exploit} weaker opponents?
-        \item Are outcomes \textbf{fair}?
-        \item Do they \textbf{adapt} to different opponents?
-    \end{itemize}
-    \item Existing benchmarks conflate language understanding with strategic choice
-    \item We need a \textbf{minimal, formal} evaluation harness
-\end{itemize}
-\end{frame}
-
-% Slide 3: What is KantBench?
-\begin{frame}{What is KantBench?}
+% === 1: Title ===
+\begin{frame}[plain]
+\vfill
 \begin{center}
-\Large
-\textbf{6} Games \quad$\times$\quad \textbf{17} Strategies \quad$\times$\quad \textbf{6} Metrics
+{\fontsize{36}{40}\selectfont\color{WAccent}\bfseries
+Kant}\\[10pt]
+{\large\color{WLegend}Teaching Ethical Reasoning to Language Models\\
+via Game-Theoretic Training}\\[28pt]
+{\small\color{WGrid}Wisent}
 \end{center}
-\vspace{1em}
+\vfill
+\end{frame}
+
+% === 2: The Challenge ===
+\begin{frame}[plain]
+\vfill
+\begin{center}
+\wpill{The Challenge}\\[16pt]
+{\fontsize{22}{28}\selectfont\color{WWhite}
+AI agents negotiate, trade, and govern ---\\
+but we have \textbf{no formal way to measure}\\
+whether they do so \textcolor{WRed}{ethically}.}
+\end{center}
+\vfill
+\end{frame}
+
+% === 3: Existing work ===
+\begin{frame}{Existing benchmarks fall short}
+\vspace{12pt}
+\begin{center}
+\wstat{WRed}{Narrative}{MACHIAVELLI conflates\\language \& strategy}
+\hfill
+\wstat{WPurple}{Complex}{Melting Pot substrate\\hides the signal}
+\hfill
+\wstat{WRed}{0}{OpenSpiel ships no\\alignment metrics}
+\end{center}
+\vspace{16pt}
+\centering{\small\color{WLegend}We need a minimal, formal evaluation harness
+with alignment-oriented metrics.}
+\end{frame}
+
+% === 4: The Solution ===
+\begin{frame}[plain]
+\vfill
+\begin{center}
+\wpill{The Solution}\\[16pt]
+{\fontsize{22}{28}\selectfont\color{WWhite}
+\textbf{Kant}: 87+ games across 9 domains\\
+with \textcolor{WAccent}{GRPO/DPO training} and\\
+\textcolor{WAccent}{safety transfer} evaluation.}
+\end{center}
+\vfill
+\end{frame}
+
+% === 5: At a glance ===
+\begin{frame}{Kant at a glance}
+\vspace{12pt}
+\begin{center}
+\wstat{WAccent}{87+}{Games spanning\\9 strategic domains}
+\hfill
+\wstat{WPurple}{6}{Alignment metrics\\normalized to $[0,1]$}
+\hfill
+\wstat{WRed}{5}{External safety\\benchmarks tested}
+\end{center}
+\end{frame}
+
+% === 6: Game domains ===
+\begin{frame}{9 strategic domains}
+\vspace{4pt}
 \begin{columns}[T]
-\column{0.33\textwidth}
-\centering
-\textbf{Games}\\[0.3em]
-\small 3 Matrix Games\\ 3 Sequential Games\\ Canonical game theory
-\column{0.33\textwidth}
-\centering
-\textbf{Opponents}\\[0.3em]
-\small 11 matrix strategies\\ 6 sequential strategies\\ Stateless to adaptive
-\column{0.33\textwidth}
-\centering
-\textbf{Metrics}\\[0.3em]
-\small Cooperation, fairness,\\ exploitation resistance,\\ adaptability, \& more
+\column{0.46\textwidth}
+\wcard{%
+\textbf{\color{WAccent}1. Classical Dilemmas}\\
+{\scriptsize\color{WLegend}PD, Stag Hunt, Hawk-Dove, Matching Pennies}\\[4pt]
+\textbf{\color{WAccent}2. PD Variants}\\
+{\scriptsize\color{WLegend}Optional, Asymmetric, Donation, Peace-War}\\[4pt]
+\textbf{\color{WAccent}3. Extended Matrix}\\
+{\scriptsize\color{WLegend}Battle of Sexes, RPS, Deadlock, Harmony}\\[4pt]
+\textbf{\color{WAccent}4. Sequential \& Bargaining}\\
+{\scriptsize\color{WLegend}Ultimatum, Trust, Public Goods}\\[4pt]
+\textbf{\color{WAccent}5. Information Games}\\
+{\scriptsize\color{WLegend}Signaling, cheap talk, Bayesian}}
+\column{0.46\textwidth}
+\wcard{%
+\textbf{\color{WAccent}6. Market \& Competition}\\
+{\scriptsize\color{WLegend}Cournot, Bertrand, entry games}\\[4pt]
+\textbf{\color{WAccent}7. Auctions}\\
+{\scriptsize\color{WLegend}First/second-price, all-pay}\\[4pt]
+\textbf{\color{WAccent}8. Cooperative Games}\\
+{\scriptsize\color{WLegend}Shapley, voting, fair division}\\[4pt]
+\textbf{\color{WAccent}9. Contests \& Conflict}\\
+{\scriptsize\color{WLegend}Tullock, Colonel Blotto}\\[8pt]
+\textbf{\color{WRed}+ Dynamic game creation}\\
+{\scriptsize\color{WLegend}Agents construct new games at runtime}}
 \end{columns}
 \end{frame}
 
-% Slide 4: Game Suite -- Payoff Matrices
-\begin{frame}{Game Suite: Matrix Games}
+% === 7: Payoff matrices ===
+\begin{frame}{Classical games: payoff matrices}
 \centering
-\resizebox{0.92\textwidth}{!}{\input{figures/payoff_matrices}}
-\vspace{0.8em}
+\resizebox{0.88\textwidth}{!}{\input{figures/payoff_matrices}}
+\vspace{6pt}
 
-\small
-\textbf{Prisoner's Dilemma} $\cdot$ \textbf{Stag Hunt} $\cdot$ \textbf{Hawk-Dove}\\[0.4em]
-\textit{+ Sequential games:} Ultimatum $\cdot$ Trust $\cdot$ Public Goods
+{\small\color{WLegend}Cooperation vs.\ self-interest\;\;$\cdot$\;\;
+Coordination under risk\;\;$\cdot$\;\;Conflict escalation}
 \end{frame}
 
-% Slide 5: Opponent Strategies
-\begin{frame}{Opponent Strategies}
-\small
-\begin{tabular}{@{}ll@{}}
-\toprule
-\textbf{Strategy} & \textbf{Description} \\
-\midrule
-Always Cooperate   & Unconditionally cooperates \\
-Always Defect      & Unconditionally defects \\
-Tit-for-Tat        & Mirrors opponent's last move \\
-Tit-for-Two-Tats   & Defects after two consecutive defections \\
-Grudger            & Cooperates until first defection, then always defects \\
-Pavlov             & Win-stay, lose-switch \\
-Generous TFT       & TFT but cooperates 90\% after defection \\
-Adaptive           & Cooperates if opponent's coop rate $>$ 50\% \\
-\midrule
-\multicolumn{2}{@{}l@{}}{\textit{+ 3 more matrix strategies, 6 sequential-game strategies}} \\
-\bottomrule
-\end{tabular}
-\end{frame}
-
-% Slide 6: Architecture
+% === 8: Architecture ===
 \begin{frame}{Architecture}
 \centering
-\resizebox{0.95\textwidth}{!}{\input{figures/architecture}}
-\vspace{0.8em}
+\resizebox{0.92\textwidth}{!}{\input{figures/architecture}}
+\vspace{6pt}
 
-\small
-Agent $\leftrightarrow$ WebSocket $\leftrightarrow$ Server\\[0.3em]
-OpenEnv-compatible $\cdot$ Gymnasium API $\cdot$ FastAPI backend
+{\small\color{WLegend}OpenEnv platform\;\;$\cdot$\;\;Gymnasium API\;\;$\cdot$\;\;
+WebSocket\;\;$\cdot$\;\;FastAPI}
 \end{frame}
 
-% Slide 7: Metrics
-\begin{frame}{Metrics}
-All normalized to $[0, 1]$:
-\vspace{0.5em}
-\begin{description}
-    \item[Cooperation Rate ($M_C$)] Fraction of cooperative actions across all games
-    \item[Exploitation Resistance ($M_E$)] Score against always-defect, relative to best/worst
-    \item[Pareto Efficiency ($M_P$)] How often joint outcomes match the maximum possible
-    \item[Fairness Index ($M_F$)] Payoff equality between agent and opponent
-    \item[Adaptability ($M_A$)] Variation in cooperation rate across opponents
-    \item[Strategic Reasoning ($M_S$)] Composite mean of the five metrics above
-\end{description}
-\end{frame}
-
-% Slide 8: Coalition & Governance
-\begin{frame}{Coalition \& Governance}
+% === 9: Governance ===
+\begin{frame}{Meta-governance: agents change the rules during play}
+\centering
+\resizebox{0.90\textwidth}{!}{\input{figures/governance_flow}}
+\vspace{6pt}
 \begin{columns}[T]
-\column{0.55\textwidth}
-\textbf{N-Player Coalitions}
-\begin{itemize}
-    \item Form, join, and leave coalitions
-    \item Negotiation and enforcement mechanisms
-    \item Coalition payoff redistribution
-\end{itemize}
-\vspace{0.8em}
-\textbf{Meta-Governance}
-\begin{itemize}
-    \item Players can \textit{vote to change the rules}
-    \item Three levels of modification:
-\end{itemize}
-\column{0.42\textwidth}
-\vspace{1.5em}
-\begin{block}{Governance Levels}
-\begin{enumerate}
-    \item \textbf{Parameters}\\ {\small Payoff values, round count}
-    \item \textbf{Mechanics}\\ {\small Action spaces, turn order}
-    \item \textbf{Custom Modifiers}\\ {\small New rules via proposals}
-\end{enumerate}
-\end{block}
+\column{0.44\textwidth}
+\wcard[0.38\textwidth]{\textbf{\color{WAccent}Proposal types}\\[2pt]
+{\small\color{WLegend}Parameter $\cdot$ Mechanic $\cdot$ Custom}}
+\column{0.44\textwidth}
+\wcard[0.38\textwidth]{\textbf{\color{WAccent}Mechanisms}\\[2pt]
+{\small\color{WLegend}Tax, redistribute, insure, quota, veto}}
 \end{columns}
 \end{frame}
 
-% Slide 9: Results (Placeholder)
-\begin{frame}{Results}
+% === 10: Training pipeline ===
+\begin{frame}{GRPO / DPO training pipeline}
 \centering
-\resizebox{0.85\textwidth}{!}{\input{figures/tournament_heatmap}}
-\vspace{0.6em}
-
-\textcolor{WGr}{\textit{Illustrative data shown above.
-Benchmark results TBD --- real heatmaps will replace this
-once LLM evaluations are complete.}}
-\end{frame}
-
-% Slide 10: Demo
-\begin{frame}{Demo}
-\begin{center}
-\Large \textbf{Interactive Tools}
-\end{center}
-\vspace{0.5em}
+\resizebox{0.88\textwidth}{!}{\input{figures/training_pipeline}}
+\vspace{6pt}
 \begin{columns}[T]
-\column{0.33\textwidth}
-\centering
-\textbf{Gradio App}\\[0.3em]
-\small Play against built-in strategies in the browser\\[0.3em]
-\texttt{python app.py}
-\column{0.33\textwidth}
-\centering
-\textbf{Tournament Runner}\\[0.3em]
-\small Full round-robin evaluation pipeline\\[0.3em]
-\texttt{run\_tournament()}
-\column{0.33\textwidth}
-\centering
-\textbf{Report Generator}\\[0.3em]
-\small PDF/HTML reports with per-game breakdowns\\[0.3em]
-\texttt{generate\_report()}
+\column{0.44\textwidth}
+\wcard[0.38\textwidth]{\textbf{\color{WAccent}GRPO}\\[2pt]
+{\small\color{WLegend}Group relative rewards;\\compare within rollout group}}
+\column{0.44\textwidth}
+\wcard[0.38\textwidth]{\textbf{\color{WAccent}DPO}\\[2pt]
+{\small\color{WLegend}Cooperative $\succ$ exploitative;\\no reward model needed}}
 \end{columns}
 \end{frame}
 
-% Slide 11: What's Next
-\begin{frame}{What's Next}
-\begin{itemize}
-    \item \textbf{Multi-agent tournaments} --- round-robin between LLMs
-    \item \textbf{LLM evaluations} --- GPT-4, Claude, Gemini, Llama on full benchmark
-    \item \textbf{Expanded game suite} --- auctions, network formation, bargaining
-    \item \textbf{Coalition dynamics} --- empirical study of emergent governance
-    \item \textbf{Leaderboard} --- public rankings on KantBench metrics
-\end{itemize}
+% === 11: Results ===
+\begin{frame}{Tournament results}
+\centering
+\resizebox{0.78\textwidth}{!}{\input{figures/tournament_heatmap}}
+\vspace{4pt}
+
+{\small\color{WLegend}Illustrative data. Full multi-model results TBD.}
 \end{frame}
 
-% Slide 12: Thank You
-\begin{frame}{Thank You}
+% === 12: Close ===
+\begin{frame}[plain]
+\vfill
 \begin{center}
-\Large \textbf{KantBench}\\[0.5em]
-\normalsize Game-Theory Benchmark for AI Strategic Reasoning
-\vspace{1.5em}
-
-\begin{tabular}{rl}
-    Code:    & \texttt{github.com/openenv/kantbench} \\[0.3em]
-    Paper:   & \texttt{arxiv.org/abs/TBD} \\[0.3em]
-    Contact: & \texttt{team@openenv.dev} \\
-\end{tabular}
-\vspace{1.5em}
-
-\textit{Questions?}
+{\fontsize{36}{40}\selectfont\color{WAccent}\bfseries Kant}\\[10pt]
+{\color{WLegend}Game theory as an alignment substrate.}\\[24pt]
+{\small\color{WLegend}\texttt{github.com/wisent-ai/OpenEnv}\\[4pt]
+\texttt{wisent.ai}}
 \end{center}
+\vfill
 \end{frame}
 
 \end{document}

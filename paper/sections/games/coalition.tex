@@ -8,7 +8,10 @@ enabling agents to form binding or non-binding agreements before acting. This
 tests whether agents can build trust, coordinate collectively, and handle
 betrayal---capabilities directly relevant to multi-agent alignment.
 
-% TODO: Motivate coalition formation as alignment testbed
+Coalition formation tests whether agents can build trust, coordinate
+collectively, and handle betrayal---capabilities central to multi-agent
+alignment in deployment settings where agents must negotiate, form
+agreements, and decide whether to honor commitments.
 
 \subsection{Two-Phase Protocol}
 \label{sec:coalition-protocol}
@@ -16,15 +19,14 @@ betrayal---capabilities directly relevant to multi-agent alignment.
 Each round of a coalition game proceeds in two phases:
 
 \begin{enumerate}[nosep]
-    \item \textbf{Negotiate Phase}: players exchange coalition proposals,
-          specifying target members, proposed joint strategies, and benefit-sharing
-          arrangements. Multiple rounds of proposal and counter-proposal are
-          supported.
-    \item \textbf{Act Phase}: players choose actions. Coalition members may
-          honor or violate their agreements, subject to the enforcement mode.
+    \item \textbf{Negotiate Phase}: players exchange \texttt{CoalitionProposal}
+          objects specifying target members, an agreed joint action, and an optional
+          side payment. Other players accept or reject via their coalition strategy.
+    \item \textbf{Act Phase}: players choose actions independently. Coalition
+          members may honor or violate their agreed action, subject to the
+          enforcement mode. The environment records defectors by comparing
+          each member's chosen action against \texttt{coalition.agreed\_action}.
 \end{enumerate}
-
-% TODO: Protocol diagram, message format specification
 
 \subsection{Enforcement Modes}
 \label{sec:enforcement}
@@ -33,24 +35,31 @@ Three enforcement modes model different institutional settings:
 
 \begin{description}[nosep]
     \item[Cheap Talk.] Agreements are non-binding. Players may freely
-        deviate from coalition commitments with no direct penalty.
-    \item[Penalty.] Defecting from a coalition incurs a configurable
-        payoff penalty, modeling reputation costs or contractual damages.
-    \item[Binding.] Coalition agreements are fully enforced. Once a player
-        joins, their action is locked to the agreed strategy.
+        deviate with no payoff modification.
+    \item[Penalty.] Defectors pay a proportional penalty:
+        $p_d = u_d \cdot \frac{\alpha}{\beta}$ (default $\frac{1}{2}$),
+        yielding adjusted payoff $\hat{u}_d = u_d - p_d = \frac{u_d}{2}$.
+    \item[Binding.] Actions are overridden at the environment level:
+        coalition members' actions are locked to \texttt{agreed\_action}
+        before payoff computation, preventing defection entirely.
 \end{description}
-
-% TODO: Formal specification of enforcement mechanics
 
 \subsection{Side Payments and Defection Detection}
 \label{sec:side-payments}
 
-The coalition framework supports side payments---transfers between coalition
-members to incentivize participation. Defection detection mechanisms track
-whether coalition members honored their commitments, enabling retaliatory
-strategies in future rounds.
+The coalition framework supports side payments and defection detection.
 
-% TODO: Side payment algebra, defection detection algorithm
+\paragraph{Side payments.} The proposer (first coalition member) pays each
+other member a fixed amount $s$ (default $0$):
+\begin{align}
+\hat{u}_{\text{proposer}} &= u_{\text{proposer}} - s \cdot (|C| - 1) \\
+\hat{u}_{m} &= u_m + s \quad \forall m \in C \setminus \{\text{proposer}\}
+\end{align}
+
+\paragraph{Defection detection.} After the Act phase, the environment
+compares each coalition member's action against \texttt{agreed\_action}.
+Any mismatch adds the member to the defectors list, which is visible to
+all players in subsequent rounds, enabling retaliatory strategies.
 
 \subsection{Coalition Strategies}
 \label{sec:coalition-strategies}
@@ -58,16 +67,16 @@ strategies in future rounds.
 Built-in coalition strategies model different agent dispositions:
 
 \begin{description}[nosep]
-    \item[Loyal.] Always honors coalition agreements; never defects.
-    \item[Betrayer.] Joins coalitions to gain trust, then defects at the
-        optimal moment for maximum exploitation.
-    \item[Conditional.] Honors agreements as long as other members do;
-        defects in response to observed defection.
-    \item[Random.] Randomly joins or rejects coalition proposals and
-        randomly honors or violates agreements.
+    \item[Loyal.] Accepts all proposals; always plays \texttt{agreed\_action}.
+        Models unconditional cooperators.
+    \item[Betrayer.] Accepts all proposals but plays the first \emph{non-agreed}
+        action, maximizing exploitation of trusting partners.
+    \item[Conditional.] Honors agreements unless any other member defected
+        in the previous round (checked via \texttt{coalition\_history[-1].defectors}).
+        Models reciprocal enforcement.
+    \item[Random.] Accepts/rejects proposals with probability $\frac{1}{2}$;
+        chooses actions uniformly at random.
 \end{description}
-
-% TODO: Strategy pseudocode
 
 \subsection{Coalition Game Library}
 \label{sec:coalition-games}
@@ -84,4 +93,6 @@ Seven games are specifically designed for coalition dynamics:
     \item \textbf{Commons Management} --- coalition-based resource governance
 \end{itemize}
 
-% TODO: Formal game specifications for each coalition game
+These games combine the base game mechanics with coalition negotiation,
+creating rich strategic environments where agents must balance individual
+payoff maximization against coalition stability and fairness.

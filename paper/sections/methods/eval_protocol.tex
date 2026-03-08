@@ -7,65 +7,116 @@ This section describes the comprehensive evaluation protocol used to assess
 agent behavior across the full Kant game library, including strategies,
 tournament structure, formal metrics, and stratified game splitting.
 
-% TODO: Introductory paragraph connecting evaluation to alignment goals
+Evaluation measures whether game-theoretic training produces agents that are
+not only strategically competent but also cooperative, fair, and robust to
+exploitation---properties that transfer to broader alignment.
 
 \subsection{Strategy Library}
 \label{sec:strategy-library}
 
-The evaluation protocol employs a library of opponent strategies spanning
-three categories:
+The evaluation protocol employs 24 opponent strategies spanning four categories.
 
-\paragraph{Base strategies.}
-The core set of opponent strategies for matrix and sequential games
-, including unconditional (Always Cooperate,
-Always Defect), reciprocal (Tit-for-Tat, Grudger, Pavlov), stochastic
-(Mixed, Random), and game-specific strategies (Ultimatum Fair/Low,
-Trust Fair/Generous, Public Goods Fair/Free Rider).
-
-\paragraph{Coalition strategies.}
-Four strategies for coalition games: Loyal, Betrayer, Conditional, and
-Random (Section~\ref{sec:coalition-strategies}).
-
-\paragraph{Governance strategies.}
-Strategies for governance-enabled games that test proposal generation,
-voting behavior, and mechanism interaction.
-
-% TODO: Full strategy table with all strategies
+\begin{table}[h]
+\centering\small
+\caption{Opponent strategy library. Base strategies (11) apply to all matrix games;
+economic strategies (6) are game-specific; N-player (5), coalition (4), and governance
+(4) strategies extend to multi-agent settings.}
+\label{tab:strategies}
+\begin{tabular}{@{}llp{5.8cm}@{}}
+\toprule
+\textbf{Category} & \textbf{Strategy} & \textbf{Logic} \\
+\midrule
+\multirow{5}{*}{Unconditional}
+& Always Cooperate & Always plays action$[0]$ \\
+& Always Defect & Always plays action$[1]$ \\
+& Random & Uniform random over actions \\
+& Mixed & Cooperate w.p.\ $0.7$, defect w.p.\ $0.3$ \\
+\midrule
+\multirow{5}{*}{Reciprocal}
+& Tit-for-Tat & Cooperate first; then mirror opponent \\
+& Tit-for-Two-Tats & Defect only after 2 consecutive opponent defections \\
+& Grudger & Cooperate until first defection, then always defect \\
+& Pavlov & Repeat if same action chosen; else switch \\
+& Suspicious TFT & Defect first; then mirror opponent \\
+& Generous TFT & Like TFT but cooperate 90\% after defection \\
+& Adaptive & Cooperate if opponent cooperated $>50\%$ historically \\
+\midrule
+Economic & Ultimatum Fair/Low & Offer $5$ or $3$ of pot $10$ \\
+& Trust Fair/Generous & Invest max; return $\tfrac{1}{3}$ or $\tfrac{1}{2}$ \\
+& PG Fair/Free-Rider & Contribute $50\%$ or $10\%$ of endowment \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Tournament Structure}
 \label{sec:tournament-structure}
 
-Evaluation proceeds via a round-robin tournament managed by the
-\texttt{TournamentRunner}. For each (game, strategy) pair, the runner
-executes multiple episodes and aggregates results. The tournament
-supports configurable episode counts, game subsets, and strategy filters.
+Evaluation proceeds via round-robin tournament. For each
+$(\text{game}, \text{strategy})$ pair, the \texttt{TournamentRunner}
+executes $k$ episodes (default $k=3$) and aggregates results:
 
-% TODO: Tournament algorithm pseudocode, configuration parameters
+\begin{enumerate}[nosep]
+    \item For each game $g \in \mathcal{G}$ and strategy $s \in \mathcal{S}$:
+    \item \quad For each episode $e \in \{1, \ldots, k\}$:
+    \item \quad\quad Reset environment with $(g, s)$; play until terminal state
+    \item \quad\quad Record per-round actions, payoffs, cooperation flags
+    \item \quad Aggregate: total scores, mean cooperation rate over $k$ episodes
+    \item Compute six metrics over the full results matrix (Section~\ref{sec:formal-metrics})
+\end{enumerate}
+
+\noindent With $88$ games and $11$ base strategies, a full tournament
+executes $88 \times 11 \times 3 = 2{,}904$ episodes.
 
 \subsection{Formal Metrics}
 \label{sec:formal-metrics}
 
 We define six metrics, each normalized to $[0, 1]$:
 
-\begin{itemize}[nosep]
-    \item \textbf{Cooperation Rate} ($M_C$) --- fraction of cooperative actions
-    \item \textbf{Exploitation Resistance} ($M_E$) --- performance against adversarial opponents
-    \item \textbf{Pareto Efficiency} ($M_P$) --- fraction of Pareto-optimal joint outcomes
-    \item \textbf{Fairness Index} ($M_F$) --- payoff equality between players
-    \item \textbf{Adaptability} ($M_A$) --- behavioral variation across opponent types
-    \item \textbf{Strategic Reasoning} ($M_S$) --- composite of all five metrics
-\end{itemize}
+\paragraph{Cooperation Rate ($M_C$).}
+Mean fraction of cooperative actions across all $(g, s)$ pairs:
+$M_C = \frac{1}{|\mathcal{G}||\mathcal{S}|} \sum_{g,s} \bar{c}_{g,s}$,
+where $\bar{c}_{g,s}$ is the cooperation rate averaged over $k$ episodes.
+Cooperative actions are $\{\texttt{cooperate}, \texttt{stag}, \texttt{dove}\}$
+for matrix games; actions at or above the median index for economic games.
 
-% TODO: Full metric definitions (moved from technical.tex)
-% TODO: Metric extensions for N-player, coalition, and governance games
+\paragraph{Exploitation Resistance ($M_E$).}
+Per-game performance against \texttt{always\_defect} relative to
+best/worst:
+$M_E^{(g)} = \frac{S_{\text{ad}}^{(g)} - S_{\min}^{(g)}}{S_{\max}^{(g)} - S_{\min}^{(g)}}$,
+averaged over games. Score of $1.0$ means no payoff loss to exploitation.
+
+\paragraph{Pareto Efficiency ($M_P$).}
+Fraction of $(g,s)$ pairs where joint payoff $u_1 + u_2$ equals the
+maximum joint payoff observed for that game:
+$M_P = \frac{|\{(g,s) : J_{g,s} \geq J_{\max}^{(g)}\}|}{|\mathcal{G}||\mathcal{S}|}$.
+
+\paragraph{Fairness Index ($M_F$).}
+Inverted normalized payoff difference:
+$M_F^{(g,s)} = 1 - \frac{|u_1 - u_2|}{|u_1| + |u_2|}$, averaged over
+all pairs. Score of $1.0$ indicates perfectly equal payoffs.
+
+\paragraph{Adaptability ($M_A$).}
+Normalized variance of cooperation rate across strategies within each game:
+$M_A^{(g)} = \frac{\min(\text{Var}_s(\bar{c}_{g,s}),\; 0.5)}{0.5}$,
+averaged over games. High variance indicates context-dependent behavior.
+
+\paragraph{Strategic Reasoning ($M_S$).}
+Unweighted composite: $M_S = \frac{1}{5}(M_C + M_E + M_P + M_F + M_A)$.
 
 \subsection{Stratified Game Splitting}
 \label{sec:splitting}
 
 To ensure evaluation generalization, we introduce domain-aware stratified
-splitting. Games are partitioned into training and evaluation sets such that
-each strategic domain (Section~\ref{sec:game-library}) is represented in both
-sets. This prevents overfitting to specific game structures while ensuring
-coverage of all strategic dimensions.
+splitting with seed $42$ for reproducibility:
 
-% TODO: Splitting algorithm, domain balance constraints
+\begin{itemize}[nosep]
+    \item \textbf{Train set}: $78\%$ of games ($\approx 69$ games)
+    \item \textbf{Eval set}: $22\%$ of games ($\approx 19$ games)
+    \item \textbf{Domain constraint}: each domain tag has $\geq 20\%$
+          representation in the eval set
+\end{itemize}
+
+\noindent The domain constraint ensures no single game category (e.g.,
+classical dilemmas, market competition) is entirely absent from evaluation.
+Combined with procedurally generated games (Section~\ref{sec:procedural}),
+this tests whether strategic reasoning transfers to unseen game structures.

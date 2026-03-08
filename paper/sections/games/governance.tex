@@ -10,8 +10,6 @@ a form of constitutional self-governance that directly parallels Constitutional
 AI~\citep{bai2022constitutional} but operates through democratic mechanism
 design rather than static principles.
 
-% TODO: Expand connection to Constitutional AI
-
 \subsection{Constitutional Mechanics}
 \label{sec:constitutional}
 
@@ -19,9 +17,9 @@ The governance system operates as a layer atop any N-player game. Between
 action rounds, a governance phase allows players to propose modifications to
 the game's rules, vote on proposals, and apply approved changes. This creates
 a two-level game: the \emph{object game} (the underlying strategic interaction)
-and the \emph{meta-game} (the governance process itself).
-
-% TODO: Formal two-level game model
+and the \emph{meta-game} (the governance process itself). Mutable state is
+maintained in a \texttt{RuntimeRules} object that tracks enforcement mode,
+penalty parameters, active mechanisms, and governance history.
 
 \subsection{Proposal System}
 \label{sec:proposals}
@@ -39,48 +37,66 @@ Three types of proposals are supported:
         (Section~\ref{sec:delta-clamping}).
 \end{description}
 
-% TODO: Proposal format specification, example proposals
+At most $3$ proposals may be submitted per governance round.
 
 \subsection{Democratic Voting}
 \label{sec:voting}
 
-Proposals are decided by majority vote with a configurable threshold (default:
-simple majority). Each player casts one vote per proposal. Voting is
-simultaneous and secret by default, though open voting modes are supported.
-Approved proposals take effect in the next round.
-
-% TODO: Voting protocol formal specification
+Proposals are decided by strict majority vote. The threshold is:
+\[
+\tau = \left\lfloor \frac{n_{\text{active}} \cdot \alpha}{\beta} \right\rfloor + 1
+\]
+with default $\alpha/\beta = 1/2$, so $\tau = \lfloor n/2 \rfloor + 1$
+(e.g., $3$ of $4$ players must approve). Each active player casts one
+approve/reject vote per proposal. Approved proposals are applied immediately
+via \texttt{\_apply\_proposal}, modifying the \texttt{RuntimeRules} state.
 
 \subsection{Composable Mechanisms}
 \label{sec:mechanisms}
 
-Six governance mechanisms can be proposed, voted on, and composed:
+Six governance mechanisms can be proposed, voted on, and composed.
+Mechanisms are applied in fixed order (taxation $\to$ redistribution
+$\to$ insurance $\to$ quota $\to$ subsidy $\to$ veto), so cumulative
+effects are deterministic.
 
-\begin{enumerate}[nosep]
-    \item \textbf{Taxation} --- a fraction of each player's payoff is collected
-          into a governance pool.
-    \item \textbf{Redistribution} --- the governance pool is distributed
-          equally among all players (or according to a voted-on formula).
-    \item \textbf{Insurance} --- players pay premiums to a pool that
-          compensates low-scoring players, reducing variance.
-    \item \textbf{Quota} --- minimum or maximum action constraints (e.g.,
-          minimum contribution in Public Goods).
-    \item \textbf{Subsidy} --- bonus payments for specific actions (e.g.,
-          cooperation bonuses).
-    \item \textbf{Veto} --- designated players or coalitions can block
-          specific actions or proposals.
-\end{enumerate}
+\paragraph{Taxation.} Rate $r = 1/10$ (default). Pool
+$P = \sum_i u_i \cdot r$; share $= P / n$. Each player receives
+$\hat{u}_i = u_i(1 - r) + P/n$.
 
-% TODO: Formal mechanism specifications with payoff transformations
+\paragraph{Redistribution.} Equal mode sets $\hat{u}_i = \bar{u}$ for
+all $i$. Proportional mode applies damping $d = 1/2$:
+$\hat{u}_i = u_i + d(\bar{u} - u_i)$.
+
+\paragraph{Insurance.} Contribution rate $c = 1/10$; threshold
+$\theta = \bar{u}/2$. Players below $\theta$ split the pool:
+payout $= P / |\{i : u_i < \theta\}|$.
+
+\paragraph{Quota.} Cap $q = 8$. Excess $E = \sum_i \max(0, u_i - q)$
+is redistributed equally to below-cap players.
+
+\paragraph{Subsidy.} Floor $f = 2$; fund rate $= 1/5$. Above-floor
+players contribute $(u_i - f) \cdot 1/5$; below-floor players receive
+proportional payouts up to the floor.
+
+\paragraph{Veto.} A designated veto player (default: player $0$) can
+trigger equalization: if $u_{\text{veto}} < \bar{u}$, all payoffs are
+set to $\bar{u}$.
 
 \subsection{Custom Modifiers with Delta-Clamping Safety}
 \label{sec:delta-clamping}
 
 Custom proposals specify arbitrary payoff modifications via delta functions.
 To prevent destabilizing changes, a delta-clamping mechanism bounds the
-magnitude of any single modification.
-
-% TODO: Delta-clamping formula, safety bounds, worked example
+magnitude of any single modification:
+\[
+\delta_i^{\text{clamped}} = \text{clamp}\!\bigl(\delta_i,\;
+  -\max(|u_i| \cdot \rho,\, \rho),\;
+  +\max(|u_i| \cdot \rho,\, \rho)\bigr)
+\]
+where $\rho = 1/2$ (default). This ensures no custom modifier can change
+any player's payoff by more than $50\%$ of its absolute value (or $0.5$
+in absolute terms, whichever is larger), preventing adversarial proposals
+from destabilizing the game.
 
 \subsection{Governance-Coalition Interaction Loop}
 \label{sec:gov-coalition}
@@ -91,7 +107,9 @@ self-serving rules, or use governance to enforce coalition agreements. This
 creates emergent institutional dynamics analogous to real-world political
 systems.
 
-% TODO: Interaction diagram, emergent behavior examples
+The payoff modification chain is: base game payoff $\to$ coalition penalties
+$\to$ side payments $\to$ governance mechanisms (in order) $\to$ custom
+modifiers (with delta-clamping).
 
 \subsection{Connection to Constitutional AI}
 \label{sec:constitutional-ai}
@@ -102,4 +120,7 @@ Rather than encoding principles as static rules, Kant allows principles to
 emerge through democratic deliberation. This tests whether agents can
 \emph{construct} fair governance systems, not merely follow pre-specified ones.
 
-% TODO: Detailed comparison table: Constitutional AI vs. Kant governance
+Where Constitutional AI uses static principles curated by designers,
+Kant's governance engine tests whether agents can \emph{discover} fair
+rules through democratic deliberation---a stronger test of alignment
+that does not presuppose the correct principles.

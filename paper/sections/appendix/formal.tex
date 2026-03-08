@@ -3,38 +3,125 @@
 \section{Metric Derivations}
 \label{app:metrics}
 
-This appendix provides detailed derivations and proofs of properties for
-the evaluation metrics defined in Section~\ref{sec:formal-metrics}.
+This appendix provides detailed derivations for the evaluation metrics
+defined in Section~\ref{sec:formal-metrics}.
 
-% TODO: Full derivations for all six metrics
-% TODO: Proofs of normalization (range [0,1])
-% TODO: Sensitivity analysis
-% TODO: Extensions for N-player and coalition settings
+\subsection{Cooperation Rate}
 
-\textit{Detailed derivations to be added.}
+Let $\mathcal{G}$ be the game set, $\mathcal{S}$ the strategy set, and
+$\bar{c}_{g,s}$ the mean cooperation rate over $k$ episodes for pair $(g,s)$.
+An action is cooperative if it belongs to
+$\{\texttt{cooperate}, \texttt{stag}, \texttt{dove}\}$ for matrix games,
+or has index $\geq \lceil |\mathcal{A}|/2 \rceil$ for economic games.
+\[
+M_C = \frac{1}{|\mathcal{G}||\mathcal{S}|} \sum_{g \in \mathcal{G}}
+  \sum_{s \in \mathcal{S}} \bar{c}_{g,s}
+\]
+Since each $\bar{c}_{g,s} \in [0,1]$, $M_C \in [0,1]$ by construction.
+
+\subsection{Exploitation Resistance}
+
+For each game $g$ with an \texttt{always\_defect} strategy entry:
+\[
+M_E^{(g)} = \frac{S_{\text{ad}}^{(g)} - S_{\min}^{(g)}}
+  {S_{\max}^{(g)} - S_{\min}^{(g)}}
+\]
+where $S_{\text{ad}}^{(g)}$ is total player score against always-defect,
+$S_{\max}^{(g)}$ and $S_{\min}^{(g)}$ are the best and worst player scores
+across all strategies for game $g$. If $S_{\max} = S_{\min}$, $M_E^{(g)} = 1$.
+Final: $M_E = \text{mean}(M_E^{(g)})$; defaults to $1.0$ if no game has
+an always-defect entry.
+
+\subsection{Pareto Efficiency}
+
+For each $(g,s)$ pair, joint score $J_{g,s} = u_1 + u_2$. Maximum joint
+score for game $g$: $J_{\max}^{(g)} = \max_s J_{g,s}$.
+\[
+M_P = \frac{|\{(g,s) : J_{g,s} \geq J_{\max}^{(g)}\}|}{|\mathcal{G}||\mathcal{S}|}
+\]
+
+\subsection{Fairness Index}
+
+Per-pair fairness: $F_{g,s} = 1 - |u_1 - u_2| / (|u_1| + |u_2|)$.
+When both scores are zero, $F_{g,s} = 1$. Final:
+$M_F = \text{mean}(F_{g,s})$. The denominator uses absolute values
+to handle negative payoffs correctly.
+
+\subsection{Adaptability}
+
+Per-game variance of cooperation rates across strategies:
+$V^{(g)} = \text{Var}_s(\bar{c}_{g,s})$. Capped and normalized:
+$M_A^{(g)} = \min(V^{(g)}, 0.5) / 0.5$, since the maximum variance
+for a rate in $[0,1]$ approaches $0.25$ but can reach $0.5$ in
+degenerate cases. Games with $\leq 1$ strategy are excluded.
+Final: $M_A = \text{mean}(M_A^{(g)})$.
+
+\subsection{Strategic Reasoning (Composite)}
+
+Unweighted average: $M_S = (M_C + M_E + M_P + M_F + M_A) / 5$.
 
 \section{Governance Mechanics: Formal Specification}
 \label{app:governance-formal}
 
-Formal specifications of the six composable governance mechanisms
-(Section~\ref{sec:mechanisms}).
+Mechanisms are applied in fixed order. Let $\mathbf{u} = (u_1, \ldots, u_n)$
+be the input payoff vector and $A$ the set of active players.
 
-% TODO: Payoff transformation functions for each mechanism
-% TODO: Composition rules and interaction effects
-% TODO: Delta-clamping formal definition and safety properties
-% TODO: Voting protocol formal model
+\subsection{Taxation}
+Rate $r = \alpha/\beta$ (default $1/10$).
+Pool: $P = \sum_{i \in A} u_i \cdot r$; share $= P/|A|$.
+$\hat{u}_i = u_i(1-r) + P/|A|$.
 
-\textit{Formal governance specifications to be added.}
+\subsection{Redistribution}
+Mean: $\bar{u} = \sum_{i \in A} u_i / |A|$.
+Equal mode: $\hat{u}_i = \bar{u}$.
+Proportional mode (damping $d$): $\hat{u}_i = u_i + d(\bar{u} - u_i)$.
+
+\subsection{Insurance}
+Contribution rate $c$; pool $P = \sum_{i \in A} u_i \cdot c$.
+Threshold $\theta = \bar{u} \cdot t$. Claimants:
+$C = \{i \in A : u_i < \theta\}$. Payout per claimant: $P/|C|$.
+
+\subsection{Quota}
+Cap $q$. Excess $E = \sum_{i \in A} \max(0, u_i - q)$.
+Below-cap set $B = \{i : u_i \leq q\}$.
+$\hat{u}_i = \min(u_i, q) + E/|B|$ if $i \in B$; else $\hat{u}_i = q$.
+
+\subsection{Subsidy}
+Floor $f$; fund rate $r_f$.
+Contributors: $\{i : u_i > f\}$ pay $(u_i - f) \cdot r_f$.
+Recipients: $\{i : u_i < f\}$ receive proportional to need
+$\min(f - u_i, P \cdot (f-u_i)/\sum_j(f-u_j))$.
+
+\subsection{Veto}
+Veto player $v$. If $u_v < \bar{u}$: all $\hat{u}_i = \bar{u}$.
+Otherwise: no change. Tests whether a veto power induces equalization.
+
+\subsection{Delta-Clamping (Custom Modifiers)}
+For custom modifier output $u'_i$, clamped delta:
+$\delta_i = \text{clamp}(u'_i - u_i, -m_i, +m_i)$ where
+$m_i = \max(|u_i| \cdot \rho, \rho)$ and $\rho = 1/2$ (default).
 
 \section{Coalition Payoffs and Equilibrium Analysis}
 \label{app:coalition-formal}
 
-Formal analysis of coalition formation game payoffs and equilibrium
-properties (Section~\ref{sec:coalition}).
+\subsection{Payoff Modification Chain}
+Given base payoffs $\mathbf{u}$, active coalitions $\mathcal{C}$,
+and enforcement mode $e$:
 
-% TODO: Side payment transfer algebra
-% TODO: Enforcement mode payoff modifications
-% TODO: Coalition stability conditions (core, Shapley)
-% TODO: Equilibrium analysis for each coalition game
+\paragraph{Step 1: Defection detection.}
+$D = \{i \in C.\text{members} : a_i \neq C.\text{agreed\_action},
+\forall C \in \mathcal{C}\}$.
 
-\textit{Coalition formal analysis to be added.}
+\paragraph{Step 2: Penalty (if $e = \text{penalty}$).}
+$p_d = u_d \cdot \alpha/\beta$ for each $d \in D$.
+$\hat{u}_d = u_d - p_d$.
+
+\paragraph{Step 3: Side payments.}
+For each coalition $C$ with side payment $s > 0$:
+proposer pays $s \cdot (|C| - 1)$; each other member receives $s$.
+
+\paragraph{Step 4: Governance mechanisms.}
+Applied in order (taxation $\to \cdots \to$ veto) on adjusted payoffs.
+
+\paragraph{Step 5: Custom modifiers.}
+Applied with delta-clamping safety bounds.

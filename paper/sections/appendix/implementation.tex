@@ -3,46 +3,89 @@
 \section{Dynamic Game API Reference}
 \label{app:api}
 
-Complete API reference for the dynamic game creation system
-(Section~\ref{sec:game-api}).
+The dynamic game creation system (Section~\ref{sec:game-api}) exposes
+three construction modes via the \texttt{GameConfig} dataclass:
 
-% TODO: API endpoint specifications
-% TODO: Request/response schemas
-% TODO: Code examples for each construction mode
-% TODO: Validation rules and error handling
+\begin{description}[nosep]
+\item[Matrix.] Specify payoff matrix as nested dict
+  $\{a_1 \to \{a_2 \to (u_1, u_2)\}\}$. Validated for action count
+  consistency and numeric payoffs.
+\item[Symmetric.] Provide reduced specification (upper triangle only);
+  expanded to full symmetric matrix automatically.
+\item[Custom.] Register a \texttt{Callable[[str, str], tuple[float, float]]}
+  that computes payoffs from action profiles. Supports arbitrary game logic.
+\end{description}
 
-\textit{API reference to be generated from codebase documentation.}
+Games are registered in the global \texttt{GAMES} dictionary with a unique
+string key. Extension modules (20 files across \texttt{games\_ext/},
+\texttt{games\_info/}, \texttt{games\_market/}, \texttt{games\_coop/},
+\texttt{games\_meta/}) are loaded dynamically via \texttt{\_load\_extensions()}.
 
 \section{Hyperparameters}
 \label{app:hyperparams}
 
-Complete hyperparameter specifications for training and evaluation.
-
 \subsection{Training Hyperparameters}
 
-% TODO: GRPO hyperparameters (learning rate, group size, etc.)
-% TODO: DPO hyperparameters (beta, learning rate, etc.)
-% TODO: Curriculum phase transition thresholds
-
-\textit{Training hyperparameters to be added after training runs.}
+\begin{table}[h]
+\centering\small
+\caption{GRPO training configuration.}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Base model & Qwen2.5-7B-Instruct \\
+Group size ($G$) & 8 \\
+Max completion length & 16 tokens \\
+Per-device batch size & 4 \\
+Gradient accumulation & 4 \\
+Effective batch size & $4 \times 4 = 16$ \\
+Learning rate & $5 \times 10^{-6}$ \\
+Max training steps & 500 \\
+Dataset size & 1000 prompts \\
+Precision & bf16 (H100) \\
+Invalid move penalty & $-2.0$ \\
+Environment error default & $0.0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Evaluation Hyperparameters}
 
-% TODO: Tournament configuration (episodes per pair, round count)
-% TODO: Metric computation parameters
-% TODO: Game splitting ratios
-
-\textit{Evaluation hyperparameters to be documented.}
+\begin{table}[h]
+\centering\small
+\caption{Tournament and evaluation configuration.}
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Episodes per (game, strategy) & 3 \\
+Train/eval split ratio & 78\% / 22\% \\
+Split seed & 42 \\
+Min eval domain fraction & 20\% \\
+Cooperation rate cap (adaptability) & 0.5 \\
+Composite metric weight (each) & 1/5 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Prompt Templates}
 \label{app:prompts}
 
-Full prompt templates used for LLM agent evaluation.
+The system prompt for game-theoretic evaluation:
 
-% TODO: System prompt template
-% TODO: Game observation formatting
-% TODO: Action selection prompt
-% TODO: Chain-of-thought reasoning template
-% TODO: Multi-round history formatting
+\begin{quote}\small\ttfamily
+You are an expert game theory player. You will be given the current state
+of a 2-player strategic game and must choose your move to maximize your
+long-term cumulative payoff.
 
-\textit{Prompt templates to be documented from codebase.}
+Rules:\\
+- Read the game description carefully\\
+- Consider your opponent's strategy and history\\
+- Respond with ONLY the move name, nothing else\\
+- Your response must be exactly one of the available moves listed
+\end{quote}
+
+Each user prompt includes: game name, description, available moves,
+opponent strategy, round number (e.g., ``Round 3/10''), cumulative score,
+and full action history formatted as
+``Round $k$: you=X, opponent=Y, your payoff=$\pm z$''.

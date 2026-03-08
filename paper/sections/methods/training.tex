@@ -8,32 +8,53 @@ improve language model alignment through reinforcement learning. This section
 describes the GRPO and DPO training methods, curriculum learning strategy,
 and reward shaping approach.
 
-% TODO: Introductory paragraph connecting training to alignment hypothesis
+The training pipeline tests whether game-theoretic experience transfers to
+broader alignment. We use both online (GRPO) and offline (DPO) methods,
+with the Kant environment as the reward oracle.
 
 \subsection{GRPO on Game Environments}
 \label{sec:grpo}
 
 Group Relative Policy Optimization (GRPO)~\citep{shao2024deepseekmath}
-generates multiple trajectory rollouts per game episode and optimizes the
-policy by comparing relative rewards within each group. Applied to Kant's
-game environments, GRPO trains agents to discover cooperative equilibria
-through direct environment interaction.
+generates $G$ completions per prompt and optimizes the policy by comparing
+relative rewards within each group. We implement GRPO via TRL with the
+following configuration:
 
-% TODO: GRPO algorithm adapted for game environments
-% TODO: Reward function specification
+\begin{itemize}[nosep]
+    \item \textbf{Group size}: $G = 8$ completions per game state
+    \item \textbf{Max completion length}: $16$ tokens (moves are $1$--$2$ words)
+    \item \textbf{Learning rate}: $5 \times 10^{-6}$
+    \item \textbf{Batch size}: $4$ with gradient accumulation $\times 4$
+    \item \textbf{Training steps}: $500$ (across $1{,}000$ game prompts)
+    \item \textbf{Base model}: Qwen2.5-7B-Instruct
+\end{itemize}
+
+\noindent Each prompt presents a game state---name, description, available
+moves, opponent strategy, round number, history, and cumulative score.
+The LLM completion is parsed as a move and submitted to the Kant environment;
+the returned payoff becomes the GRPO reward signal. Invalid or unparseable
+moves receive reward $-2.0$; environment errors default to $0.0$.
 
 \subsection{DPO via Trajectory Preference Pairs}
 \label{sec:dpo}
 
 Direct Preference Optimization (DPO)~\citep{rafailov2023direct} trains on
 preference pairs constructed from game trajectories. For each game episode,
-we generate a ``preferred'' trajectory (cooperative, fair, strategically
-sound) and a ``rejected'' trajectory (exploitative, unfair, or naive). The
-DPO loss directly optimizes the policy to prefer aligned behavior without
-requiring an explicit reward model.
+we generate trajectory pairs where:
 
-% TODO: Trajectory pair construction algorithm
-% TODO: DPO loss formulation for game trajectories
+\begin{itemize}[nosep]
+    \item \textbf{Preferred} ($y_w$): cooperative, fair, strategically sound
+          moves (e.g., cooperate in PD against TFT, fair offers in Ultimatum)
+    \item \textbf{Rejected} ($y_l$): exploitative, unfair, or naive moves
+          (e.g., always defect, lowball offers, free-riding)
+\end{itemize}
+
+\noindent The DPO loss $\mathcal{L}_{\text{DPO}} = -\log\sigma\bigl(
+\beta \log \frac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)} -
+\beta \log \frac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)}\bigr)$
+directly optimizes the policy to prefer aligned trajectories without an
+explicit reward model. The preference ordering
+``cooperative $\succ$ exploitative'' encodes the alignment objective.
 
 \subsection{Curriculum Learning}
 \label{sec:curriculum}
@@ -48,20 +69,21 @@ domain:
     \item \textbf{Phase~IV}: Governance-enabled games and dynamic creation
 \end{enumerate}
 
-% TODO: Phase transition criteria, game sampling strategy
+Each phase doubles the game pool, with transition triggered by convergence
+of the composite strategic reasoning metric $M_S > 0.6$ on the current pool.
 
 \subsection{Reward Shaping}
 \label{sec:reward-shaping}
 
-Raw game payoffs are transformed via a reward shaping function that balances
-individual performance with cooperative and fairness objectives. The shaped
-reward incorporates:
-
-\begin{itemize}[nosep]
-    \item Individual payoff (self-interest signal)
-    \item Joint payoff (cooperation signal)
-    \item Payoff difference penalty (fairness signal)
-    \item Exploitation penalty (safety signal)
-\end{itemize}
-
-% TODO: Reward shaping formula, weight hyperparameters
+Raw game payoffs are transformed to balance individual performance with
+cooperative and fairness objectives:
+\[
+r_{\text{shaped}} = \alpha \cdot u_i + \beta \cdot (u_i + u_{-i})
+  - \gamma \cdot |u_i - u_{-i}| - \delta \cdot \mathbb{1}[\text{exploit}]
+\]
+where $u_i$ is the player's payoff, $u_{-i}$ the opponent's, and the
+exploit indicator fires when the agent achieves $T$ (temptation payoff)
+against a cooperative opponent. Default weights:
+$\alpha = 0.4$, $\beta = 0.3$, $\gamma = 0.2$, $\delta = 0.1$.
+This creates a gradient toward Pareto-efficient, fair outcomes while
+maintaining strategic competence.

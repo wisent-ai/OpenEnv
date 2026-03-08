@@ -257,6 +257,13 @@ from common.meta.variants_meta import (  # noqa: E402
 
 _VARIANT_REGISTRY.update(_META_VARIANT_REGISTRY)
 
+from common.meta.variants_reputation import (  # noqa: E402
+    apply_gossip,
+    _REPUTATION_VARIANT_REGISTRY,
+)
+
+_VARIANT_REGISTRY.update(_REPUTATION_VARIANT_REGISTRY)
+
 
 def compose_game(base_key: str, *variant_names: str) -> GameConfig:
     """Build a game by applying named variants to a base game.

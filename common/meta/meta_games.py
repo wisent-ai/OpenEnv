@@ -11,6 +11,7 @@ from dataclasses import replace
 
 from common.games import GAMES
 from common.meta.variants_meta import apply_rule_proposal, apply_rule_signal
+from common.meta.variants_reputation import apply_gossip
 
 _BASE_KEYS = ("prisoners_dilemma", "stag_hunt", "hawk_dove")
 
@@ -49,5 +50,21 @@ for _key in _BASE_KEYS:
         ),
     )
     META_GAMES[f"rule_signal_{_key}"] = _rs
+
+for _key in _BASE_KEYS:
+    _base = GAMES[_key]
+    _fname = _FRIENDLY_NAMES[_key]
+
+    _gp = apply_gossip(_base, base_key=_key)
+    _gp = replace(
+        _gp,
+        name=f"Gossip {_fname}",
+        description=(
+            f"{_fname} with reputation gossip. "
+            "Players rate opponents as trustworthy, untrustworthy, "
+            "or neutral alongside each action."
+        ),
+    )
+    META_GAMES[f"gossip_{_key}"] = _gp
 
 GAMES.update(META_GAMES)

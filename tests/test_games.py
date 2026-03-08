@@ -42,7 +42,7 @@ _FOUR = _THREE + _ONE
 _FIVE = _FOUR + _ONE
 _SIX = _FIVE + _ONE
 
-_EXPECTED_GAME_COUNT = _SIX * _FOUR * _FOUR
+_EXPECTED_GAME_COUNT = _SIX * _FOUR * _FOUR + _THREE
 
 _ALL_GAME_KEYS = [
     "prisoners_dilemma",

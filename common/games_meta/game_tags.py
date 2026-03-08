@@ -183,6 +183,11 @@ GAME_TAGS: dict[str, frozenset[str]] = {
     "rule_signal_prisoners_dilemma": frozenset({CHEAP_TALK, COMPLETE_INFORMATION, SIMULTANEOUS, REPEATED, SYMMETRIC_PAYOFF, SOCIAL_DILEMMA, LARGE_CHOICE, META_GOVERNANCE}),
     "rule_signal_stag_hunt": frozenset({CHEAP_TALK, COMPLETE_INFORMATION, SIMULTANEOUS, REPEATED, COORDINATION, SOCIAL_DILEMMA, LARGE_CHOICE, META_GOVERNANCE}),
     "rule_signal_hawk_dove": frozenset({CHEAP_TALK, COMPLETE_INFORMATION, SIMULTANEOUS, REPEATED, ANTI_COORDINATION, SOCIAL_DILEMMA, LARGE_CHOICE, META_GOVERNANCE}),
+
+    # ── meta/meta_games.py (gossip) ──
+    "gossip_prisoners_dilemma": frozenset({CHEAP_TALK, COMPLETE_INFORMATION, SIMULTANEOUS, REPEATED, SYMMETRIC_PAYOFF, SOCIAL_DILEMMA, LARGE_CHOICE, META_GOVERNANCE}),
+    "gossip_stag_hunt": frozenset({CHEAP_TALK, COMPLETE_INFORMATION, SIMULTANEOUS, REPEATED, COORDINATION, SOCIAL_DILEMMA, LARGE_CHOICE, META_GOVERNANCE}),
+    "gossip_hawk_dove": frozenset({CHEAP_TALK, COMPLETE_INFORMATION, SIMULTANEOUS, REPEATED, ANTI_COORDINATION, SOCIAL_DILEMMA, LARGE_CHOICE, META_GOVERNANCE}),
 }
 
 
@@ -209,6 +214,12 @@ def derive_variant_tags(
     elif variant_name == "exit":
         tags.discard(BINARY_CHOICE)
         tags.add(SMALL_CHOICE)
+    elif variant_name == "gossip":
+        tags.discard(NO_COMMUNICATION)
+        tags.add(CHEAP_TALK)
+        tags.discard(BINARY_CHOICE)
+        tags.add(LARGE_CHOICE)
+        tags.add(META_GOVERNANCE)
     return frozenset(tags)
 
 

@@ -86,6 +86,10 @@ EVAL_ONE_FLOAT = 1.0
 EVAL_HALF = 0.5
 EVAL_NEGATIVE_ONE = -1
 
+# --- N-player / coalition evaluation constants ---
+NPLAYER_EVAL_DEFAULT_EPISODES = 3
+COALITION_EVAL_DEFAULT_EPISODES = 3
+
 # --- External benchmark constants ---
 EVAL_EIGHT = 8
 EVAL_TEN = 10

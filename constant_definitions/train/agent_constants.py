@@ -33,3 +33,33 @@ SYSTEM_PROMPT = (
 
 # Sentinel returned when LLM output cannot be parsed
 PARSE_FAILURE_SENTINEL = "__PARSE_FAILURE__"
+
+# --- N-player prompt section headers ---
+NPLAYER_PROMPT_SECTION_PLAYERS = "PLAYERS"
+NPLAYER_PROMPT_SECTION_ALL_SCORES = "ALL SCORES"
+
+# --- Coalition prompt section headers ---
+COALITION_PROMPT_SECTION_PHASE = "PHASE"
+COALITION_PROMPT_SECTION_PROPOSALS = "PENDING PROPOSALS"
+COALITION_PROMPT_SECTION_COALITIONS = "ACTIVE COALITIONS"
+
+# --- Governance prompt section headers ---
+GOVERNANCE_PROMPT_SECTION_RULES = "GOVERNANCE RULES"
+GOVERNANCE_PROMPT_SECTION_PENDING = "PENDING GOVERNANCE"
+
+# N-player system prompt
+NPLAYER_SYSTEM_PROMPT = (
+    "You are playing an N-player game-theory game. Analyse the situation "
+    "and choose the best action. Respond with ONLY the action name, "
+    "nothing else."
+)
+
+# Coalition system prompt
+COALITION_SYSTEM_PROMPT = (
+    "You are playing a coalition formation game. You can form coalitions "
+    "with other players and propose governance changes. Respond with "
+    "valid JSON when negotiating, or ONLY the action name when acting."
+)
+
+# Maximum tokens for coalition JSON response
+COALITION_MAX_ACTION_TOKENS = 256

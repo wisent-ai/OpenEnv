@@ -1,0 +1,90 @@
+/* Wisent brand theme — based on wisent-visuals design tokens */
+
+:root {
+  /* wisent-visuals palette */
+  --w-accent: #C5FFC8;
+  --w-red: #FA5A46;
+  --w-purple: #B19ECC;
+  --w-dark: #121212;
+  --w-grid: #2D3130;
+  --w-legend: #769978;
+  --w-white: #FFFFFF;
+
+  /* Slidev theme overrides */
+  --slidev-theme-primary: var(--w-accent);
+  --slidev-theme-text: var(--w-accent);
+  --slidev-theme-background: var(--w-dark);
+}
+
+/* Global slide styles */
+.slidev-layout {
+  background: var(--w-dark);
+  color: var(--w-accent);
+  font-family: 'Hubot Sans', sans-serif;
+}
+
+/* Headings */
+.slidev-layout h1 {
+  color: var(--w-accent);
+  font-weight: 700;
+}
+
+.slidev-layout h2 {
+  color: var(--w-legend);
+  font-weight: 400;
+}
+
+/* Stat numbers (large accent numbers) */
+.stat {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
+}
+
+/* Pill label */
+.pill {
+  display: inline-block;
+  background: var(--w-grid);
+  color: var(--w-legend);
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+/* Card container (matches wisent-visuals chart bg) */
+.card {
+  background: var(--w-dark);
+  border: 1px solid var(--w-grid);
+  border-radius: 20px;
+  padding: 16px 20px;
+}
+
+/* Color utilities */
+.text-accent { color: var(--w-accent); }
+.text-red { color: var(--w-red); }
+.text-purple { color: var(--w-purple); }
+.text-legend { color: var(--w-legend); }
+
+/* Links */
+.slidev-layout a {
+  color: var(--w-accent);
+}
+
+/* Code blocks */
+.slidev-layout code {
+  background: var(--w-grid);
+  color: var(--w-accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* Bold text */
+.slidev-layout strong, .slidev-layout b {
+  color: var(--w-white);
+}
+
+/* SVG figures on dark bg */
+.slidev-layout img[src$=".svg"] {
+  filter: brightness(1.1);
+}

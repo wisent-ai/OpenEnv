@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable
-
-from common.games_meta.nplayer_config import NPlayerGameConfig, NPLAYER_GAMES
+from common.games import GameConfig
+from common.games_meta.nplayer_config import NPLAYER_GAMES
 from constant_definitions.nplayer.coalition_constants import (
     COALITION_DEFAULT_ROUNDS, COALITION_DEFAULT_PENALTY_NUMERATOR,
     COALITION_DEFAULT_PENALTY_DENOMINATOR,
@@ -27,32 +25,18 @@ from constant_definitions.nplayer.coalition_constants import (
     COMMONS_LOW_DEPLETED, COMMONS_HIGH_DEPLETED,
 )
 
+CoalitionGameConfig = GameConfig
+
 _ONE = int(bool(True))
 _ZERO = int()
 _PEN_N = COALITION_DEFAULT_PENALTY_NUMERATOR
 _PEN_D = COALITION_DEFAULT_PENALTY_DENOMINATOR
 
 
-@dataclass(frozen=True)
-class CoalitionGameConfig:
-    """Immutable specification for a coalition-enabled N-player game."""
-
-    name: str
-    description: str
-    actions: list[str]
-    num_players: int
-    default_rounds: int
-    payoff_fn: Callable[[tuple[str, ...]], tuple[float, ...]]
-    enforcement: str
-    penalty_numerator: int
-    penalty_denominator: int
-    allow_side_payments: bool
+COALITION_GAMES: dict[str, GameConfig] = {}
 
 
-COALITION_GAMES: dict[str, CoalitionGameConfig] = {}
-
-
-def get_coalition_game(name: str) -> CoalitionGameConfig:
+def get_coalition_game(name: str) -> GameConfig:
     """Look up a coalition game by name. Raises KeyError if not found."""
     return COALITION_GAMES[name]
 
@@ -160,16 +144,17 @@ def _commons_governance_payoff(actions: tuple[str, ...]) -> tuple[float, ...]:
 # ---------------------------------------------------------------------------
 
 def _cfg(name: str, desc: str, actions: list[str], n: int,
-         fn: object, enf: str, side: bool = False) -> CoalitionGameConfig:
-    return CoalitionGameConfig(
-        name=name, description=desc, actions=actions, num_players=n,
-        default_rounds=COALITION_DEFAULT_ROUNDS, payoff_fn=fn,  # type: ignore[arg-type]
+         fn: object, enf: str, side: bool = False) -> GameConfig:
+    return GameConfig(
+        name=name, description=desc, actions=actions, game_type="coalition",
+        num_players=n, default_rounds=COALITION_DEFAULT_ROUNDS,
+        payoff_fn=fn,  # type: ignore[arg-type]
         enforcement=enf, penalty_numerator=_PEN_N, penalty_denominator=_PEN_D,
         allow_side_payments=side,
     )
 
 
-_BUILTIN_COALITION_GAMES: dict[str, CoalitionGameConfig] = {
+_BUILTIN_COALITION_GAMES: dict[str, GameConfig] = {
     "coalition_cartel": _cfg(
         "Cartel",
         "Players collude or compete. If enough collude the cartel holds. "
@@ -218,10 +203,6 @@ _BUILTIN_COALITION_GAMES: dict[str, CoalitionGameConfig] = {
 
 COALITION_GAMES.update(_BUILTIN_COALITION_GAMES)
 
-# Dual registration as plain NPlayerGameConfig
+# Register coalition games as N-player games too (same GameConfig instances)
 for _key, _c in _BUILTIN_COALITION_GAMES.items():
-    NPLAYER_GAMES[_key] = NPlayerGameConfig(
-        name=_c.name, description=_c.description, actions=_c.actions,
-        num_players=_c.num_players, default_rounds=_c.default_rounds,
-        payoff_fn=_c.payoff_fn,
-    )
+    NPLAYER_GAMES[_key] = _c

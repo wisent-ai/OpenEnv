@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from common.games_meta.nplayer_config import NPlayerGameConfig, NPLAYER_GAMES
+from common.games import GameConfig
+from common.games_meta.nplayer_config import NPLAYER_GAMES
 from constant_definitions.nplayer.nplayer_constants import (
     NPLAYER_DEFAULT_ROUNDS,
     NPG_ENDOWMENT,
@@ -90,19 +91,20 @@ def _el_farol_payoff(actions: tuple[str, ...]) -> tuple[float, ...]:
 _THREE = _ONE + _ONE + _ONE
 _FIVE = _THREE + _ONE + _ONE
 
-_BUILTIN_NPLAYER_GAMES: dict[str, NPlayerGameConfig] = {
-    "nplayer_public_goods": NPlayerGameConfig(
+_BUILTIN_NPLAYER_GAMES: dict[str, GameConfig] = {
+    "nplayer_public_goods": GameConfig(
         name="N-Player Public Goods",
         description=(
             "Each player contributes from an endowment. The total pot is "
             "multiplied and split equally among all players."
         ),
         actions=_PG_ACTIONS,
+        game_type="public_goods",
         num_players=_FIVE,
         default_rounds=NPLAYER_DEFAULT_ROUNDS,
         payoff_fn=_public_goods_payoff,
     ),
-    "nplayer_volunteer_dilemma": NPlayerGameConfig(
+    "nplayer_volunteer_dilemma": GameConfig(
         name="N-Player Volunteer's Dilemma",
         description=(
             "Players choose to volunteer or abstain. If at least one "
@@ -110,17 +112,19 @@ _BUILTIN_NPLAYER_GAMES: dict[str, NPlayerGameConfig] = {
             "If nobody volunteers, everyone gets nothing."
         ),
         actions=["volunteer", "abstain"],
+        game_type="matrix",
         num_players=_FIVE,
         default_rounds=NPLAYER_DEFAULT_ROUNDS,
         payoff_fn=_volunteer_dilemma_payoff,
     ),
-    "nplayer_el_farol": NPlayerGameConfig(
+    "nplayer_el_farol": GameConfig(
         name="N-Player El Farol Bar",
         description=(
             "Players decide whether to attend a bar. The bar is fun when "
             "not crowded but unpleasant when too many people show up."
         ),
         actions=["attend", "stay_home"],
+        game_type="matrix",
         num_players=_FIVE,
         default_rounds=NPLAYER_DEFAULT_ROUNDS,
         payoff_fn=_el_farol_payoff,

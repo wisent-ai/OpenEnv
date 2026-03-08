@@ -11,16 +11,23 @@ from dataclasses import replace
 from typing import Callable
 
 from common.games import GAMES, GameConfig
+from constant_definitions.game_constants import DEFAULT_TWO_PLAYERS
 from constant_definitions.var.pd_variant_constants import (
     OPD_EXIT_PAYOFF,
     VARIANT_CHEAP_TALK,
     VARIANT_EXIT,
     VARIANT_BINDING_COMMITMENT,
+    VARIANT_NOISY_ACTIONS,
+    VARIANT_NOISY_PAYOFFS,
     CT_MSG_PREFIX,
     CT_SEPARATOR,
     BC_COMMIT_PREFIX,
     BC_FREE_PREFIX,
     EXIT_ACTION,
+    DEFAULT_TREMBLE_PROB_NUMERATOR,
+    DEFAULT_TREMBLE_PROB_DENOMINATOR,
+    DEFAULT_NOISE_SCALE_NUMERATOR,
+    DEFAULT_NOISE_SCALE_DENOMINATOR,
 )
 from constant_definitions.var.communication_constants import COMMIT_COST
 
@@ -139,10 +146,66 @@ def apply_binding_commitment(
     )
 
 
+_DEFAULT_TREMBLE = DEFAULT_TREMBLE_PROB_NUMERATOR / DEFAULT_TREMBLE_PROB_DENOMINATOR
+_DEFAULT_NOISE = DEFAULT_NOISE_SCALE_NUMERATOR / DEFAULT_NOISE_SCALE_DENOMINATOR
+_NOISY_ONLY_TWO_PLAYER = "apply_noisy variant only supports two-player games"
+
+
+def apply_noisy_actions(
+    base: GameConfig,
+    base_key: str = "",
+    tremble_prob: float = _DEFAULT_TREMBLE,
+) -> GameConfig:
+    """With probability *tremble_prob* each player's action is replaced by a random one."""
+    if base.num_players != DEFAULT_TWO_PLAYERS:
+        raise ValueError(_NOISY_ONLY_TWO_PLAYER)
+    import random as _rng_mod
+    original_payoff = base.payoff_fn
+    actions = base.actions
+
+    def _payoff(pa: str, oa: str) -> tuple[float, float]:
+        actual_p = _rng_mod.choice(actions) if _rng_mod.random() < tremble_prob else pa
+        actual_o = _rng_mod.choice(actions) if _rng_mod.random() < tremble_prob else oa
+        return original_payoff(actual_p, actual_o)
+
+    return replace(
+        base,
+        payoff_fn=_payoff,
+        applied_variants=base.applied_variants + (VARIANT_NOISY_ACTIONS,),
+        base_game_key=base_key or base.base_game_key,
+    )
+
+
+def apply_noisy_payoffs(
+    base: GameConfig,
+    base_key: str = "",
+    noise_scale: float = _DEFAULT_NOISE,
+) -> GameConfig:
+    """Add Gaussian noise N(zero, noise_scale) to each payoff independently."""
+    if base.num_players != DEFAULT_TWO_PLAYERS:
+        raise ValueError(_NOISY_ONLY_TWO_PLAYER)
+    import random as _rng_mod
+    original_payoff = base.payoff_fn
+
+    def _payoff(pa: str, oa: str) -> tuple[float, float]:
+        p, o = original_payoff(pa, oa)
+        return (p + _rng_mod.gauss(float(_ZERO), noise_scale),
+                o + _rng_mod.gauss(float(_ZERO), noise_scale))
+
+    return replace(
+        base,
+        payoff_fn=_payoff,
+        applied_variants=base.applied_variants + (VARIANT_NOISY_PAYOFFS,),
+        base_game_key=base_key or base.base_game_key,
+    )
+
+
 _VARIANT_REGISTRY: dict[str, Callable[..., GameConfig]] = {
     VARIANT_CHEAP_TALK: apply_cheap_talk,
     VARIANT_EXIT: apply_exit,
     VARIANT_BINDING_COMMITMENT: apply_binding_commitment,
+    VARIANT_NOISY_ACTIONS: apply_noisy_actions,
+    VARIANT_NOISY_PAYOFFS: apply_noisy_payoffs,
 }
 
 

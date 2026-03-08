@@ -8,34 +8,14 @@ from typing import Callable
 from constant_definitions.game_constants import (
     DEFAULT_ZERO_FLOAT,
     DEFAULT_ZERO_INT,
-    # Prisoner's Dilemma
-    PD_CC_PAYOFF,
-    PD_CD_PAYOFF,
-    PD_DC_PAYOFF,
-    PD_DD_PAYOFF,
-    # Stag Hunt
-    SH_SS_PAYOFF,
-    SH_SH_PAYOFF,
-    SH_HS_PAYOFF,
-    SH_HH_PAYOFF,
-    # Hawk-Dove
-    HD_HH_PAYOFF,
-    HD_HD_PAYOFF,
-    HD_DH_PAYOFF,
-    HD_DD_PAYOFF,
-    # Ultimatum
+    PD_CC_PAYOFF, PD_CD_PAYOFF, PD_DC_PAYOFF, PD_DD_PAYOFF,
+    SH_SS_PAYOFF, SH_SH_PAYOFF, SH_HS_PAYOFF, SH_HH_PAYOFF,
+    HD_HH_PAYOFF, HD_HD_PAYOFF, HD_DH_PAYOFF, HD_DD_PAYOFF,
     ULTIMATUM_POT,
-    # Trust
-    TRUST_MULTIPLIER,
-    TRUST_ENDOWMENT,
-    # Public Goods
-    PG_MULTIPLIER_NUMERATOR,
-    PG_MULTIPLIER_DENOMINATOR,
-    PG_ENDOWMENT,
-    PG_DEFAULT_NUM_PLAYERS,
-    # Round counts
-    DEFAULT_NUM_ROUNDS,
-    SINGLE_SHOT_ROUNDS,
+    TRUST_MULTIPLIER, TRUST_ENDOWMENT,
+    PG_MULTIPLIER_NUMERATOR, PG_MULTIPLIER_DENOMINATOR,
+    PG_ENDOWMENT, PG_DEFAULT_NUM_PLAYERS,
+    DEFAULT_NUM_ROUNDS, SINGLE_SHOT_ROUNDS, DEFAULT_TWO_PLAYERS,
 )
 
 # ---------------------------------------------------------------------------
@@ -50,32 +30,37 @@ class GameConfig:
     name: str
     description: str
     actions: list[str]
-    game_type: str  # "matrix" | "ultimatum" | "trust" | "public_goods"
+    game_type: str
     default_rounds: int
-    payoff_fn: Callable[[str, str], tuple[float, float]]
+    payoff_fn: Callable
+    num_players: int = DEFAULT_TWO_PLAYERS
     applied_variants: tuple[str, ...] = ()
     base_game_key: str = ""
+    enforcement: str = ""
+    penalty_numerator: int = DEFAULT_ZERO_INT
+    penalty_denominator: int = SINGLE_SHOT_ROUNDS
+    allow_side_payments: bool = False
 
 
 # ---------------------------------------------------------------------------
 # Matrix-game payoff helpers
 # ---------------------------------------------------------------------------
 
-_PD_MATRIX: dict[tuple[str, str], tuple[float, float]] = {
+_PD_MATRIX = {
     ("cooperate", "cooperate"): (float(PD_CC_PAYOFF), float(PD_CC_PAYOFF)),
     ("cooperate", "defect"):    (float(PD_CD_PAYOFF), float(PD_DC_PAYOFF)),
     ("defect", "cooperate"):    (float(PD_DC_PAYOFF), float(PD_CD_PAYOFF)),
     ("defect", "defect"):       (float(PD_DD_PAYOFF), float(PD_DD_PAYOFF)),
 }
 
-_SH_MATRIX: dict[tuple[str, str], tuple[float, float]] = {
+_SH_MATRIX = {
     ("stag", "stag"): (float(SH_SS_PAYOFF), float(SH_SS_PAYOFF)),
     ("stag", "hare"): (float(SH_SH_PAYOFF), float(SH_HS_PAYOFF)),
     ("hare", "stag"): (float(SH_HS_PAYOFF), float(SH_SH_PAYOFF)),
     ("hare", "hare"): (float(SH_HH_PAYOFF), float(SH_HH_PAYOFF)),
 }
 
-_HD_MATRIX: dict[tuple[str, str], tuple[float, float]] = {
+_HD_MATRIX = {
     ("hawk", "hawk"): (float(HD_HH_PAYOFF), float(HD_HH_PAYOFF)),
     ("hawk", "dove"): (float(HD_HD_PAYOFF), float(HD_DH_PAYOFF)),
     ("dove", "hawk"): (float(HD_DH_PAYOFF), float(HD_HD_PAYOFF)),
@@ -83,9 +68,7 @@ _HD_MATRIX: dict[tuple[str, str], tuple[float, float]] = {
 }
 
 
-def _matrix_payoff_fn(
-    matrix: dict[tuple[str, str], tuple[float, float]],
-) -> Callable[[str, str], tuple[float, float]]:
+def _matrix_payoff_fn(matrix: dict) -> Callable:
     """Return a payoff function backed by a pre-built matrix dict."""
 
     def _payoff(player_action: str, opponent_action: str) -> tuple[float, float]:

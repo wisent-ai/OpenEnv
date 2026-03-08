@@ -8,6 +8,7 @@ MIN_STEP_COUNT = int()
 # Episode configuration
 DEFAULT_NUM_ROUNDS = 10
 SINGLE_SHOT_ROUNDS = 1
+DEFAULT_TWO_PLAYERS = 2
 
 # --- Prisoner's Dilemma payoffs ---
 PD_CC_PAYOFF = 3  # Both cooperate

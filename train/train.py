@@ -344,7 +344,7 @@ def parse_args():
     p.add_argument("--num-generations", type=int, default=8, help="GRPO group size")
     p.add_argument("--batch-size", type=int, default=4)
     p.add_argument("--grad-accum", type=int, default=4)
-    p.add_argument("--lr", type=float, default=5e-6)
+    p.add_argument("--lr", type=float, default=3e-6)
     p.add_argument("--max-steps", type=int, default=500)
     p.add_argument("--report-to", default="wandb", help="wandb, tensorboard, or none")
     p.add_argument("--push-to-hub", action="store_true")
@@ -406,6 +406,8 @@ def main():
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.grad_accum,
         learning_rate=args.lr,
+        lr_scheduler_type="constant_with_warmup",
+        warmup_steps=50,
         max_steps=args.max_steps,
         logging_steps=10,
         save_steps=100,

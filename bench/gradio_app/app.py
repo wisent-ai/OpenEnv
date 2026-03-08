@@ -121,25 +121,28 @@ def _filter_game_names(category_tag):
     return sorted(_KEY_TO_NAME[k] for k in matching_keys if k in _KEY_TO_NAME)
 
 # ---------------------------------------------------------------------------
-# Inline 2-player strategies
+# 2-player strategies (from the real strategy registry)
 # ---------------------------------------------------------------------------
-def _strat_random(actions, _h):
-    return _rand.choice(actions)
-
-def _strat_first(actions, _h):
-    return actions[_ZERO]
-
-def _strat_last(actions, _h):
-    return actions[min(_ONE, len(actions) - _ONE)]
-
-def _strat_tft(actions, h):
-    if not h:
+try:
+    from common.strategies import STRATEGIES as _STRAT_REGISTRY
+    STRATEGIES_2P = _STRAT_REGISTRY
+    _HAS_FULL_STRATEGIES = True
+except ImportError:
+    # Minimal fallback
+    def _strat_random(actions, _h):
+        return _rand.choice(actions)
+    def _strat_first(actions, _h):
         return actions[_ZERO]
-    prev = h[_NEG_ONE]["player_action"]
-    return prev if prev in actions else actions[_ZERO]
-
-STRATEGIES_2P = {"random": _strat_random, "always_cooperate": _strat_first,
-                 "always_defect": _strat_last, "tit_for_tat": _strat_tft}
+    def _strat_last(actions, _h):
+        return actions[min(_ONE, len(actions) - _ONE)]
+    def _strat_tft(actions, h):
+        if not h:
+            return actions[_ZERO]
+        prev = h[_NEG_ONE]["player_action"]
+        return prev if prev in actions else actions[_ZERO]
+    STRATEGIES_2P = {"random": _strat_random, "always_cooperate": _strat_first,
+                     "always_defect": _strat_last, "tit_for_tat": _strat_tft}
+    _HAS_FULL_STRATEGIES = False
 
 # N-player strategy names
 _NPLAYER_STRAT_NAMES = list(NPLAYER_STRATEGIES.keys()) if _HAS_NPLAYER_ENV else ["random"]
@@ -256,7 +259,12 @@ def play_round(action_str, state):
             opp_act_list = list(opp_actions)
         else:
             opp_act_list = info["actions"]
-        opp = STRATEGIES_2P[state["strategy"]](opp_act_list, state["history"])
+        strat = STRATEGIES_2P[state["strategy"]]
+        game_type = info.get("game_type", "matrix")
+        if _HAS_FULL_STRATEGIES:
+            opp = strat.choose_action(game_type, opp_act_list, state["history"])
+        else:
+            opp = strat(opp_act_list, state["history"])
         p_pay, o_pay = info["payoff_fn"](action_str, opp)
         state["round"] += _ONE
         state["p_score"] += p_pay

@@ -130,10 +130,9 @@ with gr.Blocks(title="Kant Demo") as demo:
                     _ALL_LLM_MODELS, value=_ALL_LLM_MODELS[:_TWO],
                     label="Select Models for Tournament")
                 with gr.Row():
-                    arena_rounds = gr.Slider(
-                        minimum=_TEN, maximum=_INF_ROUNDS,
-                        step=_TEN * _TEN, value=_INF_ROUNDS,
-                        label="Rounds per Match")
+                    arena_rounds = gr.Number(
+                        value=_INF_ROUNDS, precision=_ZERO,
+                        label="Rounds per Match (no upper limit)")
                     arena_run = gr.Button("Run Tournament", variant="primary")
                 arena_results = gr.State([])
                 arena_md = gr.Markdown("Select models and click Run Tournament.")

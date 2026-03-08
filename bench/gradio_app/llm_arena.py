@@ -6,7 +6,7 @@ from registry import (
     _ZERO, _ONE, _TWO, _TEN,
     _HAS_LLM_AGENT, _LLM_MODELS,
     PromptBuilder, parse_action, GameObservation, RoundResult,
-    _SYS_PROMPT, get_env_api_key,
+    _SYS_PROMPT, get_env_api_key, ANTHROPIC_OAUTH_BETA_HEADER,
 )
 from callbacks import _get_game_info
 
@@ -72,7 +72,10 @@ def _call_llm(provider, model, prompt):
         raise RuntimeError(f"OAuth token unavailable for {provider}")
     if provider == "Anthropic":
         import anthropic
-        client = anthropic.Anthropic(api_key=token)
+        client = anthropic.Anthropic(
+            api_key=None, auth_token=token,
+            default_headers={"anthropic-beta": ANTHROPIC_OAUTH_BETA_HEADER},
+        )
         resp = client.messages.create(
             model=model, max_tokens=_MAX_TOKENS, system=_SYS_PROMPT,
             messages=[{"role": "user", "content": prompt}])

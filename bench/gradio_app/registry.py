@@ -218,16 +218,37 @@ _LLM_MODELS = {
 }
 _LLM_OPPONENT_LABEL = "LLM"
 
-# -- API key support via environment variables --
+# -- OAuth token support --
+try:
+    from train.self_play.oauth import (
+        get_anthropic_access_token as _get_ant_token,
+        get_openai_credentials as _get_oai_creds,
+    )
+    from constant_definitions.var.meta.self_play_constants import (
+        ANTHROPIC_OAUTH_BETA_HEADER,
+    )
+    _HAS_OAUTH = True
+except ImportError:
+    _HAS_OAUTH = False
+    ANTHROPIC_OAUTH_BETA_HEADER = ""
+
 import os as _os
 _ENV_API_KEYS = {
     "Anthropic": _os.environ.get("ANTHROPIC_API_KEY", ""),
     "OpenAI": _os.environ.get("OPENAI_API_KEY", ""),
 }
-_HAS_ENV_KEYS = any(_ENV_API_KEYS.values())
 
 
 def get_env_api_key(provider: str) -> str | None:
-    """Get an API key from environment variables, or None."""
+    """Get an OAuth token (preferred) or env var API key."""
+    if _HAS_OAUTH:
+        try:
+            if provider == "Anthropic":
+                return _get_ant_token()
+            if provider == "OpenAI":
+                tok, _ = _get_oai_creds()
+                return tok
+        except Exception:
+            pass
     key = _ENV_API_KEYS.get(provider, "")
     return key if key else None

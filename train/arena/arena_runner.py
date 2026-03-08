@@ -13,6 +13,9 @@ from constant_definitions.arena.arena_constants import (
     MODEL_TYPE_STRATEGY,
 )
 from constant_definitions.train.agent_constants import SYSTEM_PROMPT
+from constant_definitions.var.meta.self_play_constants import (
+    ANTHROPIC_OAUTH_BETA_HEADER,
+)
 
 _ZERO = int()
 _ONE = int(bool(True))
@@ -31,7 +34,10 @@ except ImportError:
 def _make_anthropic_fn(model: str, api_key: str) -> Callable[[str], str]:
     """Create a generate_fn backed by Anthropic Messages API."""
     import anthropic
-    client = anthropic.Anthropic(api_key=api_key)
+    client = anthropic.Anthropic(
+        api_key=None, auth_token=api_key,
+        default_headers={"anthropic-beta": ANTHROPIC_OAUTH_BETA_HEADER},
+    )
 
     def _generate(prompt: str) -> str:
         resp = client.messages.create(

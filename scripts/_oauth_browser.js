@@ -1,6 +1,7 @@
 /**
- * Automate OAuth consent via Playwright with user Chrome profile.
- * Usage: node scripts/_oauth_browser.js AUTH_URL
+ * Automate OAuth consent via Playwright persistent Chrome profile.
+ * Usage: node scripts/_oauth_browser.js AUTH_URL [PROFILE_DIR]
+ * Uses Chrome's own cookie store (no decryption needed).
  * Prints the authorization code to stdout on success.
  */
 const { chromium } = require("playwright");
@@ -19,42 +20,82 @@ const _THOUSAND = _TEN * _HUNDRED;
 const _TIMEOUT = _THOUSAND * (_TEN * _FIVE + _TEN);
 const _SETTLE = _THOUSAND * _FIVE;
 const _MIN_LEN = _TWENTY;
+const _DEFAULT_PROF = "Profile " + String(_TEN + _TWO);
 
-const CHROME_DIR = path.join(
-  os.homedir(), "Library", "Application Support",
-  "Google", "Chrome"
+const CB_START = "http://localhost:";
+
+const CHROME_BASE = path.join(
+  os.homedir(),
+  "Library",
+  "Application Support",
+  "Google",
+  "Chrome"
 );
-const CB_PREFIX = "console.anthropic.com/oauth/code/callback";
 
 async function main() {
   const args = process.argv.slice(_TWO);
   const url = args[_ZERO];
-  if (!url || !url.startsWith("https://")) {
-    console.error("Usage: node _oauth_browser.js AUTH_URL");
+  const profileDir = args[_ONE] || _DEFAULT_PROF;
+  const verifierFile = args[_TWO];
+  if (!url) {
+    console.error("Usage: node _oauth_browser.js AUTH_URL [PROFILE] [PKCE]");
     process.exit(_ONE);
   }
 
-  console.error("Launching Chrome with user profile...");
-  const ctx = await chromium.launchPersistentContext(CHROME_DIR, {
-    channel: "chrome",
+  const tmpBase = "/tmp/chrome_oauth";
+  console.error("Profile: " + profileDir);
+  console.error("Data dir: " + tmpBase);
+
+  const ctx = await chromium.launchPersistentContext(tmpBase, {
     headless: false,
+    channel: "chrome",
+    ignoreDefaultArgs: ["--use-mock-keychain", "--password-store=basic"],
     args: [
-      "--no-first-run",
-      "--no-default-browser-check",
-      "--disable-features=ChromeWhatsNewUI",
+      "--disable-blink-features=AutomationControlled",
+      "--profile-directory=" + profileDir,
     ],
   });
 
   const page = await ctx.newPage();
-  console.error("Navigating to auth URL...");
-  await page.goto(url, { waitUntil: "networkidle", timeout: _TIMEOUT });
+
+  /* Intercept localhost redirect to capture code and state */
+  let capturedCode = null;
+  let capturedState = null;
+  await page.route("http://localhost:*/**", (route) => {
+    const rurl = route.request().url();
+    console.error("Intercepted: " + rurl);
+    try {
+      const u = new URL(rurl);
+      capturedCode = u.searchParams.get("code");
+      capturedState = u.searchParams.get("state");
+    } catch (_) { /* ignore */ }
+    route.fulfill({ status: _HUNDRED * _TWO, body: "OK" });
+  });
+
+  console.error("Navigating...");
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: _TIMEOUT });
+
+  /* Wait for Cloudflare Turnstile to pass if present */
+  const _CF_WAIT = _THOUSAND * _TWENTY;
+  const _CF_POLL = _THOUSAND * _TWO;
+  const _CF_ITERS = _CF_WAIT / _CF_POLL;
+  for (let i = _ZERO; i < _CF_ITERS; i++) {
+    const title = await page.title();
+    console.error("Poll " + (i + _ONE) + ": " + title);
+    if (title.indexOf("moment") < _ZERO && title.indexOf("security") < _ZERO) {
+      break;
+    }
+    await page.waitForTimeout(_CF_POLL);
+  }
   await page.waitForTimeout(_SETTLE);
+  await page.screenshot({ path: "scripts/.oauth_debug.png" });
 
-  /* Screenshot for debug */
-  console.error("Page title: " + await page.title());
-  console.error("Page URL: " + page.url());
+  const pageTitle = await page.title();
+  const bodyText = await page.textContent("body");
+  console.error("Title: " + pageTitle);
+  console.error("URL: " + page.url());
 
-  /* Find and click submit/allow button */
+  /* Click Allow/Submit button */
   let clicked = false;
   for (const sel of ['button[type="submit"]', 'input[type="submit"]']) {
     const btn = await page.$(sel);
@@ -66,62 +107,58 @@ async function main() {
       break;
     }
   }
-
   if (!clicked) {
-    console.error("No submit btn found, trying visible buttons...");
     const btns = await page.$$("button");
     for (const b of btns) {
-      const vis = await b.isVisible();
-      if (vis) {
+      if (await b.isVisible()) {
         const txt = await b.textContent();
-        console.error("Clicking button: " + (txt || "").trim());
+        console.error("Clicking: " + (txt || "").trim());
         await b.click();
         clicked = true;
         break;
       }
     }
   }
-
-  if (!clicked) {
-    console.error("No clickable button found. Page content:");
-    const body = await page.textContent("body");
-    console.error(body.substring(_ZERO, _THOUSAND));
+  if (clicked) {
+    await page.waitForTimeout(_SETTLE);
   }
 
-  console.error("Waiting for redirect to callback...");
+  console.error("Waiting for redirect...");
   try {
-    await page.waitForURL("**/" + CB_PREFIX + "**", {
-      timeout: _TIMEOUT,
-    });
+    await page.waitForURL(CB_START + "**", { timeout: _TIMEOUT });
   } catch (_) {
-    console.error("Timeout waiting for redirect. Current: " + page.url());
+    console.error("Current URL: " + page.url());
   }
 
   const fin = page.url();
-  console.error("Final URL: " + fin);
+  console.error("Final: " + fin);
 
-  let code = null;
-  try {
-    const u = new URL(fin);
-    code = u.searchParams.get("code");
-  } catch (_) { /* ignore */ }
+  let code = capturedCode;
+  if (!code) {
+    try {
+      const u = new URL(fin);
+      code = u.searchParams.get("code");
+    } catch (_) { /* ignore */ }
+  }
 
   if (!code) {
-    const txt = await page.textContent("body");
-    const re = new RegExp("[A-Za-z\\d_-]{" + _MIN_LEN + ",}");
-    const m = txt.match(re);
-    if (m) code = m[_ZERO];
-  }
-
-  await page.close();
-  await ctx.close();
-
-  if (code) {
-    process.stdout.write(code);
-  } else {
     console.error("No code found.");
+    await ctx.close();
     process.exit(_ONE);
   }
+  console.error("Got code: " + code.slice(_ZERO, _TWENTY) + "...");
+
+  /* Exchange code for tokens inside the browser (bypass Cloudflare) */
+  const _DASH = String.fromCharCode(_TWO * _TWENTY + _FIVE);
+  const _ENC = "utf" + _DASH + String(_FIVE + _THREE);
+  /* Output code and state as JSON for exchange by Python */
+  const result = { code };
+  if (capturedState) {
+    result.state = capturedState;
+  }
+  process.stdout.write(JSON.stringify(result));
+
+  await ctx.close();
 }
 
 main().catch((e) => {

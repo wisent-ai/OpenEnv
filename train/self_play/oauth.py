@@ -86,7 +86,6 @@ def fetch_refresh_token(
 def save_refresh_token(
     credential_id: str,
     new_refresh_token: str,
-    access_token: str = "",
     supabase_url: str = "",
     service_key: str = "",
 ) -> None:
@@ -96,8 +95,6 @@ def save_refresh_token(
         supabase_url = supabase_url or env["NEXT_PUBLIC_SUPABASE_URL"]
         service_key = service_key or env["SUPABASE_SERVICE_ROLE_KEY"]
     body: dict[str, str] = {"refresh_token": new_refresh_token}
-    if access_token:
-        body["access_token"] = access_token
     httpx.patch(
         supabase_url + "/rest/v" + str(_ONE) + "/" + SUPABASE_OAUTH_TABLE,
         params={"id": "eq." + credential_id},
@@ -181,7 +178,7 @@ def get_anthropic_access_token() -> str:
         try:
             access, new_rt = exchange_anthropic(rt)
             if new_rt:
-                save_refresh_token(cred_id, new_rt, access, sb_url, sb_key)
+                save_refresh_token(cred_id, new_rt, sb_url, sb_key)
             return access
         except Exception as exc:
             last_err = exc
@@ -193,5 +190,5 @@ def get_openai_credentials() -> Tuple[str, str]:
     cred_id, rt = fetch_refresh_token(SUPABASE_PROVIDER_OPENAI)
     access, new_rt, account_id = exchange_openai(rt)
     if new_rt:
-        save_refresh_token(cred_id, new_rt, access)
+        save_refresh_token(cred_id, new_rt)
     return access, account_id

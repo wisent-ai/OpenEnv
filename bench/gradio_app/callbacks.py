@@ -17,7 +17,7 @@ from registry import (
     NPlayerEnvironment, NPlayerAction,
     PromptBuilder, parse_action, GameObservation, RoundResult,
     _SYS_PROMPT, _LLM_OPPONENT_LABEL, _LLM_MODELS,
-    get_env_api_key,
+    get_env_api_key, ANTHROPIC_OAUTH_BETA_HEADER,
 )
 
 
@@ -105,7 +105,10 @@ def _llm_choose_action(state, info, provider, model):
             return _rand.choice(info["actions"]), "OAuth token unavailable"
         if provider == "Anthropic":
             import anthropic
-            client = anthropic.Anthropic(api_key=token)
+            client = anthropic.Anthropic(
+                api_key=None, auth_token=token,
+                default_headers={"anthropic-beta": ANTHROPIC_OAUTH_BETA_HEADER},
+            )
             resp = client.messages.create(
                 model=model, max_tokens=_TEN + _TEN, system=_SYS_PROMPT,
                 messages=[{"role": "user", "content": prompt}])

@@ -1,10 +1,9 @@
 """Kant Gradio Demo -- self-contained HuggingFace Spaces app."""
 from __future__ import annotations
-import os
 import gradio as gr
 
 from registry import (
-    _ZERO, _ONE, _TWO, _TEN,
+    _ZERO, _ONE, _TWO, _FIVE, _TEN,
     _GAME_INFO, _CATEGORY_DIMS, _ALL_FILTER,
     _HUMAN_VARIANTS, _HAS_VARIANTS,
     _strategies_for_game,
@@ -12,6 +11,7 @@ from registry import (
     _HAS_LLM_AGENT,
     _LLM_PROVIDERS, _LLM_MODELS, _LLM_OPPONENT_LABEL,
 )
+from llm_arena import run_tournament, render_tournament
 from callbacks import (
     _get_game_info, _blank, _render,
     play_round, reset_game, on_game_change,
@@ -38,11 +38,9 @@ _init_player_label = f"Players: {_init_np}" if _init_np > _TWO else "Two-Player"
 # -- Infinite mode preset --
 _INF_GAME = "Discounted Prisoner's Dilemma"
 _INF_VARIANTS = ["constitutional", "exit", "noisy_payoffs", "noisy_actions"]
-_INF_ROUNDS = _TEN * _TEN * _TEN
-
-
-def _inf_reset(sname):
-    return reset_game(_INF_GAME, sname, _INF_VARIANTS, _INF_ROUNDS)
+_ALL_LLM_MODELS = []
+for _mods in _LLM_MODELS.values():
+    _ALL_LLM_MODELS.extend(_mods)
 
 
 # -- Gradio app --
@@ -112,33 +110,46 @@ with gr.Blocks(title="Kant Demo") as demo:
             variant_cb.change(on_game_change, inputs=[game_dd, strat_dd, variant_cb],
                               outputs=_reset_out)
 
-        if _INF_GAME in _GAME_INFO and _HAS_VARIANTS:
+        if _INF_GAME in _GAME_INFO and _HAS_VARIANTS and _ALL_LLM_MODELS:
             with gr.TabItem("Infinite Mode"):
                 gr.Markdown(
-                    "**The ultimate challenge: near-infinite Discounted Prisoner's Dilemma** "
-                    "with constitutional rule negotiation, exit option, payoff noise, and "
-                    "action trembles. Each round you propose a rule (none, equalsplit, "
-                    "coopbonus, defectpenalty, minguarantee, bandefect) AND choose an action. "
-                    "If both players propose the same rule, it modifies payoffs. You can "
-                    "also exit for a safe mutual payoff. Noisy payoffs add Gaussian "
-                    "uncertainty; noisy actions may randomly override your choice."
+                    "**LLM Tournament: Constitutional Discounted PD.** "
+                    "Select models, provide API keys, and watch them compete "
+                    "in a round-robin. Each match uses constitutional rule "
+                    "negotiation, exit option, payoff noise, and action trembles."
                 )
-                _ii = _get_game_info(_INF_GAME, _INF_VARIANTS) or {}
-                _ia = _ii.get("actions", ["cooperate", "defect"])
-                _inf_strats = _strategies_for_game(_INF_GAME)
                 with gr.Row():
-                    inf_strat = gr.Dropdown(_inf_strats, value="tit_for_tat", label="Opponent")
-                    inf_action = gr.Dropdown(_ia, value=_ia[_ZERO], label="Your Action")
-                    inf_play = gr.Button("Play Round", variant="primary")
-                    inf_reset_btn = gr.Button("Reset")
-                inf_state = gr.State(_blank(_INF_GAME, "tit_for_tat", _INF_VARIANTS, _INF_ROUNDS))
-                inf_desc = gr.Markdown(value=_ii.get("description", ""))
-                inf_hist = gr.Markdown(
-                    value=_render(_blank(_INF_GAME, "tit_for_tat", _INF_VARIANTS, _INF_ROUNDS))
-                )
-                _io = [inf_state, inf_hist, inf_desc, inf_action]
-                inf_play.click(play_round, inputs=[inf_action, inf_state], outputs=_io)
-                inf_reset_btn.click(_inf_reset, inputs=[inf_strat], outputs=_io)
+                    arena_anthro_key = gr.Textbox(
+                        label="Anthropic API Key", type="password",
+                        placeholder="sk-ant-...")
+                    arena_openai_key = gr.Textbox(
+                        label="OpenAI API Key", type="password",
+                        placeholder="sk-...")
+                arena_models = gr.CheckboxGroup(
+                    _ALL_LLM_MODELS, value=_ALL_LLM_MODELS[:_TWO],
+                    label="Select Models for Tournament")
+                with gr.Row():
+                    arena_rounds = gr.Slider(
+                        minimum=_FIVE, maximum=_TEN * _TEN,
+                        step=_FIVE, value=_TEN,
+                        label="Rounds per Match")
+                    arena_run = gr.Button("Run Tournament", variant="primary")
+                arena_results = gr.State([])
+                arena_md = gr.Markdown("Select models and click Run Tournament.")
+
+                def _run_arena(models, anthro_key, openai_key, num_rounds):
+                    results, err = run_tournament(
+                        _INF_GAME, _INF_VARIANTS, int(num_rounds),
+                        models, anthro_key, openai_key)
+                    if err:
+                        return [], err
+                    return results, render_tournament(results)
+
+                arena_run.click(
+                    _run_arena,
+                    inputs=[arena_models, arena_anthro_key,
+                            arena_openai_key, arena_rounds],
+                    outputs=[arena_results, arena_md])
 
         with gr.TabItem("Game Theory Reference"):
             gr.Markdown(value=_build_reference_md())

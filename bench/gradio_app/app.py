@@ -38,6 +38,7 @@ _init_player_label = f"Players: {_init_np}" if _init_np > _TWO else "Two-Player"
 # -- Infinite mode preset --
 _INF_GAME = "Discounted Prisoner's Dilemma"
 _INF_VARIANTS = ["constitutional", "exit", "noisy_payoffs", "noisy_actions"]
+_INF_ROUNDS = _TEN * _TEN * _TEN
 _ALL_LLM_MODELS = []
 for _mods in _LLM_MODELS.values():
     _ALL_LLM_MODELS.extend(_mods)
@@ -130,8 +131,8 @@ with gr.Blocks(title="Kant Demo") as demo:
                     label="Select Models for Tournament")
                 with gr.Row():
                     arena_rounds = gr.Slider(
-                        minimum=_FIVE, maximum=_TEN * _TEN,
-                        step=_FIVE, value=_TEN,
+                        minimum=_TEN, maximum=_INF_ROUNDS,
+                        step=_TEN * _TEN, value=_INF_ROUNDS,
                         label="Rounds per Match")
                     arena_run = gr.Button("Run Tournament", variant="primary")
                 arena_results = gr.State([])

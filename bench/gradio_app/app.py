@@ -24,6 +24,10 @@ print("[APP] Importing llm_arena...", flush=True)
 from llm_arena import run_infinite_tournament
 print("[APP] llm_arena imported.", flush=True)
 
+print("[APP] Importing metagame_arena...", flush=True)
+from metagame_arena import run_metagame_arena
+print("[APP] metagame_arena imported.", flush=True)
+
 print("[APP] Importing callbacks...", flush=True)
 from callbacks import (
     _get_game_info, _blank, _render,
@@ -145,6 +149,40 @@ with gr.Blocks(title="Kant Demo") as demo:
                     inputs=[arena_models],
                     outputs=[arena_md])
                 arena_stop.click(None, cancels=[start_event])
+
+        if _ALL_LLM_MODELS:
+            with gr.TabItem("Metagame Arena"):
+                gr.Markdown(
+                    "**Metagame Arena with Messaging.** "
+                    "Models communicate via free-text messages before each round, "
+                    "then play. Watch them negotiate, threaten, and coordinate "
+                    "in real time."
+                )
+                meta_game_dd = gr.Dropdown(
+                    _GAME_NAMES, value=_INIT_GAME, label="Game")
+                meta_models = gr.CheckboxGroup(
+                    _ALL_LLM_MODELS, value=_ALL_LLM_MODELS[:_TWO],
+                    label="Select Models")
+                with gr.Row():
+                    meta_start = gr.Button("Start", variant="primary")
+                    meta_stop = gr.Button("Stop", variant="stop")
+                meta_md = gr.Markdown("Select a game and models, then click Start.")
+
+                def _run_metagame(game_name, models):
+                    info = _GAME_INFO.get(game_name)
+                    if not info:
+                        yield "Game not found."
+                        return
+                    for md in run_metagame_arena(
+                            game_name, info["description"],
+                            info["actions"], info["payoff_fn"], models):
+                        yield md
+
+                meta_start_event = meta_start.click(
+                    _run_metagame,
+                    inputs=[meta_game_dd, meta_models],
+                    outputs=[meta_md])
+                meta_stop.click(None, cancels=[meta_start_event])
 
         with gr.TabItem("Game Theory Reference"):
             gr.Markdown(value=_build_reference_md())

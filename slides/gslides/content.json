@@ -1,0 +1,108 @@
+[
+  {
+    "type": "title",
+    "title": "Kant",
+    "subtitle": "Teaching Ethical Reasoning to Language Models via Game-Theoretic Training",
+    "footer": "Wisent"
+  },
+  {
+    "type": "two_col_image",
+    "title": "Why \"Kant\"?",
+    "image": "kant.jpg",
+    "quote": "\"Act only according to that maxim whereby you can at the same time will that it should become a universal law.\"",
+    "attribution": "Immanuel Kant, Groundwork of the Metaphysics of Morals (1785)",
+    "body": "The Categorical Imperative maps directly to game theory: an agent that cooperates, plays fairly, and resists exploitation is one whose strategy could be universalized."
+  },
+  {
+    "type": "center_text",
+    "pill": "The Challenge",
+    "body": "\u2022 Alignment is very shallow and does not work in multi-agent settings\n\u2022 Modern LLMs are able to be trivially manipulated\n\u2022 Their ethics are representative of arbitrary choices"
+  },
+  {
+    "type": "three_stats",
+    "title": "Existing benchmarks fall short",
+    "stats": [
+      ["Narrative", "MACHIAVELLI conflates\nlanguage & strategy"],
+      ["Complex", "Melting Pot substrate\nhides the signal"],
+      ["0", "OpenSpiel ships no\nalignment metrics"]
+    ],
+    "stat_colors": ["red", "purple", "red"],
+    "footer_text": "We need a minimal, formal evaluation harness with alignment-oriented metrics."
+  },
+  {
+    "type": "center_text",
+    "pill": "The Solution",
+    "body": "Kant: 87+ games across 9 domains\nwith GRPO/DPO training and\nsafety transfer evaluation."
+  },
+  {
+    "type": "three_stats",
+    "title": "Kant at a glance",
+    "stats": [
+      ["87+", "Games spanning\n9 strategic domains"],
+      ["6", "Alignment metrics\nnormalized to [0, 1]"],
+      ["5", "External safety\nbenchmarks tested"]
+    ],
+    "stat_colors": ["accent", "purple", "red"],
+    "footer_text": null
+  },
+  {
+    "type": "two_col_text",
+    "title": "9 strategic domains",
+    "left": [
+      "1. Classical Dilemmas \u2014 PD, Stag Hunt, Hawk-Dove",
+      "2. PD Variants \u2014 Optional, Asymmetric, Donation",
+      "3. Extended Matrix \u2014 Battle of Sexes, RPS, Deadlock",
+      "4. Sequential & Bargaining \u2014 Ultimatum, Trust",
+      "5. Information Games \u2014 Signaling, Bayesian"
+    ],
+    "right": [
+      "6. Market & Competition \u2014 Cournot, Bertrand",
+      "7. Auctions \u2014 First/second-price, all-pay",
+      "8. Cooperative \u2014 Shapley, voting, fair division",
+      "9. Contests & Conflict \u2014 Tullock, Blotto",
+      "+ Dynamic game creation at runtime"
+    ]
+  },
+  {
+    "type": "figure",
+    "title": "Classical games: payoff matrices",
+    "image": "payoff_matrices.svg",
+    "caption": "Cooperation vs. self-interest \u00b7 Coordination under risk \u00b7 Conflict escalation"
+  },
+  {
+    "type": "figure",
+    "title": "Architecture",
+    "image": "architecture.svg",
+    "caption": "OpenEnv platform \u00b7 Gymnasium API \u00b7 WebSocket \u00b7 FastAPI"
+  },
+  {
+    "type": "figure",
+    "title": "Meta-governance: agents change the rules",
+    "image": "governance_flow.svg",
+    "caption": "Proposal types: Parameter, Mechanic, Custom | Mechanisms: Tax, redistribute, insure, quota, veto"
+  },
+  {
+    "type": "figure",
+    "title": "GRPO / DPO training pipeline",
+    "image": "training_pipeline.svg",
+    "caption": "GRPO: group relative rewards, multiple rollouts | DPO: preference pairs, no reward model"
+  },
+  {
+    "type": "figure",
+    "title": "Tournament results",
+    "image": "tournament_heatmap.svg",
+    "caption": "Illustrative data. Full multi-model results TBD."
+  },
+  {
+    "type": "team",
+    "title": "Team",
+    "members": ["Jakub Towarek", "Lukasz Bartoszcze"],
+    "org": "Wisent"
+  },
+  {
+    "type": "closing",
+    "title": "Kant",
+    "subtitle": "Game theory as an alignment substrate.",
+    "links": ["github.com/wisent-ai/OpenEnv", "wisent.ai"]
+  }
+]

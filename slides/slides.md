@@ -45,10 +45,12 @@ layout: center
 
 <div class="pill">The Challenge</div>
 
-<div class="text-3xl leading-relaxed mt-4">
-AI agents negotiate, trade, and govern —<br>
-but we have <b>no formal way to measure</b><br>
-whether they do so <span class="text-red">ethically</span>.
+<div class="text-2xl leading-relaxed mt-8 text-left" style="max-width: 640px; margin: 0 auto;">
+
+- Alignment is very shallow and does not work in multi-agent settings
+- Modern LLMs are able to be trivially manipulated
+- Their ethics are representative of arbitrary choices
+
 </div>
 
 ---

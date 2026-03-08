@@ -411,6 +411,7 @@ def main():
         max_steps=args.max_steps,
         logging_steps=10,
         save_steps=100,
+        save_total_limit=2,
         bf16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8,
         fp16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 8,
         report_to=args.report_to,

@@ -6,8 +6,8 @@ RUN pip install --no-cache-dir gradio pydantic anthropic openai
 
 COPY . /app
 
-ENV PYTHONPATH="/app:$PYTHONPATH"
+ENV PYTHONPATH="/app:/app/bench/gradio_app:$PYTHONPATH"
 
 EXPOSE 7860
 
-CMD ["python", "bench/gradio_app/app.py"]
+CMD ["bash", "-c", "cd /app/bench/gradio_app && python app.py"]

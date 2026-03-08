@@ -249,6 +249,14 @@ _VARIANT_REGISTRY: dict[str, Callable[..., GameConfig]] = {
     VARIANT_CROSS_MODEL: apply_cross_model,
 }
 
+from common.meta.variants_meta import (  # noqa: E402
+    apply_rule_proposal, apply_rule_signal,
+    apply_constitutional, apply_proposer_responder,
+    _META_VARIANT_REGISTRY,
+)
+
+_VARIANT_REGISTRY.update(_META_VARIANT_REGISTRY)
+
 
 def compose_game(base_key: str, *variant_names: str) -> GameConfig:
     """Build a game by applying named variants to a base game.

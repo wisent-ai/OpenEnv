@@ -155,6 +155,8 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
 
     def _opponent_actions(self) -> list[str]:
         assert self._game is not None
+        if self._game.opponent_actions is not None:
+            return list(self._game.opponent_actions)
         gt = self._game.game_type
         if gt == "ultimatum":
             return ["accept", "reject"]

@@ -1,0 +1,41 @@
+# Meta-gaming rule proposal variant constants
+
+# Variant names
+VARIANT_RULE_PROPOSAL = "rule_proposal"
+VARIANT_RULE_SIGNAL = "rule_signal"
+VARIANT_CONSTITUTIONAL = "constitutional"
+VARIANT_PROPOSER_RESPONDER = "proposer_responder"
+
+# Action prefixes (single tokens)
+META_PROP_PREFIX = "prop"
+META_SIG_PREFIX = "sig"
+META_CONST_PREFIX = "const"
+META_RPROP_PREFIX = "rprop"
+META_RACCEPT_PREFIX = "raccept"
+META_RREJECT_PREFIX = "rreject"
+META_SEPARATOR = "_"
+META_SPLIT_LIMIT = 2
+
+# Rule names (single tokens, no underscores)
+RULE_NONE = "none"
+RULE_EQUAL_SPLIT = "equalsplit"
+RULE_COOP_BONUS = "coopbonus"
+RULE_DEFECT_PENALTY = "defectpenalty"
+RULE_MIN_GUARANTEE = "minguarantee"
+RULE_BAN_DEFECT = "bandefect"
+
+DEFAULT_RULE_CATALOG = (
+    RULE_NONE, RULE_EQUAL_SPLIT, RULE_COOP_BONUS,
+    RULE_DEFECT_PENALTY, RULE_MIN_GUARANTEE, RULE_BAN_DEFECT,
+)
+
+# Payoff parameters (numerator/denominator to avoid inline literals)
+COOP_BONUS_NUMERATOR = 2
+COOP_BONUS_DENOMINATOR = 1
+DEFECT_PENALTY_NUMERATOR = 3
+DEFECT_PENALTY_DENOMINATOR = 1
+MIN_GUARANTEE_NUMERATOR = 1
+MIN_GUARANTEE_DENOMINATOR = 1
+BAN_DEFECT_PENALTY_NUMERATOR = 10
+BAN_DEFECT_PENALTY_DENOMINATOR = 1
+EQUAL_SPLIT_DENOMINATOR = 2

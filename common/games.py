@@ -42,6 +42,7 @@ class GameConfig:
     penalty_denominator: int = SINGLE_SHOT_ROUNDS
     allow_side_payments: bool = False
     opponent_mode: str = OPPONENT_MODE_STRATEGY
+    opponent_actions: tuple[str, ...] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -271,6 +272,7 @@ def _load_extensions() -> None:
         "common.games_market.advanced", "common.games_coop.cooperative",
         "common.games_coop.dynamic", "common.games_coop.pd_variants",
         "common.games_coop.infinite", "common.games_coop.stochastic",
+        "common.meta.meta_games",
     ]:
         try:
             importlib.import_module(mod)

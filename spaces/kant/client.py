@@ -10,7 +10,7 @@ from .models import KantBenchAction, KantBenchObservation
 
 
 class KantBenchEnv(
-    EnvClient[KantBenchAction, KantBenchObservation]
+    EnvClient[KantBenchAction, KantBenchObservation, State]
 ):
     """
     Client for the KantBench game theory environment.

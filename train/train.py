@@ -3,10 +3,10 @@
 Trains a language model to play 2-player game theory games optimally
 using Group Relative Policy Optimization (GRPO) via TRL.
 
-The KantBench environment runs locally as the reward oracle:
+The KantBench environment runs as a remote OpenEnv server (HF Space):
   - Each GRPO completion is a single move
   - The reward function plays a FULL multi-round episode using that move
-    as the agent's consistent strategy
+    as the agent's consistent strategy via the OpenEnv client
   - The composite reward (payoff + cooperation + Pareto efficiency + fairness)
     becomes the GRPO signal
 
@@ -34,12 +34,11 @@ from transformers import AutoTokenizer
 
 from common.games import GAMES
 from common.strategies import STRATEGIES as STRATEGY_REGISTRY
-from env.environment import KantEnvironment
-from env.models import GameAction, GameObservation
-from train.agent import PromptBuilder, parse_action
+from spaces.kant.client import KantBenchEnv
+from spaces.kant.models import KantBenchAction, KantBenchObservation
+from train.agent import parse_action
 from train.rewards import episode_reward
 from train.splits import get_train_eval_split
-from train.trajectory import _compute_cooperation_rate
 
 logger = logging.getLogger(__name__)
 
@@ -54,58 +53,119 @@ SYSTEM_PROMPT = (
     "the best action. Respond with ONLY the action name, nothing else."
 )
 
+
+# ---------------------------------------------------------------------------
+# Helpers to bridge KantBenchObservation -> training code
+# ---------------------------------------------------------------------------
+
+
+def _obs_cooperation_rate(obs: KantBenchObservation) -> float:
+    """Compute cooperation rate from a KantBenchObservation's history."""
+    if not obs.history:
+        return 0.0
+    coop_actions = {"cooperate", "stag", "dove", "contribute"}
+    coop_count = sum(
+        1 for h in obs.history
+        if any(ca in h.get("your_move", "") for ca in coop_actions)
+    )
+    return coop_count / len(obs.history)
+
+
+def _build_prompt(obs: KantBenchObservation) -> str:
+    """Build a structured prompt from a KantBenchObservation.
+
+    Mirrors PromptBuilder.build() but works with the OpenEnv client's
+    observation format.
+    """
+    sections: list[str] = []
+
+    # Game section
+    sections.append(
+        f"[Game]\n{obs.game_name}\n{obs.game_description}"
+    )
+
+    # History section
+    if obs.history:
+        history_lines: list[str] = []
+        for h in obs.history[-5:]:  # Last 5 rounds
+            line = (
+                f"Round {h.get('round', '?')}"
+                f" | You played: {h.get('your_move', '?')}"
+                f" | Opponent played: {h.get('opponent_move', '?')}"
+                f" | Your payoff: {h.get('your_payoff', '?')}"
+                f" | Opp payoff: {h.get('opponent_payoff', '?')}"
+            )
+            history_lines.append(line)
+        sections.append("[History]\n" + "\n".join(history_lines))
+
+    # Scores section
+    sections.append(
+        f"[Scores]\nYour score: {obs.cumulative_score}"
+        f"\nRound: {obs.round_number} of {obs.max_rounds}"
+    )
+
+    # Available actions
+    action_lines = [f"- {a}" for a in obs.available_moves]
+    sections.append("[Available Actions]\n" + "\n".join(action_lines))
+
+    # Instruction
+    sections.append(f"[Instruction]\n{SYSTEM_PROMPT}")
+
+    return "\n\n".join(sections)
+
 # ---------------------------------------------------------------------------
 # Dataset generation using PromptBuilder
 # ---------------------------------------------------------------------------
 
 
 def build_dataset(
+    base_url: str,
     n_samples: int = 1000,
     games: list[str] | None = None,
     strategies: list[str] | None = None,
 ) -> Dataset:
     """Generate diverse game theory prompts for GRPO training.
 
-    Uses PromptBuilder for structured prompts (same format the model sees
-    during episode rollouts) and simulates partial game histories so the
-    model trains on various game states, not just round 1.
+    Connects to the KantBench OpenEnv server to generate real observations,
+    then builds structured prompts from diverse game states.
     """
-    env = KantEnvironment()
     game_keys = games or list(GAMES.keys())
     strat_names = strategies or list(STRATEGY_REGISTRY.keys())
-    prompt_builder = PromptBuilder()
     samples = []
 
-    for _ in range(n_samples):
-        game_key = random.choice(game_keys)
-        strategy = random.choice(strat_names)
+    with KantBenchEnv(base_url=base_url) as env:
+        for _ in range(n_samples):
+            game_key = random.choice(game_keys)
+            strategy = random.choice(strat_names)
 
-        # Reset env to get a real observation
-        obs = env.reset(game=game_key, strategy=strategy)
+            # Reset env to get a real observation
+            result = env.reset(game=game_key, strategy=strategy)
+            obs = result.observation
 
-        # Play 0..N-1 random rounds to create diverse game states
-        max_rounds = obs.total_rounds
-        rounds_to_play = random.randint(0, max(max_rounds - 1, 0))
-        for _ in range(rounds_to_play):
-            random_action = GameAction(action=random.choice(obs.available_actions))
-            obs = env.step(random_action)
-            if obs.done:
-                break
+            # Play 0..N-1 random rounds to create diverse game states
+            max_rounds = obs.max_rounds
+            rounds_to_play = random.randint(0, max(max_rounds - 1, 0))
+            for _ in range(rounds_to_play):
+                move = random.choice(obs.available_moves)
+                result = env.step(KantBenchAction(move=move))
+                obs = result.observation
+                if result.done:
+                    break
 
-        if obs.done:
-            # Replay without filling all rounds
-            obs = env.reset(game=game_key, strategy=strategy)
+            if result.done:
+                # Replay without filling all rounds
+                result = env.reset(game=game_key, strategy=strategy)
+                obs = result.observation
 
-        # Build the structured prompt from the real observation
-        prompt = prompt_builder.build(obs)
+            prompt = _build_prompt(obs)
 
-        samples.append({
-            "prompt": prompt,
-            "game_key": game_key,
-            "strategy": strategy,
-            "available_moves": list(obs.available_actions),
-            "rounds_remaining": obs.total_rounds - obs.current_round,
-        })
+            samples.append({
+                "prompt": prompt,
+                "game_key": game_key,
+                "strategy": strategy,
+                "available_moves": list(obs.available_moves),
+                "rounds_remaining": obs.max_rounds - obs.round_number,
+            })
 
     return Dataset.from_list(samples)
 
@@ -115,16 +175,17 @@ def build_dataset(
 # ---------------------------------------------------------------------------
 
 
-def make_reward_fn():
-    """Returns a GRPO reward function that plays full episodes locally.
+def make_reward_fn(base_url: str):
+    """Returns a GRPO reward function that plays full episodes via OpenEnv.
 
     For each completion:
     1. Parse the move from the LLM output
-    2. Reset a local KantEnvironment with the correct game/strategy
+    2. Reset the KantBench server with the correct game/strategy
     3. Play the FULL episode using the parsed move as a consistent strategy
     4. Compute composite reward: payoff + cooperation + Pareto + fairness
     """
-    env = KantEnvironment()
+    env = KantBenchEnv(base_url=base_url)
+    env.connect()
 
     def reward_fn(
         completions: list[str],
@@ -145,24 +206,31 @@ def make_reward_fn():
             action_str = parse_action(completion.strip(), moves)
 
             try:
-                # Play a full episode using this move as the agent's strategy
-                obs = env.reset(game=game_key, strategy=strategy)
-                while not obs.done:
-                    obs = env.step(GameAction(action=action_str))
+                # Play a full episode using this move as a consistent strategy
+                result = env.reset(game=game_key, strategy=strategy)
+                while not result.done:
+                    result = env.step(KantBenchAction(move=action_str))
 
-                # Compute cooperation rate
-                coop_rate = _compute_cooperation_rate(obs)
+                obs = result.observation
+
+                # Compute cooperation rate from observation history
+                coop_rate = _obs_cooperation_rate(obs)
 
                 # Composite reward from the reward module
+                # opponent_score not directly available in KantBenchObservation,
+                # approximate from history
+                opp_score = sum(
+                    h.get("opponent_payoff", 0.0) for h in obs.history
+                )
                 reward = episode_reward(
-                    player_score=obs.player_score,
-                    opponent_score=obs.opponent_score,
+                    player_score=obs.cumulative_score,
+                    opponent_score=opp_score,
                     cooperation_rate=coop_rate,
-                    total_rounds=obs.current_round,
+                    total_rounds=obs.round_number,
                 )
                 rewards.append(reward)
 
-            except (ValueError, KeyError, RuntimeError) as exc:
+            except (ValueError, KeyError, RuntimeError, ConnectionError) as exc:
                 logger.debug("Reward error for %s/%s: %s", game_key, action_str, exc)
                 rewards.append(-1.0)
 
@@ -180,6 +248,8 @@ def parse_args():
     p = argparse.ArgumentParser(description="KantBench GRPO Training")
     p.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct")
     p.add_argument("--output-dir", default="./kantbench-grpo")
+    p.add_argument("--env-url", default=KANTBENCH_URL,
+                    help="KantBench OpenEnv server URL")
     p.add_argument("--episodes", type=int, default=1000, help="Training dataset size")
     p.add_argument("--num-generations", type=int, default=8, help="GRPO group size")
     p.add_argument("--batch-size", type=int, default=4)
@@ -200,6 +270,7 @@ def main():
 
     print(f"Loading model: {args.model}")
     print(f"Output: {args.output_dir}")
+    print(f"OpenEnv server: {args.env_url}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     if tokenizer.pad_token is None:
@@ -212,7 +283,7 @@ def main():
         train_games = sorted(train_set)
         print(f"Using stratified split: {len(train_games)} train, {len(eval_set)} eval games")
 
-    dataset = build_dataset(args.episodes, games=train_games)
+    dataset = build_dataset(args.env_url, args.episodes, games=train_games)
     print(f"Dataset: {len(dataset)} prompts across {len(GAMES)} games")
 
     # Format prompts with chat template
@@ -229,7 +300,7 @@ def main():
 
     dataset = dataset.map(format_prompt)
 
-    reward_fn = make_reward_fn()
+    reward_fn = make_reward_fn(args.env_url)
 
     config = GRPOConfig(
         output_dir=args.output_dir,
@@ -258,7 +329,7 @@ def main():
 
     print("Starting GRPO training...")
     print(f"  Reward: composite (payoff + cooperation + Pareto + fairness)")
-    print(f"  Episode: full multi-round rollout per completion")
+    print(f"  Episode: full multi-round rollout via OpenEnv @ {args.env_url}")
     trainer.train()
     trainer.save_model(args.output_dir)
     print(f"Done. Model saved to {args.output_dir}")

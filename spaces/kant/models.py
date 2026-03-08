@@ -1,12 +1,12 @@
 """Data models for the KantBench game theory environment."""
 
-from typing import Any
+from typing import Any, Optional
 from pydantic import Field
 from openenv.core.env_server.types import Action, Observation
 
 
 class KantBenchAction(Action):
-    """Action for the KantBench environment — a move in a 2-player game."""
+    """Action for the KantBench environment — a move in a 2-player or N-player game."""
 
     move: str = Field(..., description="Your move (e.g. 'cooperate', 'defect', 'hawk', 'dove')")
 
@@ -27,3 +27,7 @@ class KantBenchObservation(Observation):
     opponent_strategy: str = Field(default="", description="Opponent's strategy name")
     history: list[dict[str, Any]] = Field(default_factory=list, description="Round history")
     message: str = Field(default="", description="Status message")
+    # N-player fields (only populated for multiplayer games)
+    num_players: Optional[int] = Field(default=None, description="Number of players (set for N-player games)")
+    player_index: Optional[int] = Field(default=None, description="Your player index (set for N-player games)")
+    all_scores: Optional[list[float]] = Field(default=None, description="Scores for all players (set for N-player games)")

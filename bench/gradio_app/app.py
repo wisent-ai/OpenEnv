@@ -3,7 +3,7 @@ from __future__ import annotations
 import gradio as gr
 
 from registry import (
-    _ZERO, _ONE, _TWO, _FIVE, _TEN,
+    _ZERO, _ONE, _TWO, _TEN,
     _GAME_INFO, _CATEGORY_DIMS, _ALL_FILTER,
     _HUMAN_VARIANTS, _HAS_VARIANTS,
     _strategies_for_game,
@@ -11,7 +11,7 @@ from registry import (
     _HAS_LLM_AGENT, _HAS_OAUTH,
     _LLM_PROVIDERS, _LLM_MODELS, _LLM_OPPONENT_LABEL,
 )
-from llm_arena import run_tournament, render_tournament
+from llm_arena import run_infinite_tournament
 from callbacks import (
     _get_game_info, _blank, _render,
     play_round, reset_game, on_game_change,
@@ -38,7 +38,6 @@ _init_player_label = f"Players: {_init_np}" if _init_np > _TWO else "Two-Player"
 # -- Infinite mode preset --
 _INF_GAME = "Discounted Prisoner's Dilemma"
 _INF_VARIANTS = ["constitutional", "exit", "noisy_payoffs", "noisy_actions"]
-_INF_ROUNDS = _TEN * _TEN * _TEN
 _ALL_LLM_MODELS = []
 for _mods in _LLM_MODELS.values():
     _ALL_LLM_MODELS.extend(_mods)
@@ -72,7 +71,7 @@ with gr.Blocks(title="Kant Demo") as demo:
             with gr.Row(visible=False) as api_key_row:
                 if _HAS_OAUTH:
                     api_key_input = gr.Textbox(
-                        label="API Key (optional — OAuth tokens available)",
+                        label="API Key (optional -- OAuth tokens available)",
                         type="password",
                         placeholder="Leave blank to use built-in OAuth tokens",
                     )
@@ -120,18 +119,12 @@ with gr.Blocks(title="Kant Demo") as demo:
 
         if _INF_GAME in _GAME_INFO and _HAS_VARIANTS and _ALL_LLM_MODELS:
             with gr.TabItem("Infinite Mode"):
-                _arena_desc = (
-                    "**LLM Tournament: Constitutional Discounted PD.** "
-                    "Select models and watch them compete "
-                    "in a round-robin. Each match uses constitutional rule "
-                    "negotiation, exit option, payoff noise, and action trembles."
-                ) if _HAS_OAUTH else (
-                    "**LLM Tournament: Constitutional Discounted PD.** "
-                    "Select models, provide API keys, and watch them compete "
-                    "in a round-robin. Each match uses constitutional rule "
-                    "negotiation, exit option, payoff noise, and action trembles."
+                gr.Markdown(
+                    "**Infinite LLM Tournament.** "
+                    "Models compete in an endless round-robin Constitutional "
+                    "Discounted PD with rule negotiation, exit option, payoff "
+                    "noise, and action trembles. Runs forever until you stop it."
                 )
-                gr.Markdown(_arena_desc)
                 with gr.Row(visible=not _HAS_OAUTH):
                     arena_anthro_key = gr.Textbox(
                         label="Anthropic API Key", type="password",
@@ -143,28 +136,23 @@ with gr.Blocks(title="Kant Demo") as demo:
                     _ALL_LLM_MODELS, value=_ALL_LLM_MODELS[:_TWO],
                     label="Select Models for Tournament")
                 with gr.Row():
-                    arena_rounds = gr.Number(
-                        value=_INF_ROUNDS, precision=_ZERO,
-                        label="Rounds per Match (no upper limit)")
-                    arena_run = gr.Button("Run Tournament", variant="primary")
-                arena_results = gr.State([])
-                arena_md = gr.Markdown("Select models and click Run Tournament.")
+                    arena_start = gr.Button("Start", variant="primary")
+                    arena_stop = gr.Button("Stop", variant="stop")
+                arena_md = gr.Markdown("Select models and click Start.")
 
-                def _run_arena(models, anthro_key, openai_key, num_rounds):
-                    results, err = run_tournament(
-                        _INF_GAME, _INF_VARIANTS, int(num_rounds),
-                        models, anthro_key, openai_key)
-                    if err:
-                        return [], err
-                    return results, render_tournament(results)
+                def _run_infinite(models, anthro_key, openai_key):
+                    for md in run_infinite_tournament(
+                            _INF_GAME, _INF_VARIANTS,
+                            models, anthro_key, openai_key):
+                        yield md
 
-                arena_run.click(
-                    _run_arena,
-                    inputs=[arena_models, arena_anthro_key,
-                            arena_openai_key, arena_rounds],
-                    outputs=[arena_results, arena_md])
+                start_event = arena_start.click(
+                    _run_infinite,
+                    inputs=[arena_models, arena_anthro_key, arena_openai_key],
+                    outputs=[arena_md])
+                arena_stop.click(None, cancels=[start_event])
 
         with gr.TabItem("Game Theory Reference"):
             gr.Markdown(value=_build_reference_md())
 
-demo.launch(server_name="0.0.0.0", server_port=7860)
+demo.launch()

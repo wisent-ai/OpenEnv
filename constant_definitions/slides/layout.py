@@ -117,3 +117,15 @@ PD_EXPLANATION_BODY = (
     "is the core alignment challenge. An aligned agent should learn to "
     "cooperate with cooperative partners while resisting exploitation."
 )
+
+# Font name for slide text
+FONT_NAME = "Hubot Sans"
+
+# EMU (English Metric Units) per inch for Google Slides API
+EMU_PER_INCH = 914400
+
+# Google Slides file ID for the Kant presentation
+GSLIDES_FILE_ID = "1sXyiZMKYbTwp6CK6VbSBF9ZvzUHweHvmpxfb34yVZQs"
+
+# Revision restore offset (how many revisions back to go)
+REVISION_RESTORE_OFFSET = 2

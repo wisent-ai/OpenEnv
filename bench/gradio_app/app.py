@@ -80,10 +80,48 @@ except ImportError:
     pass
 
 # ---------------------------------------------------------------------------
+# LLM opponent support (prompt builder + action parser)
+# ---------------------------------------------------------------------------
+_HAS_LLM_AGENT = False
+try:
+    from train.agent import PromptBuilder, parse_action
+    from env.models import GameObservation, GameAction, RoundResult
+    _HAS_LLM_AGENT = True
+except ImportError:
+    pass
+
+try:
+    from constant_definitions.train.models.anthropic_constants import (
+        CLAUDE_OPUS, CLAUDE_SONNET, CLAUDE_HAIKU,
+    )
+except ImportError:
+    CLAUDE_OPUS = "claude-opus-4-6"
+    CLAUDE_SONNET = "claude-sonnet-4-6"
+    CLAUDE_HAIKU = "claude-haiku-4-5-20251001"
+
+try:
+    from constant_definitions.train.models.openai_constants import GPT_5_4
+except ImportError:
+    GPT_5_4 = "gpt-5.4"
+
+try:
+    from constant_definitions.train.agent_constants import SYSTEM_PROMPT as _SYS_PROMPT
+except ImportError:
+    _SYS_PROMPT = (
+        "You are playing a game-theory game. Analyse the situation and choose "
+        "the best action. Respond with ONLY the action name, nothing else."
+    )
+
+_LLM_PROVIDERS = ["Anthropic", "OpenAI"]
+_LLM_MODELS = {
+    "Anthropic": [CLAUDE_HAIKU, CLAUDE_SONNET, CLAUDE_OPUS],
+    "OpenAI": [GPT_5_4, "gpt-4.1-mini", "gpt-4.1-nano"],
+}
+_LLM_OPPONENT_LABEL = "LLM"
+
+# ---------------------------------------------------------------------------
 # Build unified game info from all registries
 # ---------------------------------------------------------------------------
-# Maps display_name -> {actions, description, payoff_fn, default_rounds, key,
-#                       num_players, game_type, opponent_actions}
 _GAME_INFO: dict[str, dict] = {}
 _KEY_TO_NAME: dict[str, str] = {}
 
@@ -99,7 +137,6 @@ if _HAS_REGISTRY:
         }
         _KEY_TO_NAME[_key] = _cfg.name
 
-# Add N-player games not already in the registry
 if _HAS_NPLAYER:
     for _key, _cfg in _NPLAYER_GAMES.items():
         if _key not in _KEY_TO_NAME:
@@ -130,7 +167,6 @@ try:
     STRATEGIES_2P = _STRAT_REGISTRY
     _HAS_FULL_STRATEGIES = True
 except ImportError:
-    # Minimal fallback
     def _strat_random(actions, _h):
         return _rand.choice(actions)
     def _strat_first(actions, _h):
@@ -145,11 +181,10 @@ except ImportError:
     STRATEGIES_2P = {"random": _strat_random, "always_cooperate": _strat_first,
                      "always_defect": _strat_last, "tit_for_tat": _strat_tft}
 
-# N-player strategy names
 _NPLAYER_STRAT_NAMES = list(NPLAYER_STRATEGIES.keys()) if _HAS_NPLAYER_ENV else ["random"]
 
 # ---------------------------------------------------------------------------
-# Strategy compatibility: game-specific strategies only for matching games
+# Strategy compatibility
 # ---------------------------------------------------------------------------
 _GENERIC_STRATEGIES = [
     "random", "always_cooperate", "always_defect", "tit_for_tat",
@@ -164,12 +199,10 @@ _GAME_TYPE_STRATEGIES: dict[str, list[str]] = {
 }
 
 def _strategies_for_game(gname: str) -> list[str]:
-    """Return strategy names compatible with the given game."""
     info = _GAME_INFO.get(gname, {})
     game_type = info.get("game_type", "matrix")
     available = list(_GENERIC_STRATEGIES)
-    extras = _GAME_TYPE_STRATEGIES.get(game_type, [])
-    available.extend(extras)
+    available.extend(_GAME_TYPE_STRATEGIES.get(game_type, []))
     return [s for s in available if s in STRATEGIES_2P]
 
 # ---------------------------------------------------------------------------
@@ -181,8 +214,7 @@ _MP_FILTER_NP = "Multiplayer (3+)"
 _MP_FILTERS = [_MP_FILTER_ALL, _MP_FILTER_2P, _MP_FILTER_NP]
 
 def _is_nplayer(gname):
-    info = _GAME_INFO.get(gname, {})
-    return info.get("num_players", _TWO) > _TWO
+    return _GAME_INFO.get(gname, {}).get("num_players", _TWO) > _TWO
 
 def _filter_by_mp(mp_filter, names):
     if mp_filter == _MP_FILTER_2P:
@@ -195,7 +227,6 @@ def _filter_by_mp(mp_filter, names):
 # Variant-aware game info
 # ---------------------------------------------------------------------------
 def _get_game_info(gname, variants=None):
-    """Return game info dict, applying selected variants if any."""
     base_info = _GAME_INFO.get(gname)
     if not base_info or not variants or not _HAS_VARIANTS:
         return base_info
@@ -213,6 +244,85 @@ def _get_game_info(gname, variants=None):
         return base_info
 
 # ---------------------------------------------------------------------------
+# LLM opponent: build observation from state and call API
+# ---------------------------------------------------------------------------
+def _state_to_observation(state, info) -> GameObservation | None:
+    """Convert Gradio state dict to a GameObservation for the LLM opponent."""
+    if not _HAS_LLM_AGENT:
+        return None
+    history = []
+    for r in state.get("history", []):
+        history.append(RoundResult(
+            round_number=r["round"],
+            player_action=r["opponent_action"],  # flipped: LLM is the opponent
+            opponent_action=r["player_action"],
+            player_payoff=r.get("o_pay", 0.0),
+            opponent_payoff=r.get("p_pay", 0.0),
+        ))
+    opp_actions = info.get("opponent_actions")
+    actions = list(opp_actions) if opp_actions else info["actions"]
+    return GameObservation(
+        game_name=info.get("key", state["game"]),
+        game_description=info.get("description", ""),
+        available_actions=actions,
+        current_round=state["round"],
+        total_rounds=state["max_rounds"],
+        history=history,
+        player_score=state["o_score"],
+        opponent_score=state["p_score"],
+        opponent_strategy="human",
+    )
+
+
+def _call_anthropic(api_key: str, model: str, prompt: str) -> str:
+    """Call Anthropic Messages API. Returns raw text response."""
+    import anthropic
+    client = anthropic.Anthropic(api_key=api_key)
+    resp = client.messages.create(
+        model=model,
+        max_tokens=_TEN + _TEN,
+        system=_SYS_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return resp.content[_ZERO].text
+
+
+def _call_openai(api_key: str, model: str, prompt: str) -> str:
+    """Call OpenAI Chat Completions API. Returns raw text response."""
+    import openai
+    client = openai.OpenAI(api_key=api_key)
+    resp = client.chat.completions.create(
+        model=model,
+        max_tokens=_TEN + _TEN,
+        messages=[
+            {"role": "system", "content": _SYS_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+    )
+    return resp.choices[_ZERO].message.content
+
+
+def _llm_choose_action(state, info, provider, model, api_key):
+    """Have the LLM choose an action. Returns (action_str, llm_response)."""
+    if not _HAS_LLM_AGENT:
+        return _rand.choice(info["actions"]), "(LLM agent not available)"
+    obs = _state_to_observation(state, info)
+    prompt = PromptBuilder.build(obs)
+    try:
+        if provider == "Anthropic":
+            raw = _call_anthropic(api_key, model, prompt)
+        elif provider == "OpenAI":
+            raw = _call_openai(api_key, model, prompt)
+        else:
+            return _rand.choice(info["actions"]), f"Unknown provider: {provider}"
+    except Exception as exc:
+        return _rand.choice(info["actions"]), f"API error: {exc}"
+    opp_actions = info.get("opponent_actions")
+    act_list = list(opp_actions) if opp_actions else info["actions"]
+    action = parse_action(raw, act_list)
+    return action, raw.strip()
+
+# ---------------------------------------------------------------------------
 # State helpers
 # ---------------------------------------------------------------------------
 def _blank(gname, sname, variants=None):
@@ -224,7 +334,8 @@ def _blank(gname, sname, variants=None):
             "done": False, "num_players": np,
             "scores": [_ZERO] * np,
             "nplayer_env": None,
-            "variants": list(variants or [])}
+            "variants": list(variants or []),
+            "llm_log": []}
 
 def _render(st):
     np = st.get("num_players", _TWO)
@@ -262,18 +373,27 @@ def _render(st):
         for r in st["history"]:
             lines.append(f"| {r['round']} | {r['player_action']} | "
                          f"{r['opponent_action']} | {r['p_pay']} | {r['o_pay']} |")
+
+    # LLM reasoning log
+    llm_log = st.get("llm_log", [])
+    if llm_log:
+        lines.append("\n### LLM Opponent Responses")
+        for entry in llm_log:
+            lines.append(f"- **Round {entry['round']}**: `{entry['raw']}`")
+
     return "\n".join(lines)
 
 # ---------------------------------------------------------------------------
 # Callbacks
 # ---------------------------------------------------------------------------
-def play_round(action_str, state):
+def play_round(action_str, state, provider, model, api_key):
     if state is None or state["done"]:
         return state, "Reset the game to play again.", gr.update(), gr.update()
 
     info = _get_game_info(state["game"], state.get("variants"))
     np = state.get("num_players", _TWO)
     is_mp = np > _TWO
+    is_llm = state.get("strategy") == _LLM_OPPONENT_LABEL
 
     if is_mp and _HAS_NPLAYER_ENV:
         nenv = state.get("nplayer_env")
@@ -289,6 +409,23 @@ def play_round(action_str, state):
             "payoffs": list(last.payoffs),
         })
         if obs.done:
+            state["done"] = True
+        acts = info["actions"]
+        return (state, _render(state), info["description"],
+                gr.update(choices=acts, value=acts[_ZERO]))
+    elif is_llm:
+        # LLM opponent
+        if not api_key or not api_key.strip():
+            return state, "Enter your API key to play against an LLM.", gr.update(), gr.update()
+        opp, raw_response = _llm_choose_action(state, info, provider, model, api_key.strip())
+        p_pay, o_pay = info["payoff_fn"](action_str, opp)
+        state["round"] += _ONE
+        state["p_score"] += p_pay
+        state["o_score"] += o_pay
+        state["history"].append({"round": state["round"], "player_action": action_str,
+                                 "opponent_action": opp, "p_pay": p_pay, "o_pay": o_pay})
+        state.setdefault("llm_log", []).append({"round": state["round"], "raw": raw_response})
+        if state["round"] >= state["max_rounds"]:
             state["done"] = True
         acts = info["actions"]
         return (state, _render(state), info["description"],
@@ -347,26 +484,35 @@ def on_mp_filter_change(mp_filter, tag):
     return on_category_change(tag, mp_filter)
 
 def on_game_select(gname):
-    """Update strategy dropdown and player info when game changes."""
     info = _GAME_INFO.get(gname, {})
     np = info.get("num_players", _TWO)
     is_mp = np > _TWO
     if is_mp and _HAS_NPLAYER_ENV:
         strat_names = _NPLAYER_STRAT_NAMES
     else:
-        strat_names = _strategies_for_game(gname)
+        strat_names = _strategies_for_game(gname) + [_LLM_OPPONENT_LABEL]
     player_label = f"Players: {np}" if is_mp else "2-Player"
     return (gr.update(choices=strat_names, value=strat_names[_ZERO]),
             gr.update(value=player_label))
 
+def on_strategy_change(sname):
+    """Show/hide LLM config based on strategy selection."""
+    is_llm = sname == _LLM_OPPONENT_LABEL
+    return (gr.update(visible=is_llm),  # llm_config_row
+            gr.update(visible=is_llm))  # api_key_row
+
+def on_provider_change(provider):
+    """Update model choices when provider changes."""
+    models = _LLM_MODELS.get(provider, [])
+    return gr.update(choices=models, value=models[_ZERO] if models else "")
+
 # ---------------------------------------------------------------------------
-# Variant filter: some variants only work for 2-player games
+# Variant filter
 # ---------------------------------------------------------------------------
 _2P_ONLY_VARIANTS = {"noisy_actions", "noisy_payoffs", "self_play", "cross_model"}
 _HUMAN_VARIANTS = [v for v in _VARIANT_NAMES if v not in ("self_play", "cross_model")]
 
 def on_game_select_variant(gname):
-    """Update available variants when game changes."""
     info = _GAME_INFO.get(gname, {})
     np = info.get("num_players", _TWO)
     is_mp = np > _TWO
@@ -381,7 +527,7 @@ def on_game_select_variant(gname):
 # Gradio UI
 # ---------------------------------------------------------------------------
 _GAME_NAMES = sorted(_GAME_INFO.keys())
-_INIT_STRAT_NAMES = _strategies_for_game(_GAME_NAMES[_ZERO]) if _GAME_NAMES else ["random"]
+_INIT_STRAT_NAMES = (_strategies_for_game(_GAME_NAMES[_ZERO]) + [_LLM_OPPONENT_LABEL]) if _GAME_NAMES else ["random"]
 _INIT_GAME = _GAME_NAMES[_ZERO] if _GAME_NAMES else "Prisoner's Dilemma"
 _INIT_STRAT = _INIT_STRAT_NAMES[_ZERO]
 _INIT_ACTS = _GAME_INFO[_INIT_GAME]["actions"] if _INIT_GAME in _GAME_INFO else ["cooperate", "defect"]
@@ -395,12 +541,9 @@ _init_player_label = f"Players: {_init_np}" if _init_np > _TWO else "2-Player"
 
 
 def _build_reference_md():
-    """Generate a markdown reference from the game registry."""
     if not _HAS_REGISTRY:
         return "# Game Theory Reference\n\nFull registry not available."
     sections = []
-
-    # Games by category
     for dim_name, tags in sorted(_CATEGORY_DIMS.items()):
         sec = [f"## {dim_name.replace('_', ' ').title()}"]
         for tag in tags:
@@ -409,8 +552,6 @@ def _build_reference_md():
             if names:
                 sec.append(f"**{tag}** ({len(names)}): {', '.join(names)}")
         sections.append("\n\n".join(sec))
-
-    # N-player games section
     np_games = [(gn, gi) for gn, gi in _GAME_INFO.items() if gi.get("num_players", _TWO) > _TWO]
     if np_games:
         np_lines = ["## Multiplayer Games"]
@@ -423,23 +564,20 @@ def _build_reference_md():
                 act_str += f" ... ({len(acts)} total)"
             np_lines.append(f"| {gn} | {gi['num_players']} | {act_str} | {gi['default_rounds']} |")
         sections.append("\n".join(np_lines))
-
-    # Variants section
     if _HUMAN_VARIANTS:
         vlines = ["## Composable Variants"]
         for vname in _HUMAN_VARIANTS:
             vlines.append(f"- **{vname}**")
         sections.append("\n".join(vlines))
-
-    # Strategies section
     slines = ["## Opponent Strategies"]
     slines.append(f"**Generic** ({len(_GENERIC_STRATEGIES)}): {', '.join(_GENERIC_STRATEGIES)}")
     for gt, strats in sorted(_GAME_TYPE_STRATEGIES.items()):
         slines.append(f"**{gt}**: {', '.join(strats)}")
     if _HAS_NPLAYER_ENV:
         slines.append(f"**N-player**: {', '.join(_NPLAYER_STRAT_NAMES)}")
+    slines.append(f"\n**LLM Opponents**: Select '{_LLM_OPPONENT_LABEL}' as strategy, "
+                  "provide your Anthropic or OpenAI API key, and play against Claude or GPT models.")
     sections.append("\n\n".join(slines))
-
     total = len(_GAME_INFO)
     np_count = len(np_games)
     return (f"# Game Theory Reference\n\n**{total} games** ({total - np_count} two-player, "
@@ -458,6 +596,24 @@ with gr.Blocks(title="Kant Demo") as demo:
                 strat_dd = gr.Dropdown(_INIT_STRAT_NAMES, value=_INIT_STRAT, label="Opponent Strategy")
                 player_info = gr.Textbox(value=_init_player_label, label="Mode", interactive=False)
                 reset_btn = gr.Button("Reset / New Game")
+
+            # LLM config (hidden by default, shown when strategy = LLM)
+            with gr.Row(visible=False) as llm_config_row:
+                llm_provider = gr.Dropdown(
+                    _LLM_PROVIDERS, value=_LLM_PROVIDERS[_ZERO],
+                    label="LLM Provider",
+                )
+                llm_model = gr.Dropdown(
+                    _LLM_MODELS[_LLM_PROVIDERS[_ZERO]],
+                    value=_LLM_MODELS[_LLM_PROVIDERS[_ZERO]][_ZERO],
+                    label="Model",
+                )
+            with gr.Row(visible=False) as api_key_row:
+                api_key_input = gr.Textbox(
+                    label="API Key", type="password",
+                    placeholder="Enter your Anthropic or OpenAI API key",
+                )
+
             if _HUMAN_VARIANTS:
                 variant_cb = gr.CheckboxGroup(
                     _HUMAN_VARIANTS, value=[], label="Variants",
@@ -476,7 +632,8 @@ with gr.Blocks(title="Kant Demo") as demo:
             _reset_out = [state_var, history_md, game_desc, action_dd]
             cat_dd.change(on_category_change, inputs=[cat_dd, mp_dd], outputs=[game_dd])
             mp_dd.change(on_mp_filter_change, inputs=[mp_dd, cat_dd], outputs=[game_dd])
-            play_btn.click(play_round, inputs=[action_dd, state_var],
+            play_btn.click(play_round,
+                           inputs=[action_dd, state_var, llm_provider, llm_model, api_key_input],
                            outputs=_reset_out)
             reset_btn.click(reset_game, inputs=[game_dd, strat_dd, variant_cb],
                             outputs=_reset_out)
@@ -488,6 +645,10 @@ with gr.Blocks(title="Kant Demo") as demo:
                            outputs=[variant_cb])
             strat_dd.change(on_game_change, inputs=[game_dd, strat_dd, variant_cb],
                             outputs=_reset_out)
+            strat_dd.change(on_strategy_change, inputs=[strat_dd],
+                            outputs=[llm_config_row, api_key_row])
+            llm_provider.change(on_provider_change, inputs=[llm_provider],
+                                outputs=[llm_model])
             variant_cb.change(on_game_change, inputs=[game_dd, strat_dd, variant_cb],
                               outputs=_reset_out)
         with gr.TabItem("Game Theory Reference"):

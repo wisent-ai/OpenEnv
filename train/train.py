@@ -353,6 +353,8 @@ def parse_args():
                     help="Use stratified train/eval split (eval games held out)")
     p.add_argument("--variant-fraction", type=float, default=VARIANT_FRACTION,
                     help="Fraction of samples using dynamic variant composition")
+    p.add_argument("--resume-from-checkpoint", type=str, default=None,
+                    help="Path to checkpoint or 'latest' to resume training")
     return p.parse_args()
 
 
@@ -436,11 +438,17 @@ def main():
         processing_class=tokenizer,
     )
 
+    resume_ckpt = args.resume_from_checkpoint
+    if resume_ckpt == "latest":
+        resume_ckpt = True  # Trainer auto-finds latest checkpoint in output_dir
+
     print("Starting GRPO training...")
     print(f"  Reward: composite (payoff + cooperation + Pareto + fairness)")
     print(f"  Episode: full multi-round rollout via OpenEnv @ {args.env_url}")
     print(f"  Variants: {args.variant_fraction*100:.0f}% of samples use dynamic composition")
-    trainer.train()
+    if resume_ckpt:
+        print(f"  Resuming from checkpoint: {resume_ckpt}")
+    trainer.train(resume_from_checkpoint=resume_ckpt)
     trainer.save_model(args.output_dir)
     print(f"Done. Model saved to {args.output_dir}")
 

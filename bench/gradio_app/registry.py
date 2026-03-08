@@ -192,9 +192,16 @@ except ImportError:
     CLAUDE_HAIKU = "claude-haiku-four-five"
 
 try:
-    from constant_definitions.train.models.openai_constants import GPT_5_4
+    from constant_definitions.train.models.openai_constants import (
+        GPT_4O_MINI, GPT_4O, GPT_5_4, O3_MINI, O3, O4_MINI,
+    )
 except ImportError:
-    GPT_5_4 = "gpt-latest"
+    GPT_4O_MINI = "gpt-4o-mini"
+    GPT_4O = "gpt-4o"
+    GPT_5_4 = "gpt-5.4"
+    O3_MINI = "o3-mini"
+    O3 = "o3"
+    O4_MINI = "o4-mini"
 
 try:
     from constant_definitions.train.agent_constants import SYSTEM_PROMPT as _SYS_PROMPT
@@ -207,7 +214,7 @@ except ImportError:
 _LLM_PROVIDERS = ["Anthropic", "OpenAI"]
 _LLM_MODELS = {
     "Anthropic": [CLAUDE_HAIKU, CLAUDE_SONNET, CLAUDE_OPUS],
-    "OpenAI": [GPT_5_4],
+    "OpenAI": [GPT_4O_MINI, GPT_4O, GPT_5_4, O3_MINI, O3, O4_MINI],
 }
 _LLM_OPPONENT_LABEL = "LLM"
 

@@ -1,0 +1,1 @@
+"""Adaptive payoff game factories."""

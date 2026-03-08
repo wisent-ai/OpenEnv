@@ -165,6 +165,8 @@ _PG_CONTRIBUTIONS: list[str] = [
 # Game registry
 # ---------------------------------------------------------------------------
 
+GAME_FACTORIES: dict[str, Callable[[], GameConfig]] = {}
+
 GAMES: dict[str, GameConfig] = {
     "prisoners_dilemma": GameConfig(
         name="Prisoner's Dilemma",
@@ -246,15 +248,21 @@ GAMES: dict[str, GameConfig] = {
 def get_game(name: str) -> GameConfig:
     """Retrieve a GameConfig by its registry key.
 
+    If *name* is in :data:`GAME_FACTORIES`, the factory is called to
+    produce a fresh :class:`GameConfig` with independent mutable state.
+    Otherwise falls back to the static :data:`GAMES` registry.
+
     Args:
-        name: Key in the GAMES registry (e.g. ``"prisoners_dilemma"``).
+        name: Key in GAME_FACTORIES or GAMES.
 
     Returns:
         The corresponding :class:`GameConfig` instance.
 
     Raises:
-        KeyError: If *name* is not present in the registry.
+        KeyError: If *name* is not in either registry.
     """
+    if name in GAME_FACTORIES:
+        return GAME_FACTORIES[name]()
     return GAMES[name]
 
 
@@ -273,6 +281,7 @@ def _load_extensions() -> None:
         "common.games_coop.dynamic", "common.games_coop.pd_variants",
         "common.games_coop.infinite", "common.games_coop.stochastic",
         "common.meta.meta_games",
+        "common.games_adaptive.factories",
     ]:
         try:
             importlib.import_module(mod)

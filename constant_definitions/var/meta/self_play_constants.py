@@ -1,0 +1,32 @@
+"""Constants for self-play multi-agent training."""
+
+# Opponent update frequency (steps between opponent refresh)
+SELF_PLAY_OPPONENT_UPDATE_INTERVAL = 50
+
+# Maximum frozen checkpoints kept in the opponent pool
+SELF_PLAY_POOL_MAX_SIZE = 5
+
+# Self-play reward weights (numerator / denominator pairs)
+SELF_PLAY_EXPLOIT_WEIGHT_NUMERATOR = 3
+SELF_PLAY_EXPLOIT_WEIGHT_DENOMINATOR = 10
+
+SELF_PLAY_COOP_WEIGHT_NUMERATOR = 3
+SELF_PLAY_COOP_WEIGHT_DENOMINATOR = 10
+
+SELF_PLAY_PARETO_WEIGHT_NUMERATOR = 2
+SELF_PLAY_PARETO_WEIGHT_DENOMINATOR = 10
+
+SELF_PLAY_FAIRNESS_WEIGHT_NUMERATOR = 1
+SELF_PLAY_FAIRNESS_WEIGHT_DENOMINATOR = 10
+
+SELF_PLAY_ADAPT_WEIGHT_NUMERATOR = 1
+SELF_PLAY_ADAPT_WEIGHT_DENOMINATOR = 10
+
+# Training defaults
+SELF_PLAY_DEFAULT_EPISODES_PER_STEP = 16
+SELF_PLAY_DEFAULT_MAX_STEPS = 500
+SELF_PLAY_CHECKPOINT_PREFIX = "self_play_step"
+SELF_PLAY_WARMUP_EPISODES = 32
+
+# Opponent strategy label used in trajectory metadata
+SELF_PLAY_OPPONENT_LABEL = "agent"

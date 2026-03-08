@@ -28,7 +28,7 @@ from constant_definitions.batch4.tag_constants import (
     BINDING_ENFORCEMENT,
     META_GOVERNANCE,
 )
-from common.games import GAMES
+from common.games import GAMES, GAME_FACTORIES
 from common.games_meta.nplayer_config import NPLAYER_GAMES
 import common.games_meta.nplayer_games  # noqa: F401 – trigger registration
 import common.games_meta.coalition_config  # noqa: F401 – trigger dual-registration
@@ -45,7 +45,7 @@ from common.games_meta.game_tags import (
 # ---------------------------------------------------------------------------
 _MIN_TAGS_PER_GAME = int(bool(True)) + int(bool(True)) + int(bool(True))  # each game needs >= this many tags
 _NPLAYER_ONLY = set(NPLAYER_GAMES) - set(GAMES)
-_ALL_GAME_KEYS = set(GAMES) | _NPLAYER_ONLY
+_ALL_GAME_KEYS = set(GAMES) | _NPLAYER_ONLY | set(GAME_FACTORIES)
 _EXPECTED_TOTAL_GAMES = len(_ALL_GAME_KEYS)
 _ONE = int(bool(True))
 _ZERO = int()

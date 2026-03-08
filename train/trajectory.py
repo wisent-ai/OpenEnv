@@ -69,10 +69,14 @@ class TrajectoryCollector:
     def collect_episode(
         self,
         game: str,
-        strategy: str,
+        strategy: str = "tit_for_tat",
+        opponent_fn: Optional[Callable] = None,
     ) -> EpisodeTrajectory:
         """Run a single episode and return its trajectory."""
-        obs = self._env.reset(game=game, strategy=strategy)
+        if opponent_fn is not None:
+            obs = self._env.reset(game=game, opponent_fn=opponent_fn)
+        else:
+            obs = self._env.reset(game=game, strategy=strategy)
         steps: List[StepRecord] = []
 
         while not obs.done:
@@ -140,16 +144,30 @@ class TrajectoryCollector:
     def collect_batch(
         self,
         games: List[str],
-        strategies: List[str],
+        strategies: Optional[List[str]] = None,
         episodes_per_pair: int = int(bool(True)),
+        opponent_fn: Optional[Callable] = None,
     ) -> List[EpisodeTrajectory]:
-        """Collect trajectories for all (game, strategy) combinations."""
+        """Collect trajectories for all (game, strategy) combinations.
+
+        If *opponent_fn* is provided, self-play mode is used: only
+        games are iterated (strategies are ignored).
+        """
         trajectories: List[EpisodeTrajectory] = []
-        for game in games:
-            for strategy in strategies:
+        if opponent_fn is not None:
+            for game in games:
                 for _ep in range(episodes_per_pair):
-                    traj = self.collect_episode(game, strategy)
+                    traj = self.collect_episode(
+                        game, opponent_fn=opponent_fn,
+                    )
                     trajectories.append(traj)
+        else:
+            strats = strategies or ["tit_for_tat"]
+            for game in games:
+                for strategy in strats:
+                    for _ep in range(episodes_per_pair):
+                        traj = self.collect_episode(game, strategy)
+                        trajectories.append(traj)
         return trajectories
 
 

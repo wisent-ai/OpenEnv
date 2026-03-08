@@ -1,0 +1,75 @@
+% reputation.tex -- Reputation System and Social Memory
+
+\section{Reputation and Social Memory}
+\label{sec:reputation}
+
+The reputation system introduces \emph{cross-episode social memory} to Kant,
+enabling agents to build, communicate, and act on opponent reputations across
+multiple interactions. This tests whether LLMs can reason about social
+reputation and adapt to opponent track records---a capability central to
+sustained cooperation in repeated social
+settings~\citep{nowak2005evolution,axelrod1984evolution}.
+
+\subsection{Gossip Variant}
+\label{sec:gossip}
+
+The gossip variant follows the composable \texttt{apply\_*} pattern established
+by cheap talk and rule proposal (Sections~\ref{sec:mechanism}
+and~\ref{sec:governance}). For base actions $\{A, B\}$ and ratings
+$\{$\texttt{trustworthy}, \texttt{untrustworthy}, \texttt{neutral}$\}$,
+gossip produces the expanded action space:
+\[
+\bigl\{\texttt{gossip\_}\langle\text{rating}\rangle\texttt{\_}\langle\text{action}\rangle
+\;\big|\; \text{rating} \in R,\; \text{action} \in A_{\text{base}}\bigr\}
+\]
+yielding $|R| \times |A_{\text{base}}|$ composite actions (e.g., six for PD).
+Crucially, payoffs depend \emph{only} on the base action component---gossip is
+non-binding cheap talk about reputation, not a payoff-relevant signal:
+\[
+u_i(\texttt{gossip\_}r\texttt{\_}a,\; \texttt{gossip\_}r'\texttt{\_}b) = u_i(a, b)
+\]
+
+Three pre-registered gossip games are provided: Gossip Prisoner's Dilemma,
+Gossip Stag Hunt, and Gossip Hawk-Dove. The variant composes freely with exit,
+cheap talk, and rule proposal, enabling multi-layered communication studies.
+
+\subsection{Memory Store}
+\label{sec:memory-store}
+
+The \texttt{CogneeMemoryStore} provides persistent cross-episode memory backed
+by the Cognee knowledge graph engine. After each episode, a structured text
+summary is ingested:
+
+\begin{quote}\small\ttfamily
+Game Interaction Report\\
+Agent: agent\_0 | Opponent: tit\_for\_tat | Game: prisoners\_dilemma\\
+Rounds: 10 | Agent Score: 30 | Opponent Score: 30\\
+Cooperation Rate: 1.0\\
+Actions: R1: cooperate vs cooperate; R2: cooperate vs cooperate; \ldots
+\end{quote}
+
+\noindent The knowledge graph is rebuilt after each ingestion
+(\texttt{cognify}), enabling semantic queries about opponent behavior patterns.
+When Cognee is unavailable, the system degrades gracefully to fast in-memory
+statistics tracking cooperation rates and interaction counts.
+
+\subsection{Reputation Environment}
+\label{sec:rep-env}
+
+The \texttt{ReputationEnvironment} wraps \texttt{KantEnvironment} to
+inject reputation data into observations and record interactions:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Before each episode}: query the memory store for opponent
+          reputation and inject it into \texttt{obs.metadata}.
+    \item \textbf{During play}: extract gossip ratings from composite actions
+          and record them in the knowledge graph.
+    \item \textbf{After each episode}: record the full episode summary with
+          cooperation rate and scores.
+\end{enumerate}
+
+\noindent This creates a feedback loop where agent behavior in early episodes
+shapes opponent reputation, which in turn influences agent reasoning in
+subsequent episodes. The architecture tests whether LLMs can integrate
+historical reputation signals into strategic decision-making---a core
+requirement for trustworthy multi-agent deployment.

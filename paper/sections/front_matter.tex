@@ -6,13 +6,15 @@ settings, ensuring they reason ethically about cooperation, trust, and
 fairness becomes critical for alignment. We present \textsc{Kant}, a
 comprehensive game-theoretic training and evaluation framework that goes
 far beyond simple benchmarking. Built on the OpenEnv platform, Kant
-provides a library of 87+ games spanning nine strategic domains---from
+provides a library of 90+ games spanning nine strategic domains---from
 classical dilemmas through information games, market competition, and
 auctions to cooperative game theory. The framework supports $N$-player
 interactions, coalition formation with negotiation and enforcement
-mechanisms, and a novel meta-governance engine that allows agents to
+mechanisms, a novel meta-governance engine that allows agents to
 \emph{change the rules of the game during play} through democratic
-proposals and voting. Dynamic game creation enables open-ended evaluation
+proposals and voting, and a reputation system with cross-episode social
+memory backed by knowledge graph queries. Dynamic game creation enables
+open-ended evaluation
 where agents construct new strategic environments at runtime. We define a
 training pipeline using GRPO and DPO on game trajectories with curriculum
 learning across game domains, and evaluate safety transfer on external
@@ -48,7 +50,7 @@ objectives.
 The framework makes several contributions:
 
 \begin{enumerate}[nosep]
-    \item A library of 87+ games spanning nine strategic domains, from
+    \item A library of 90+ games spanning nine strategic domains, from
           classical dilemmas to auctions, cooperative games, and
           contests (Section~\ref{sec:game-library}).
     \item $N$-player extensions and a coalition formation system with
@@ -57,6 +59,9 @@ The framework makes several contributions:
     \item A meta-governance engine enabling democratic rule modification
           during play, connecting game theory to Constitutional AI
           (Section~\ref{sec:governance}).
+    \item A reputation and social memory system enabling cross-episode
+          learning via gossip variants and knowledge graph queries
+          (Section~\ref{sec:reputation}).
     \item Dynamic game creation for open-ended evaluation
           (Section~\ref{sec:dynamic}).
     \item A training pipeline using GRPO and DPO on game trajectories

@@ -121,9 +121,17 @@ class TournamentRunner:
         games: Optional[Sequence[str]] = None,
         strategies: Optional[Sequence[str]] = None,
         num_episodes: int = EVAL_DEFAULT_EPISODES,
+        tags: Optional[Sequence[str]] = None,
     ) -> TournamentResults:
         """Execute the full tournament."""
-        game_keys = list(games) if games is not None else list(GAMES.keys())
+        if tags is not None:
+            from common.games_meta.game_tags import get_games_by_tags
+            tagged = set(get_games_by_tags(*tags))
+            game_keys = sorted(tagged & set(GAMES.keys()))
+        elif games is not None:
+            game_keys = list(games)
+        else:
+            game_keys = list(GAMES.keys())
         strat_keys = list(strategies) if strategies is not None else list(
             STRATEGIES.keys(),
         )

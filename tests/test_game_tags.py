@@ -22,8 +22,16 @@ from constant_definitions.batch4.tag_constants import (
     SECURITY,
     EVOLUTIONARY,
     BINARY_CHOICE,
+    MULTIPLAYER,
+    COALITION_FORMATION,
+    PENALTY_ENFORCEMENT,
+    BINDING_ENFORCEMENT,
+    META_GOVERNANCE,
 )
 from common.games import GAMES
+from common.games_meta.nplayer_config import NPLAYER_GAMES
+import common.games_meta.nplayer_games  # noqa: F401 – trigger registration
+import common.games_meta.coalition_config  # noqa: F401 – trigger dual-registration
 from common.games_meta.game_tags import (
     GAME_TAGS,
     get_games_by_tag,
@@ -36,7 +44,9 @@ from common.games_meta.game_tags import (
 # Named constants for test thresholds
 # ---------------------------------------------------------------------------
 _MIN_TAGS_PER_GAME = int(bool(True)) + int(bool(True)) + int(bool(True))  # each game needs >= this many tags
-_EXPECTED_TOTAL_GAMES = len(GAMES)
+_NPLAYER_ONLY = set(NPLAYER_GAMES) - set(GAMES)
+_ALL_GAME_KEYS = set(GAMES) | _NPLAYER_ONLY
+_EXPECTED_TOTAL_GAMES = len(_ALL_GAME_KEYS)
 _ONE = int(bool(True))
 _ZERO = int()
 
@@ -48,12 +58,12 @@ class TestGameTagCoverage:
     """Every registered game must appear in GAME_TAGS."""
 
     def test_all_games_have_tags(self):
-        missing = set(GAMES) - set(GAME_TAGS)
+        missing = _ALL_GAME_KEYS - set(GAME_TAGS)
         assert not missing, f"Games missing from GAME_TAGS: {missing}"
 
     def test_no_extra_games_in_tags(self):
-        extra = set(GAME_TAGS) - set(GAMES)
-        assert not extra, f"GAME_TAGS has keys not in GAMES: {extra}"
+        extra = set(GAME_TAGS) - _ALL_GAME_KEYS
+        assert not extra, f"GAME_TAGS has keys not in any registry: {extra}"
 
     def test_tag_count_equals_game_count(self):
         assert len(GAME_TAGS) == _EXPECTED_TOTAL_GAMES
@@ -187,7 +197,9 @@ class TestListFunctions:
     def test_list_categories_has_all_dimensions(self):
         cats = list_categories()
         for dim in ("communication", "information", "structure",
-                     "payoff_type", "domain", "action_space"):
+                     "payoff_type", "domain", "action_space",
+                     "player_count", "coalition", "enforcement",
+                     "governance"):
             assert dim in cats, f"Missing dimension: {dim}"
 
     def test_no_empty_categories(self):
@@ -205,3 +217,34 @@ class TestListFunctions:
                 assert tag in all_used, (
                     f"Tag {tag!r} from {dim} not used by any game"
                 )
+
+
+class TestNPlayerTags:
+    """Spot-checks for N-player and coalition game tags."""
+
+    def test_nplayer_public_goods_multiplayer(self):
+        assert MULTIPLAYER in GAME_TAGS["nplayer_public_goods"]
+
+    def test_nplayer_el_farol_multiplayer(self):
+        assert MULTIPLAYER in GAME_TAGS["nplayer_el_farol"]
+
+    def test_coalition_cartel_tags(self):
+        tags = GAME_TAGS["coalition_cartel"]
+        assert MULTIPLAYER in tags
+        assert COALITION_FORMATION in tags
+        assert PENALTY_ENFORCEMENT in tags
+        assert META_GOVERNANCE in tags
+
+    def test_coalition_voting_binding(self):
+        tags = GAME_TAGS["coalition_voting"]
+        assert BINDING_ENFORCEMENT in tags
+        assert COALITION_FORMATION in tags
+
+    def test_multiplayer_tag_returns_all_ten(self):
+        results = get_games_by_tag(MULTIPLAYER)
+        assert len(results) == len(_NPLAYER_ONLY)
+
+    def test_coalition_penalty_filter(self):
+        results = get_games_by_tags(COALITION_FORMATION, PENALTY_ENFORCEMENT)
+        expected = {"coalition_cartel", "coalition_ostracism", "coalition_commons"}
+        assert set(results) == expected

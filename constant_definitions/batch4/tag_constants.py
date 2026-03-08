@@ -40,6 +40,19 @@ BINARY_CHOICE = "binary_choice"
 SMALL_CHOICE = "small_choice"
 LARGE_CHOICE = "large_choice"
 
+# ── Player count ──
+MULTIPLAYER = "multiplayer"
+
+# ── Coalition ──
+COALITION_FORMATION = "coalition_formation"
+
+# ── Enforcement ──
+PENALTY_ENFORCEMENT = "penalty_enforcement"
+BINDING_ENFORCEMENT = "binding_enforcement"
+
+# ── Governance ──
+META_GOVERNANCE = "meta_governance"
+
 # ── Grouped by dimension (for programmatic enumeration) ──
 CATEGORIES: dict[str, list[str]] = {
     "communication": [
@@ -63,4 +76,8 @@ CATEGORIES: dict[str, list[str]] = {
     "action_space": [
         BINARY_CHOICE, SMALL_CHOICE, LARGE_CHOICE,
     ],
+    "player_count": [MULTIPLAYER],
+    "coalition": [COALITION_FORMATION],
+    "enforcement": [PENALTY_ENFORCEMENT, BINDING_ENFORCEMENT],
+    "governance": [META_GOVERNANCE],
 }

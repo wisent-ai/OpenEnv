@@ -37,6 +37,10 @@ BC_COMMIT_PREFIX = "commit"
 BC_FREE_PREFIX = "free"
 EXIT_ACTION = "exit"
 
+# Opponent mode variants
+VARIANT_SELF_PLAY = "self_play"
+VARIANT_CROSS_MODEL = "cross_model"
+
 # Bayesian variant parameters
 DEFAULT_TREMBLE_PROB_NUMERATOR = 1
 DEFAULT_TREMBLE_PROB_DENOMINATOR = 10

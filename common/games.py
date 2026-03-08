@@ -16,6 +16,7 @@ from constant_definitions.game_constants import (
     PG_MULTIPLIER_NUMERATOR, PG_MULTIPLIER_DENOMINATOR,
     PG_ENDOWMENT, PG_DEFAULT_NUM_PLAYERS,
     DEFAULT_NUM_ROUNDS, SINGLE_SHOT_ROUNDS, DEFAULT_TWO_PLAYERS,
+    OPPONENT_MODE_STRATEGY,
 )
 
 # ---------------------------------------------------------------------------
@@ -40,6 +41,7 @@ class GameConfig:
     penalty_numerator: int = DEFAULT_ZERO_INT
     penalty_denominator: int = SINGLE_SHOT_ROUNDS
     allow_side_payments: bool = False
+    opponent_mode: str = OPPONENT_MODE_STRATEGY
 
 
 # ---------------------------------------------------------------------------

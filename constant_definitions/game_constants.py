@@ -72,6 +72,11 @@ SERVER_PORT = 8000
 # Max concurrent environments
 MAX_CONCURRENT_ENVS = 1
 
+# --- Opponent mode ---
+OPPONENT_MODE_STRATEGY = "strategy"
+OPPONENT_MODE_SELF = "self_play"
+OPPONENT_MODE_CROSS = "cross_model"
+
 # --- Evaluation module constants ---
 EVAL_ZERO = 0
 EVAL_ONE = 1

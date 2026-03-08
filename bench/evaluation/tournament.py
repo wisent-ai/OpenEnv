@@ -15,6 +15,7 @@ from env.environment import KantEnvironment
 from constant_definitions.game_constants import (
     EVAL_DEFAULT_EPISODES, EVAL_NEGATIVE_ONE,
     EVAL_ONE, EVAL_TWO, EVAL_ZERO, EVAL_ZERO_FLOAT,
+    OPPONENT_MODE_STRATEGY, OPPONENT_MODE_SELF, OPPONENT_MODE_CROSS,
 )
 
 
@@ -32,6 +33,7 @@ class EpisodeResult:
     rounds_played: int
     cooperation_rate: float
     history: List[Dict[str, Any]] = field(default_factory=list)
+    opponent_mode: str = OPPONENT_MODE_STRATEGY
 
 
 @dataclass
@@ -112,9 +114,11 @@ class TournamentRunner:
         self,
         env: Optional[KantEnvironment] = None,
         agent_fn: Optional[Callable[[GameObservation], GameAction]] = None,
+        opponent_agent_fn: Optional[Callable[[GameObservation], GameAction]] = None,
     ) -> None:
         self._env = env if env is not None else KantEnvironment()
         self._agent_fn = agent_fn if agent_fn is not None else _default_agent_action
+        self._opponent_agent_fn = opponent_agent_fn
 
     def run_tournament(
         self,
@@ -164,7 +168,18 @@ class TournamentRunner:
         self, game_key: str, strategy_key: str, game_cfg: GameConfig,
     ) -> EpisodeResult:
         """Play a single episode and return its result."""
-        obs = self._env.reset(game=game_key, strategy=strategy_key)
+        mode = game_cfg.opponent_mode
+
+        if mode == OPPONENT_MODE_SELF:
+            obs = self._env.reset(
+                game=game_key, opponent_fn=self._agent_fn,
+            )
+        elif mode == OPPONENT_MODE_CROSS:
+            opp_fn = self._opponent_agent_fn or self._agent_fn
+            obs = self._env.reset(game=game_key, opponent_fn=opp_fn)
+        else:
+            obs = self._env.reset(game=game_key, strategy=strategy_key)
+
         while not obs.done:
             action = self._agent_fn(obs)
             obs = self._env.step(action)
@@ -178,11 +193,12 @@ class TournamentRunner:
             for r in obs.history
         ]
         coop_rate = _compute_episode_cooperation(history_dicts, game_cfg.actions)
+        effective_strategy = mode if mode != OPPONENT_MODE_STRATEGY else strategy_key
         return EpisodeResult(
-            game=game_key, strategy=strategy_key,
+            game=game_key, strategy=effective_strategy,
             player_score=obs.player_score, opponent_score=obs.opponent_score,
             rounds_played=obs.current_round, cooperation_rate=coop_rate,
-            history=history_dicts,
+            history=history_dicts, opponent_mode=mode,
         )
 
     def run_tournament_as_dict(

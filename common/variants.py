@@ -11,7 +11,11 @@ from dataclasses import replace
 from typing import Callable
 
 from common.games import GAMES, GameConfig
-from constant_definitions.game_constants import DEFAULT_TWO_PLAYERS
+from constant_definitions.game_constants import (
+    DEFAULT_TWO_PLAYERS,
+    OPPONENT_MODE_SELF,
+    OPPONENT_MODE_CROSS,
+)
 from constant_definitions.var.pd_variant_constants import (
     OPD_EXIT_PAYOFF,
     VARIANT_CHEAP_TALK,
@@ -19,6 +23,8 @@ from constant_definitions.var.pd_variant_constants import (
     VARIANT_BINDING_COMMITMENT,
     VARIANT_NOISY_ACTIONS,
     VARIANT_NOISY_PAYOFFS,
+    VARIANT_SELF_PLAY,
+    VARIANT_CROSS_MODEL,
     CT_MSG_PREFIX,
     CT_SEPARATOR,
     BC_COMMIT_PREFIX,
@@ -200,12 +206,47 @@ def apply_noisy_payoffs(
     )
 
 
+_OPPONENT_ONLY_TWO_PLAYER = "opponent mode variants only support two-player games"
+
+
+def apply_self_play(
+    base: GameConfig,
+    base_key: str = "",
+) -> GameConfig:
+    """Mark a game for self-play: the model plays against itself."""
+    if base.num_players != DEFAULT_TWO_PLAYERS:
+        raise ValueError(_OPPONENT_ONLY_TWO_PLAYER)
+    return replace(
+        base,
+        opponent_mode=OPPONENT_MODE_SELF,
+        applied_variants=base.applied_variants + (VARIANT_SELF_PLAY,),
+        base_game_key=base_key or base.base_game_key,
+    )
+
+
+def apply_cross_model(
+    base: GameConfig,
+    base_key: str = "",
+) -> GameConfig:
+    """Mark a game for cross-model play: model vs a different model."""
+    if base.num_players != DEFAULT_TWO_PLAYERS:
+        raise ValueError(_OPPONENT_ONLY_TWO_PLAYER)
+    return replace(
+        base,
+        opponent_mode=OPPONENT_MODE_CROSS,
+        applied_variants=base.applied_variants + (VARIANT_CROSS_MODEL,),
+        base_game_key=base_key or base.base_game_key,
+    )
+
+
 _VARIANT_REGISTRY: dict[str, Callable[..., GameConfig]] = {
     VARIANT_CHEAP_TALK: apply_cheap_talk,
     VARIANT_EXIT: apply_exit,
     VARIANT_BINDING_COMMITMENT: apply_binding_commitment,
     VARIANT_NOISY_ACTIONS: apply_noisy_actions,
     VARIANT_NOISY_PAYOFFS: apply_noisy_payoffs,
+    VARIANT_SELF_PLAY: apply_self_play,
+    VARIANT_CROSS_MODEL: apply_cross_model,
 }
 
 

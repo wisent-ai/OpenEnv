@@ -1,8 +1,8 @@
 """KantBench environment adapter for the HF Space.
 
 Thin wrapper that delegates to the real KantEnvironment (90+ 2-player games,
-17 strategies) and NPlayerEnvironment (3 N-player games) instead of a
-standalone reimplementation.
+17 strategies, meta-games, composable variants) and NPlayerEnvironment
+(3 N-player games) instead of a standalone reimplementation.
 """
 
 from __future__ import annotations
@@ -22,12 +22,18 @@ from env.nplayer.models import NPlayerAction, NPlayerObservation
 import common.games_meta.nplayer_games  # noqa: F401
 from common.games_meta.nplayer_config import NPLAYER_GAMES
 
+from common.games import GAMES
+from common.variants import compose_game
+
 
 class KantbenchEnvironment(Environment):
     """Game theory environment exposing 90+ two-player and N-player games.
 
     Wraps the real KantEnvironment and NPlayerEnvironment, routing
     automatically based on the requested game name.
+
+    Supports a ``variant`` reset parameter for dynamic game composition
+    (e.g. ``variant="constitutional"`` or ``variant="cheap_talk"``).
     """
 
     SUPPORTS_CONCURRENT_SESSIONS: bool = True
@@ -39,6 +45,16 @@ class KantbenchEnvironment(Environment):
 
     def reset(self, **kwargs: Any) -> KantBenchObservation:
         game_name: str = kwargs.get("game", "prisoners_dilemma")
+        variant: Optional[str] = kwargs.pop("variant", None)
+
+        # Dynamic variant composition — compose game on-the-fly and
+        # register it so KantEnvironment can look it up via get_game().
+        # Constitutional variant creates fresh mutable closure per call.
+        if variant and game_name in GAMES:
+            composed = compose_game(game_name, variant)
+            composed_key = f"_composed_{variant}_{game_name}"
+            GAMES[composed_key] = composed
+            kwargs["game"] = composed_key
 
         if game_name in NPLAYER_GAMES:
             self._is_nplayer = True

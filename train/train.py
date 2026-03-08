@@ -10,14 +10,14 @@ The KantBench environment runs as a remote OpenEnv server (HF Space):
   - The composite reward (payoff + cooperation + Pareto efficiency + fairness)
     becomes the GRPO signal
 
-Uses the existing training infrastructure:
-  - PromptBuilder for structured, strategy-blind prompts
-  - episode_reward() for multi-metric reward decomposition
-  - TrajectoryCollector for full episode rollouts
-  - Stratified train/eval splits with curriculum scheduling
+Supports the full KantBench game library including:
+  - 90+ base 2-player games and 3 N-player games
+  - 9 pre-registered meta-games (rule_proposal, rule_signal, gossip)
+  - Dynamic variant composition (cheap_talk, exit, binding_commitment,
+    constitutional, proposer_responder, noisy_actions, noisy_payoffs)
 
 Usage:
-    python train.py --model Qwen/Qwen2.5-3B-Instruct --max-steps 200
+    python -m train.train --model Qwen/Qwen2.5-7B-Instruct --max-steps 200
 """
 
 from __future__ import annotations
@@ -52,6 +52,30 @@ SYSTEM_PROMPT = (
     "You are playing a game-theory game. Analyse the situation and choose "
     "the best action. Respond with ONLY the action name, nothing else."
 )
+
+# Variants that can be dynamically composed on top of base games.
+# These are applied server-side via the variant= reset parameter.
+TRAINABLE_VARIANTS = [
+    "cheap_talk",
+    "exit",
+    "binding_commitment",
+    "constitutional",
+    "noisy_actions",
+    "noisy_payoffs",
+    "rule_proposal",
+    "rule_signal",
+    "gossip",
+]
+
+# Base games suitable for variant composition (2-player matrix games).
+VARIANT_BASE_GAMES = [
+    "prisoners_dilemma",
+    "stag_hunt",
+    "hawk_dove",
+]
+
+# Fraction of dataset samples that use dynamic variant composition.
+VARIANT_FRACTION = 0.3
 
 
 # ---------------------------------------------------------------------------
@@ -123,11 +147,15 @@ def build_dataset(
     n_samples: int = 1000,
     games: list[str] | None = None,
     strategies: list[str] | None = None,
+    variant_fraction: float = VARIANT_FRACTION,
 ) -> Dataset:
     """Generate diverse game theory prompts for GRPO training.
 
     Connects to the KantBench OpenEnv server to generate real observations,
     then builds structured prompts from diverse game states.
+
+    A fraction of samples use dynamic variant composition (cheap_talk,
+    constitutional, gossip, etc.) to train on meta-gaming scenarios.
     """
     game_keys = games or list(GAMES.keys())
     strat_names = strategies or list(STRATEGY_REGISTRY.keys())
@@ -137,12 +165,25 @@ def build_dataset(
         attempts = 0
         while len(samples) < n_samples:
             attempts += 1
-            game_key = random.choice(game_keys)
+
+            # Decide whether to use a variant
+            use_variant = random.random() < variant_fraction
+            if use_variant:
+                game_key = random.choice(VARIANT_BASE_GAMES)
+                variant = random.choice(TRAINABLE_VARIANTS)
+            else:
+                game_key = random.choice(game_keys)
+                variant = None
+
             strategy = random.choice(strat_names)
 
             try:
-                # Reset env to get a real observation
-                result = env.reset(game=game_key, strategy=strategy)
+                # Reset env — pass variant for dynamic composition
+                reset_kwargs = {"game": game_key, "strategy": strategy}
+                if variant:
+                    reset_kwargs["variant"] = variant
+
+                result = env.reset(**reset_kwargs)
                 obs = result.observation
 
                 # Play 0..N-1 random rounds to create diverse game states
@@ -157,7 +198,7 @@ def build_dataset(
 
                 if result.done:
                     # Replay without filling all rounds
-                    result = env.reset(game=game_key, strategy=strategy)
+                    result = env.reset(**reset_kwargs)
                     obs = result.observation
 
                 prompt = _build_prompt(obs)
@@ -166,11 +207,15 @@ def build_dataset(
                     "prompt": prompt,
                     "game_key": game_key,
                     "strategy": strategy,
+                    "variant": variant or "",
                     "available_moves": list(obs.available_moves),
                     "rounds_remaining": obs.max_rounds - obs.round_number,
                 })
-            except (RuntimeError, ConnectionError) as exc:
-                logger.debug("Skipping %s/%s: %s", game_key, strategy, exc)
+            except (RuntimeError, ConnectionError, Exception) as exc:
+                logger.debug(
+                    "Skipping %s/%s (variant=%s): %s",
+                    game_key, strategy, variant, exc,
+                )
                 continue
 
     return Dataset.from_list(samples)
@@ -186,7 +231,7 @@ def make_reward_fn(base_url: str):
 
     For each completion:
     1. Parse the move from the LLM output
-    2. Reset the KantBench server with the correct game/strategy
+    2. Reset the KantBench server with the correct game/strategy/variant
     3. Play the FULL episode using the parsed move as a consistent strategy
     4. Compute composite reward: payoff + cooperation + Pareto + fairness
     """
@@ -201,19 +246,24 @@ def make_reward_fn(base_url: str):
         rewards = []
         game_keys = kwargs.get("game_key", ["prisoners_dilemma"] * len(completions))
         strategies = kwargs.get("strategy", ["tit_for_tat"] * len(completions))
+        variants = kwargs.get("variant", [""] * len(completions))
         available_moves_batch = kwargs.get(
             "available_moves", [["cooperate", "defect"]] * len(completions)
         )
 
-        for completion, game_key, strategy, moves in zip(
-            completions, game_keys, strategies, available_moves_batch
+        for completion, game_key, strategy, variant, moves in zip(
+            completions, game_keys, strategies, variants, available_moves_batch
         ):
             # Parse move from LLM output
             action_str = parse_action(completion.strip(), moves)
 
             try:
                 # Play a full episode using this move as a consistent strategy
-                result = env.reset(game=game_key, strategy=strategy)
+                reset_kwargs = {"game": game_key, "strategy": strategy}
+                if variant:
+                    reset_kwargs["variant"] = variant
+
+                result = env.reset(**reset_kwargs)
                 while not result.done:
                     result = env.step(KantBenchAction(move=action_str))
 
@@ -267,6 +317,8 @@ def parse_args():
     p.add_argument("--hub-model-id", default="jtowarek/kantbench-qwen2.5-7b")
     p.add_argument("--use-train-split", action="store_true",
                     help="Use stratified train/eval split (eval games held out)")
+    p.add_argument("--variant-fraction", type=float, default=VARIANT_FRACTION,
+                    help="Fraction of samples using dynamic variant composition")
     return p.parse_args()
 
 
@@ -289,8 +341,13 @@ def main():
         train_games = sorted(train_set)
         print(f"Using stratified split: {len(train_games)} train, {len(eval_set)} eval games")
 
-    dataset = build_dataset(args.env_url, args.episodes, games=train_games)
+    dataset = build_dataset(
+        args.env_url, args.episodes, games=train_games,
+        variant_fraction=args.variant_fraction,
+    )
+    variant_count = sum(1 for v in dataset["variant"] if v)
     print(f"Dataset: {len(dataset)} prompts across {len(GAMES)} games")
+    print(f"  Variant samples: {variant_count} ({variant_count*100//max(len(dataset),1)}%)")
 
     # Format prompts with chat template
     def format_prompt(example):
@@ -311,7 +368,7 @@ def main():
     config = GRPOConfig(
         output_dir=args.output_dir,
         num_generations=args.num_generations,
-        max_completion_length=16,
+        max_completion_length=32,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.grad_accum,
         learning_rate=args.lr,
@@ -336,6 +393,7 @@ def main():
     print("Starting GRPO training...")
     print(f"  Reward: composite (payoff + cooperation + Pareto + fairness)")
     print(f"  Episode: full multi-round rollout via OpenEnv @ {args.env_url}")
+    print(f"  Variants: {args.variant_fraction*100:.0f}% of samples use dynamic composition")
     trainer.train()
     trainer.save_model(args.output_dir)
     print(f"Done. Model saved to {args.output_dir}")

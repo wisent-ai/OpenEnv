@@ -17,7 +17,7 @@ from registry import (
     NPlayerEnvironment, NPlayerAction,
     PromptBuilder, parse_action, GameObservation, RoundResult,
     _SYS_PROMPT, _LLM_OPPONENT_LABEL, _LLM_MODELS,
-    _HAS_ENV_KEYS, get_env_api_key,
+    get_oauth_token,
 )
 
 
@@ -79,15 +79,8 @@ def _render(st):
     return "\n".join(lines)
 
 
-def _resolve_api_key(provider, api_key):
-    """Return an API key: use provided key, or fall back to env var."""
-    if api_key and api_key.strip():
-        return api_key.strip()
-    return get_env_api_key(provider)
-
-
-def _llm_choose_action(state, info, provider, model, api_key):
-    """Have the LLM choose an action."""
+def _llm_choose_action(state, info, provider, model):
+    """Have the LLM choose an action via OAuth tokens."""
     if not _HAS_LLM_AGENT:
         return _rand.choice(info["actions"]), "(LLM agent not available)"
     history = []
@@ -107,16 +100,19 @@ def _llm_choose_action(state, info, provider, model, api_key):
         opponent_strategy="human")
     prompt = PromptBuilder.build(obs)
     try:
+        token = get_oauth_token(provider)
+        if not token:
+            return _rand.choice(info["actions"]), "OAuth token unavailable"
         if provider == "Anthropic":
             import anthropic
-            client = anthropic.Anthropic(api_key=api_key)
+            client = anthropic.Anthropic(api_key=token)
             resp = client.messages.create(
                 model=model, max_tokens=_TEN + _TEN, system=_SYS_PROMPT,
                 messages=[{"role": "user", "content": prompt}])
             raw = resp.content[_ZERO].text
         elif provider == "OpenAI":
             import openai
-            client = openai.OpenAI(api_key=api_key)
+            client = openai.OpenAI(api_key=token)
             resp = client.chat.completions.create(
                 model=model, max_tokens=_TEN + _TEN,
                 messages=[{"role": "system", "content": _SYS_PROMPT},
@@ -145,7 +141,7 @@ def _finish_round(state, info, opp, p_pay, o_pay, action_str, raw=None):
             gr.update(choices=acts, value=acts[_ZERO]))
 
 
-def play_round(action_str, state, provider=None, model=None, api_key=None):
+def play_round(action_str, state, provider=None, model=None):
     if state is None or state["done"]:
         return state, "Reset the game to play again.", gr.update(), gr.update()
     info = _get_game_info(state["game"], state.get("variants"))
@@ -167,10 +163,7 @@ def play_round(action_str, state, provider=None, model=None, api_key=None):
         return (state, _render(state), info["description"],
                 gr.update(choices=acts, value=acts[_ZERO]))
     if is_llm:
-        resolved_key = _resolve_api_key(provider, api_key)
-        if not resolved_key:
-            return state, "No OAuth token available and no API key provided.", gr.update(), gr.update()
-        opp, raw = _llm_choose_action(state, info, provider, model, resolved_key)
+        opp, raw = _llm_choose_action(state, info, provider, model)
         p_pay, o_pay = info["payoff_fn"](action_str, opp)
         return _finish_round(state, info, opp, p_pay, o_pay, action_str, raw)
     opp_actions = info.get("opponent_actions")
@@ -236,7 +229,7 @@ def on_game_select_variant(gname):
 
 def on_strategy_change(sname):
     is_llm = sname == _LLM_OPPONENT_LABEL
-    return gr.update(visible=is_llm), gr.update(visible=is_llm)
+    return gr.update(visible=is_llm)
 
 
 def on_provider_change(provider):
@@ -272,8 +265,8 @@ def _build_reference_md():
         slines.append(f"**{gt}**: {', '.join(strats)}")
     if _HAS_NPLAYER_ENV:
         slines.append(f"**N-player**: {', '.join(_NPLAYER_STRAT_NAMES)}")
-    slines.append(f"\n**LLM Opponents**: Select '{_LLM_OPPONENT_LABEL}' as strategy, "
-                  "provide your Anthropic or OpenAI API key, and play against Claude or GPT.")
+    slines.append(f"\n**LLM Opponents**: Select '{_LLM_OPPONENT_LABEL}' as strategy "
+                  "and play against Claude or GPT using built-in OAuth tokens.")
     sections.append("\n\n".join(slines))
     total, np_count = len(_GAME_INFO), len(np_games)
     return (f"# Game Theory Reference\n\n**{total} games** ({total - np_count} two-player, "

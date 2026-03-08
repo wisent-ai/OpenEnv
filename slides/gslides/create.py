@@ -49,6 +49,7 @@ RED = RGBColor(RED_R, RED_G, RED_B)
 PURPLE = RGBColor(PURPLE_R, PURPLE_G, PURPLE_B)
 LEGEND = RGBColor(LEGEND_R, LEGEND_G, LEGEND_B)
 WHITE = RGBColor(WHITE_VAL, WHITE_VAL, WHITE_VAL)
+GRID = RGBColor(GRID_R, GRID_G, GRID_B)
 COLOR_MAP = {"accent": ACCENT, "red": RED, "purple": PURPLE}
 ZERO = PT_LABEL - PT_LABEL
 
@@ -224,11 +225,45 @@ def build_closing(prs, sd):
              POS_FOUR, POS_ONE, PT_SMALL, LEGEND, align=PP_ALIGN.CENTER)
 
 
+def _style_cell(cell, text, color, bold=False):
+    cell.text = text
+    for p in cell.text_frame.paragraphs:
+        p.font.size, p.font.color.rgb, p.font.bold = Pt(PT_BODY), color, bold
+        p.font.name, p.alignment = FONT_NAME, PP_ALIGN.CENTER
+    cell.fill.solid()
+    cell.fill.fore_color.rgb = GRID
+
+
+def build_payoff_table(prs, sd):
+    slide = prs.slides.add_slide(prs.slide_layouts[ZERO])
+    set_bg(slide)
+    add_text(slide, sd["title"], TITLE_X, TITLE_Y, TITLE_W, TITLE_H,
+             PT_TITLE, ACCENT, bold=True)
+    add_text(slide, sd["col_label"], POS_TWO + POS_ONE, POS_ONE,
+             POS_FOUR, POS_HALF, PT_BODY, LEGEND, align=PP_ALIGN.CENTER)
+    add_text(slide, sd["row_label"], POS_HALF, POS_TWO + POS_HALF,
+             POS_ONE_HALF, POS_HALF, PT_BODY, LEGEND, align=PP_ALIGN.CENTER)
+    hdrs, rows = sd["headers"], sd["rows"]
+    tbl = slide.shapes.add_table(
+        len(rows) + len([hdrs]), len(hdrs), Inches(POS_TWO),
+        Inches(POS_ONE_HALF), Inches(POS_FIVE), Inches(POS_TWO)).table
+    for ci, h in enumerate(hdrs):
+        _style_cell(tbl.cell(ZERO, ci), h, ACCENT, bold=True)
+    for ri, row in enumerate(rows):
+        for ci, val in enumerate(row):
+            _style_cell(tbl.cell(ri + len([hdrs]), ci), val,
+                        ACCENT if ci == ZERO else WHITE, bold=(ci == ZERO))
+    if sd.get("caption"):
+        add_text(slide, sd["caption"], POS_HALF, POS_THREE + POS_ONE,
+                 POS_EIGHT + POS_ONE, POS_ONE, PT_SMALL, LEGEND)
+
+
 BUILDERS = {
     "title": build_title, "center_text": build_center_text,
     "three_stats": build_three_stats, "two_col_text": build_two_col_text,
     "figure": build_figure, "two_col_image": build_two_col_image,
     "team": build_team, "closing": build_closing,
+    "payoff_table": build_payoff_table,
 }
 
 
@@ -244,16 +279,13 @@ def main():
             builder(prs, sd)
     prs.save(str(OUT_PATH))
     print(f"Saved PPTX: {OUT_PATH}")
-    print("Uploading to Google Drive as Google Slides...")
+    print("Updating existing Google Slides presentation...")
     creds = get_credentials()
     drive = build("drive", "v3", credentials=creds)
     media = MediaFileUpload(str(OUT_PATH), resumable=True)
-    meta = {
-        "name": "Kant - Hackathon Slides",
-        "mimeType": "application/vnd.google-apps.presentation",
-    }
-    result = drive.files().create(
-        body=meta, media_body=media, fields="id,webViewLink").execute()
+    file_id = "1sXyiZMKYbTwp6CK6VbSBF9ZvzUHweHvmpxfb34yVZQs"
+    result = drive.files().update(
+        fileId=file_id, media_body=media, fields="id,webViewLink").execute()
     print(f"Google Slides: {result.get('webViewLink')}")
 
 

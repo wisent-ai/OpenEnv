@@ -8,7 +8,6 @@ from registry import (
     _HUMAN_VARIANTS, _HAS_VARIANTS,
     _strategies_for_game,
     _MP_FILTERS, _MP_FILTER_ALL,
-    _HAS_LLM_AGENT, _HAS_ENV_KEYS,
     _LLM_PROVIDERS, _LLM_MODELS, _LLM_OPPONENT_LABEL,
 )
 from llm_arena import run_infinite_tournament
@@ -68,12 +67,6 @@ with gr.Blocks(title="Kant Demo") as demo:
                     value=_LLM_MODELS[_LLM_PROVIDERS[_ZERO]][_ZERO],
                     label="Model",
                 )
-            with gr.Row(visible=False) as api_key_row:
-                api_key_input = gr.Textbox(
-                    label="API Key (optional)" if _HAS_ENV_KEYS else "API Key",
-                    type="password",
-                    placeholder="Leave blank to use server key" if _HAS_ENV_KEYS else "Enter your Anthropic or OpenAI API key",
-                )
 
             if _HUMAN_VARIANTS:
                 variant_cb = gr.CheckboxGroup(
@@ -92,7 +85,7 @@ with gr.Blocks(title="Kant Demo") as demo:
             cat_dd.change(on_category_change, inputs=[cat_dd, mp_dd], outputs=[game_dd])
             mp_dd.change(on_mp_filter_change, inputs=[mp_dd, cat_dd], outputs=[game_dd])
             play_btn.click(play_round,
-                           inputs=[action_dd, state_var, llm_provider, llm_model, api_key_input],
+                           inputs=[action_dd, state_var, llm_provider, llm_model],
                            outputs=_reset_out)
             reset_btn.click(reset_game, inputs=[game_dd, strat_dd, variant_cb],
                             outputs=_reset_out)
@@ -105,7 +98,7 @@ with gr.Blocks(title="Kant Demo") as demo:
             strat_dd.change(on_game_change, inputs=[game_dd, strat_dd, variant_cb],
                             outputs=_reset_out)
             strat_dd.change(on_strategy_change, inputs=[strat_dd],
-                            outputs=[llm_config_row, api_key_row])
+                            outputs=[llm_config_row])
             llm_provider.change(on_provider_change, inputs=[llm_provider],
                                 outputs=[llm_model])
             variant_cb.change(on_game_change, inputs=[game_dd, strat_dd, variant_cb],
@@ -114,18 +107,11 @@ with gr.Blocks(title="Kant Demo") as demo:
         if _INF_GAME in _GAME_INFO and _HAS_VARIANTS and _ALL_LLM_MODELS:
             with gr.TabItem("Infinite Mode"):
                 gr.Markdown(
-                    "**Infinite LLM Tournament.** "
-                    "Models compete in an endless round-robin Constitutional "
-                    "Discounted PD with rule negotiation, exit option, payoff "
-                    "noise, and action trembles. Runs forever until you stop it."
+                    "**LLM Tournament: Constitutional Discounted PD.** "
+                    "Select models and watch them compete "
+                    "in a round-robin. Each match uses constitutional rule "
+                    "negotiation, exit option, payoff noise, and action trembles."
                 )
-                with gr.Row(visible=not _HAS_ENV_KEYS):
-                    arena_anthro_key = gr.Textbox(
-                        label="Anthropic API Key", type="password",
-                        placeholder="sk-ant-...")
-                    arena_openai_key = gr.Textbox(
-                        label="OpenAI API Key", type="password",
-                        placeholder="sk-...")
                 arena_models = gr.CheckboxGroup(
                     _ALL_LLM_MODELS, value=_ALL_LLM_MODELS[:_TWO],
                     label="Select Models for Tournament")
@@ -134,15 +120,14 @@ with gr.Blocks(title="Kant Demo") as demo:
                     arena_stop = gr.Button("Stop", variant="stop")
                 arena_md = gr.Markdown("Select models and click Start.")
 
-                def _run_infinite(models, anthro_key, openai_key):
+                def _run_infinite(models):
                     for md in run_infinite_tournament(
-                            _INF_GAME, _INF_VARIANTS,
-                            models, anthro_key, openai_key):
+                            _INF_GAME, _INF_VARIANTS, models):
                         yield md
 
                 start_event = arena_start.click(
                     _run_infinite,
-                    inputs=[arena_models, arena_anthro_key, arena_openai_key],
+                    inputs=[arena_models],
                     outputs=[arena_md])
                 arena_stop.click(None, cancels=[start_event])
 

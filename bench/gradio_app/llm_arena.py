@@ -6,7 +6,7 @@ from registry import (
     _ZERO, _ONE, _TWO, _TEN,
     _HAS_LLM_AGENT, _LLM_MODELS,
     PromptBuilder, parse_action, GameObservation, RoundResult,
-    _SYS_PROMPT, get_env_api_key,
+    _SYS_PROMPT, get_oauth_token,
 )
 from callbacks import _get_game_info
 
@@ -23,18 +23,21 @@ _HDR_ROUND = (f"| Round | P{_ONE} Action | P{_TWO} Action "
 _SEP_ROUND = "|-------|-----------|-----------|--------|--------|"
 
 
-def _call_llm(provider, model, prompt, api_key):
-    """Call an LLM provider and return raw text."""
+def _call_llm(provider, model, prompt):
+    """Call an LLM provider using OAuth tokens and return raw text."""
+    token = get_oauth_token(provider)
+    if not token:
+        raise RuntimeError(f"OAuth token unavailable for {provider}")
     if provider == "Anthropic":
         import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
+        client = anthropic.Anthropic(api_key=token)
         resp = client.messages.create(
             model=model, max_tokens=_MAX_TOKENS, system=_SYS_PROMPT,
             messages=[{"role": "user", "content": prompt}])
         return resp.content[_ZERO].text
     if provider == "OpenAI":
         import openai
-        client = openai.OpenAI(api_key=api_key)
+        client = openai.OpenAI(api_key=token)
         resp = client.chat.completions.create(
             model=model, max_tokens=_MAX_TOKENS,
             messages=[{"role": "system", "content": _SYS_PROMPT},
@@ -68,30 +71,17 @@ def _model_provider(model_name):
     return "Anthropic"
 
 
-def _resolve_key(provider, manual_key):
-    """Use manual key if provided, otherwise try env var."""
-    if manual_key and manual_key.strip():
-        return manual_key.strip()
-    return get_env_api_key(provider)
-
-
-def _init_matchups(models, anthropic_key, openai_key):
+def _init_matchups(models):
     """Build initial matchup state for all pairs."""
     matchups = []
     for i in range(len(models)):
         for j in range(i + _ONE, len(models)):
             p1, p2 = models[i], models[j]
             p1_prov, p2_prov = _model_provider(p1), _model_provider(p2)
-            p1_key = _resolve_key(p1_prov,
-                                  anthropic_key if p1_prov == "Anthropic" else openai_key)
-            p2_key = _resolve_key(p2_prov,
-                                  anthropic_key if p2_prov == "Anthropic" else openai_key)
-            if not p1_key or not p2_key:
-                continue
             matchups.append({
                 "p1_label": f"{p1_prov}/{p1}", "p2_label": f"{p2_prov}/{p2}",
-                "p1_prov": p1_prov, "p1_model": p1, "p1_key": p1_key,
-                "p2_prov": p2_prov, "p2_model": p2, "p2_key": p2_key,
+                "p1_prov": p1_prov, "p1_model": p1,
+                "p2_prov": p2_prov, "p2_model": p2,
                 "p1_hist": [], "p2_hist": [],
                 "p1_score": float(), "p2_score": float(),
                 "recent": [],
@@ -99,8 +89,7 @@ def _init_matchups(models, anthropic_key, openai_key):
     return matchups
 
 
-def run_infinite_tournament(game_name, variants, models,
-                            anthropic_key, openai_key):
+def run_infinite_tournament(game_name, variants, models):
     """Generator that runs forever, yielding markdown after each round."""
     if len(models) < _TWO:
         yield "Select at least two models."
@@ -113,10 +102,7 @@ def run_infinite_tournament(game_name, variants, models,
         yield "Game not found."
         return
     actions = info["actions"]
-    matchups = _init_matchups(models, anthropic_key, openai_key)
-    if not matchups:
-        yield "No valid matchups -- provide API keys or enable OAuth."
-        return
+    matchups = _init_matchups(models)
     rnd = _ZERO
     while True:
         rnd += _ONE
@@ -128,12 +114,12 @@ def run_infinite_tournament(game_name, variants, models,
             prompt1 = PromptBuilder.build(obs1)
             prompt2 = PromptBuilder.build(obs2)
             try:
-                raw1 = _call_llm(m["p1_prov"], m["p1_model"], prompt1, m["p1_key"])
+                raw1 = _call_llm(m["p1_prov"], m["p1_model"], prompt1)
                 act1 = parse_action(raw1, actions)
             except Exception:
                 act1 = _rand.choice(actions)
             try:
-                raw2 = _call_llm(m["p2_prov"], m["p2_model"], prompt2, m["p2_key"])
+                raw2 = _call_llm(m["p2_prov"], m["p2_model"], prompt2)
                 act2 = parse_action(raw2, actions)
             except Exception:
                 act2 = _rand.choice(actions)

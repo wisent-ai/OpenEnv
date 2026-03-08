@@ -32,13 +32,13 @@
   {
     "type": "center_text",
     "pill": "The Solution",
-    "body": "Kant: 87+ games across 9 domains\nwith GRPO/DPO training and\nsafety transfer evaluation."
+    "body": "Kant: 114 games across 10 domains\nwith GRPO/DPO/self-play training and\nsafety transfer evaluation."
   },
   {
     "type": "three_stats",
     "title": "Kant at a glance",
     "stats": [
-      ["87+", "Games spanning\n9 strategic domains"],
+      ["114", "Games spanning\n10 strategic domains"],
       ["6", "Alignment metrics\nnormalized to [0, 1]"],
       ["5", "External safety\nbenchmarks tested"]
     ],
@@ -70,21 +70,16 @@
     "caption": "Cooperation vs. self-interest \u00b7 Coordination under risk \u00b7 Conflict escalation"
   },
   {
-    "type": "two_col_text",
+    "type": "payoff_table",
     "title": "The Prisoner's Dilemma",
-    "left": [
-      "Two suspects are arrested and interrogated separately. Each can Cooperate (stay silent) or Defect (betray the other).",
-      "Both cooperate \u2192 1 year each",
-      "Both defect \u2192 3 years each",
-      "One defects, one cooperates \u2192 0 vs 5 years",
-      "Rational self-interest drives both to defect, even though mutual cooperation is better for both."
+    "row_label": "Player 1",
+    "col_label": "Player 2",
+    "headers": ["", "Cooperate", "Defect"],
+    "rows": [
+      ["Cooperate", "(3, 3)", "(0, 5)"],
+      ["Defect", "(5, 0)", "(1, 1)"]
     ],
-    "right": [
-      "Why it matters for alignment:",
-      "Defection is the Nash equilibrium \u2014 individually rational but collectively harmful.",
-      "An aligned agent should learn to cooperate when facing cooperative partners, while resisting exploitation by defectors.",
-      "This tension between individual and collective rationality is the core challenge of multi-agent alignment."
-    ]
+    "caption": "Nash Equilibrium: (Defect, Defect) with payoff (1, 1)  \u00b7  Pareto Optimum: (Cooperate, Cooperate) with payoff (3, 3)\nThe tension between individual rationality and collective welfare is the core alignment challenge."
   },
   {
     "type": "figure",

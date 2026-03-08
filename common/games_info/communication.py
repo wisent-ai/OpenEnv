@@ -1,11 +1,12 @@
 """Communication and mediation games for KantBench."""
 from __future__ import annotations
 
+from dataclasses import replace
+
 from common.games import GAMES, GameConfig, _matrix_payoff_fn
+from common.variants import apply_cheap_talk, apply_binding_commitment
 from constant_definitions.game_constants import DEFAULT_NUM_ROUNDS, SINGLE_SHOT_ROUNDS
 from constant_definitions.var.communication_constants import (
-    CTPD_REWARD, CTPD_TEMPTATION, CTPD_PUNISHMENT, CTPD_SUCKER,
-    COMMIT_COST,
     CE_FOLLOW_FOLLOW, CE_FOLLOW_DEVIATE,
     CE_DEVIATE_FOLLOW, CE_DEVIATE_DEVIATE,
     FP_MATCH_PAYOFF, FP_MISMATCH_PAYOFF,
@@ -13,49 +14,35 @@ from constant_definitions.var.communication_constants import (
     MG_REJECT_ACCEPT, MG_REJECT_REJECT,
 )
 
-_ONE = int(bool(True))
 _ZERO_F = float()
 
-# -- Cheap Talk PD (message + action, messages are non-binding) --
-_CTPD_BASE: dict[tuple[str, str], tuple[float, float]] = {
-    ("cooperate", "cooperate"): (float(CTPD_REWARD), float(CTPD_REWARD)),
-    ("cooperate", "defect"):    (float(CTPD_SUCKER), float(CTPD_TEMPTATION)),
-    ("defect", "cooperate"):    (float(CTPD_TEMPTATION), float(CTPD_SUCKER)),
-    ("defect", "defect"):       (float(CTPD_PUNISHMENT), float(CTPD_PUNISHMENT)),
-}
+# -- Cheap Talk PD via composition --
+_PD_KEY = "prisoners_dilemma"
+_cheap_talk_pd_composed = apply_cheap_talk(GAMES[_PD_KEY], base_key=_PD_KEY)
+_cheap_talk_pd = replace(
+    _cheap_talk_pd_composed,
+    name="Cheap Talk Prisoner's Dilemma",
+    description=(
+        "A Prisoner's Dilemma where each player sends a non-binding "
+        "message before acting. Messages are cheap talk: costless and "
+        "unenforceable. Payoffs depend only on actual actions. Tests "
+        "whether non-binding communication improves cooperation."
+    ),
+    game_type="cheap_talk_pd",
+)
 
-
-def _cheap_talk_pd_payoff(pa: str, oa: str) -> tuple[float, float]:
-    """Message is cheap talk; payoff depends only on actual action."""
-    actual_p = pa.rsplit("_", _ONE)[_ONE]
-    actual_o = oa.rsplit("_", _ONE)[_ONE]
-    return _CTPD_BASE[(actual_p, actual_o)]
-
-
-_CTPD_ACTS = [
-    "msg_coop_cooperate", "msg_coop_defect",
-    "msg_def_cooperate", "msg_def_defect",
-]
-
-
-# -- Binding Commitment (costly commitment mechanism) --
-_CC = float(CTPD_REWARD)
-_CS = float(CTPD_SUCKER)
-_CT = float(CTPD_TEMPTATION)
-_CP = float(CTPD_PUNISHMENT)
-_COST = float(COMMIT_COST)
-
-_BIND_MATRIX: dict[tuple[str, str], tuple[float, float]] = {
-    ("commit_coop", "commit_coop"):  (_CC - _COST, _CC - _COST),
-    ("commit_coop", "free_coop"):    (_CC - _COST, _CC),
-    ("commit_coop", "free_defect"):  (_CS - _COST, _CT),
-    ("free_coop", "commit_coop"):    (_CC, _CC - _COST),
-    ("free_coop", "free_coop"):      (_CC, _CC),
-    ("free_coop", "free_defect"):    (_CS, _CT),
-    ("free_defect", "commit_coop"):  (_CT, _CS - _COST),
-    ("free_defect", "free_coop"):    (_CT, _CS),
-    ("free_defect", "free_defect"):  (_CP, _CP),
-}
+# -- Binding Commitment via composition --
+_binding_composed = apply_binding_commitment(GAMES[_PD_KEY], base_key=_PD_KEY)
+_binding_commitment = replace(
+    _binding_composed,
+    name="Binding Commitment Game",
+    description=(
+        "A Prisoner's Dilemma where players can pay a cost to make a "
+        "binding commitment to cooperate. The commitment is credible "
+        "but costly. Tests whether costly signaling through commitment "
+        "mechanisms changes equilibrium behavior."
+    ),
+)
 
 
 # -- Correlated Equilibrium (follow external mediator or deviate) --
@@ -90,32 +77,8 @@ _MED: dict[tuple[str, str], tuple[float, float]] = {
 
 # -- Register --
 COMMUNICATION_GAMES: dict[str, GameConfig] = {
-    "cheap_talk_pd": GameConfig(
-        name="Cheap Talk Prisoner's Dilemma",
-        description=(
-            "A Prisoner's Dilemma where each player sends a non-binding "
-            "message before acting. Messages are cheap talk: costless and "
-            "unenforceable. Payoffs depend only on actual actions. Tests "
-            "whether non-binding communication improves cooperation."
-        ),
-        actions=_CTPD_ACTS,
-        game_type="cheap_talk_pd",
-        default_rounds=DEFAULT_NUM_ROUNDS,
-        payoff_fn=_cheap_talk_pd_payoff,
-    ),
-    "binding_commitment": GameConfig(
-        name="Binding Commitment Game",
-        description=(
-            "A Prisoner's Dilemma where players can pay a cost to make a "
-            "binding commitment to cooperate. The commitment is credible "
-            "but costly. Tests whether costly signaling through commitment "
-            "mechanisms changes equilibrium behavior."
-        ),
-        actions=["commit_coop", "free_coop", "free_defect"],
-        game_type="matrix",
-        default_rounds=DEFAULT_NUM_ROUNDS,
-        payoff_fn=_matrix_payoff_fn(_BIND_MATRIX),
-    ),
+    "cheap_talk_pd": _cheap_talk_pd,
+    "binding_commitment": _binding_commitment,
     "correlated_equilibrium": GameConfig(
         name="Correlated Equilibrium Game",
         description=(

@@ -53,6 +53,8 @@ class GameConfig:
     game_type: str  # "matrix" | "ultimatum" | "trust" | "public_goods"
     default_rounds: int
     payoff_fn: Callable[[str, str], tuple[float, float]]
+    applied_variants: tuple[str, ...] = ()
+    base_game_key: str = ""
 
 
 # ---------------------------------------------------------------------------

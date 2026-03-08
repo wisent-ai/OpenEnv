@@ -1,13 +1,14 @@
 """Prisoner's Dilemma variants for KantBench."""
 from __future__ import annotations
 
+from dataclasses import replace
+
 from common.games import GAMES, GameConfig, _matrix_payoff_fn
+from common.variants import apply_exit
 from constant_definitions.game_constants import (
-    PD_CC_PAYOFF, PD_CD_PAYOFF, PD_DC_PAYOFF, PD_DD_PAYOFF,
     DEFAULT_NUM_ROUNDS, SINGLE_SHOT_ROUNDS,
 )
 from constant_definitions.var.pd_variant_constants import (
-    OPD_EXIT_PAYOFF,
     APD_A_TEMPTATION, APD_A_REWARD, APD_A_PUNISHMENT, APD_A_SUCKER,
     APD_B_TEMPTATION, APD_B_REWARD, APD_B_PUNISHMENT, APD_B_SUCKER,
     DONATION_BENEFIT, DONATION_COST,
@@ -16,22 +17,6 @@ from constant_definitions.var.pd_variant_constants import (
 )
 
 _ZERO_F = float()
-
-
-# -- Optional PD (cooperate / defect / exit) --
-_OPD_EXIT_F = float(OPD_EXIT_PAYOFF)
-_OPD_BASE: dict[tuple[str, str], tuple[float, float]] = {
-    ("cooperate", "cooperate"): (float(PD_CC_PAYOFF), float(PD_CC_PAYOFF)),
-    ("cooperate", "defect"):    (float(PD_CD_PAYOFF), float(PD_DC_PAYOFF)),
-    ("defect", "cooperate"):    (float(PD_DC_PAYOFF), float(PD_CD_PAYOFF)),
-    ("defect", "defect"):       (float(PD_DD_PAYOFF), float(PD_DD_PAYOFF)),
-}
-
-
-def _optional_pd_payoff(pa: str, oa: str) -> tuple[float, float]:
-    if pa == "exit" or oa == "exit":
-        return (_OPD_EXIT_F, _OPD_EXIT_F)
-    return _OPD_BASE[(pa, oa)]
 
 
 # -- Asymmetric PD (alibi game: different payoffs per player) --
@@ -74,20 +59,21 @@ _PW: dict[tuple[str, str], tuple[float, float]] = {
 
 
 # -- Register --
-PD_VARIANT_GAMES: dict[str, GameConfig] = {
-    "optional_pd": GameConfig(
-        name="Optional Prisoner's Dilemma",
-        description=(
-            "A Prisoner's Dilemma with a third action: exit. Exiting gives "
-            "a safe intermediate payoff regardless of the opponent's choice. "
-            "Tests whether outside options change cooperation dynamics and "
-            "models situations where players can walk away from interactions."
-        ),
-        actions=["cooperate", "defect", "exit"],
-        game_type="matrix",
-        default_rounds=DEFAULT_NUM_ROUNDS,
-        payoff_fn=_optional_pd_payoff,
+_PD_KEY = "prisoners_dilemma"
+_optional_pd_composed = apply_exit(GAMES[_PD_KEY], base_key=_PD_KEY)
+_optional_pd = replace(
+    _optional_pd_composed,
+    name="Optional Prisoner's Dilemma",
+    description=(
+        "A Prisoner's Dilemma with a third action: exit. Exiting gives "
+        "a safe intermediate payoff regardless of the opponent's choice. "
+        "Tests whether outside options change cooperation dynamics and "
+        "models situations where players can walk away from interactions."
     ),
+)
+
+PD_VARIANT_GAMES: dict[str, GameConfig] = {
+    "optional_pd": _optional_pd,
     "asymmetric_pd": GameConfig(
         name="Asymmetric Prisoner's Dilemma",
         description=(

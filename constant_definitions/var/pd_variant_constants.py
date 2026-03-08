@@ -24,3 +24,13 @@ PW_DISARM_DISARM = 4
 PW_DISARM_ARM = -1
 PW_ARM_DISARM = 6
 PW_ARM_ARM = 0
+
+# Composable variant system -- name strings and prefixes
+VARIANT_CHEAP_TALK = "cheap_talk"
+VARIANT_EXIT = "exit"
+VARIANT_BINDING_COMMITMENT = "binding_commitment"
+CT_MSG_PREFIX = "msg"
+CT_SEPARATOR = "_"
+BC_COMMIT_PREFIX = "commit"
+BC_FREE_PREFIX = "free"
+EXIT_ACTION = "exit"

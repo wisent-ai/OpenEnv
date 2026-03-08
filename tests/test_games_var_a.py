@@ -115,11 +115,11 @@ class TestCheapTalkPD:
     _game = get_game("cheap_talk_pd")
 
     def test_honest_cooperation(self) -> None:
-        p, _ = self._game.payoff_fn("msg_coop_cooperate", "msg_coop_cooperate")
+        p, _ = self._game.payoff_fn("msg_cooperate_cooperate", "msg_cooperate_cooperate")
         assert p == float(CTPD_REWARD)
 
     def test_lying_defection(self) -> None:
-        p, _ = self._game.payoff_fn("msg_coop_defect", "msg_coop_cooperate")
+        p, _ = self._game.payoff_fn("msg_cooperate_defect", "msg_cooperate_cooperate")
         assert p == float(CTPD_TEMPTATION)
 
     def test_four_actions(self) -> None:
@@ -133,8 +133,8 @@ class TestBindingCommitment:
         assert len(self._game.actions) == _THREE
 
     def test_free_defect_dominates(self) -> None:
-        p_c, _ = self._game.payoff_fn("free_coop", "free_coop")
-        p_d, _ = self._game.payoff_fn("free_defect", "free_coop")
+        p_c, _ = self._game.payoff_fn("free_cooperate", "free_cooperate")
+        p_d, _ = self._game.payoff_fn("free_defect", "free_cooperate")
         assert p_d > p_c
 
 

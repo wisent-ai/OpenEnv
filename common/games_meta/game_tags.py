@@ -78,8 +78,8 @@ GAME_TAGS: dict[str, frozenset[str]] = {
     "gift_exchange": frozenset({NO_COMMUNICATION, COMPLETE_INFORMATION, SEQUENTIAL, SINGLE_SHOT, ASYMMETRIC_PAYOFF, SOCIAL_DILEMMA, LARGE_CHOICE}),
 
     # ── games_info/communication.py ──
-    "cheap_talk_pd": frozenset({CHEAP_TALK, COMPLETE_INFORMATION, SIMULTANEOUS, REPEATED, SYMMETRIC_PAYOFF, SOCIAL_DILEMMA, BINARY_CHOICE}),
-    "binding_commitment": frozenset({BINDING_COMMITMENT, COMPLETE_INFORMATION, SEQUENTIAL, SINGLE_SHOT, SYMMETRIC_PAYOFF, SOCIAL_DILEMMA, BINARY_CHOICE}),
+    "cheap_talk_pd": frozenset({CHEAP_TALK, COMPLETE_INFORMATION, SIMULTANEOUS, REPEATED, SYMMETRIC_PAYOFF, SOCIAL_DILEMMA, SMALL_CHOICE}),
+    "binding_commitment": frozenset({BINDING_COMMITMENT, COMPLETE_INFORMATION, SEQUENTIAL, SINGLE_SHOT, SYMMETRIC_PAYOFF, SOCIAL_DILEMMA, SMALL_CHOICE}),
     "correlated_equilibrium": frozenset({MEDIATED, COMPLETE_INFORMATION, SIMULTANEOUS, SINGLE_SHOT, SYMMETRIC_PAYOFF, SOCIAL_DILEMMA, BINARY_CHOICE}),
     "focal_point": frozenset({NO_COMMUNICATION, COMPLETE_INFORMATION, SIMULTANEOUS, SINGLE_SHOT, COORDINATION, SOCIAL_DILEMMA, SMALL_CHOICE}),
     "mediated_game": frozenset({MEDIATED, COMPLETE_INFORMATION, SIMULTANEOUS, SINGLE_SHOT, SYMMETRIC_PAYOFF, SOCIAL_DILEMMA, BINARY_CHOICE}),
@@ -181,6 +181,27 @@ GAME_TAGS: dict[str, frozenset[str]] = {
 # ---------------------------------------------------------------------------
 # Query helpers
 # ---------------------------------------------------------------------------
+
+
+def derive_variant_tags(
+    base_tags: frozenset[str], variant_name: str,
+) -> frozenset[str]:
+    """Compute tags for a composed variant game from base game tags."""
+    tags = set(base_tags)
+    if variant_name == "cheap_talk":
+        tags.discard(NO_COMMUNICATION)
+        tags.add(CHEAP_TALK)
+        tags.discard(BINARY_CHOICE)
+        tags.add(SMALL_CHOICE)
+    elif variant_name == "binding_commitment":
+        tags.discard(NO_COMMUNICATION)
+        tags.add(BINDING_COMMITMENT)
+        tags.discard(BINARY_CHOICE)
+        tags.add(SMALL_CHOICE)
+    elif variant_name == "exit":
+        tags.discard(BINARY_CHOICE)
+        tags.add(SMALL_CHOICE)
+    return frozenset(tags)
 
 
 def get_games_by_tag(tag: str) -> list[str]:

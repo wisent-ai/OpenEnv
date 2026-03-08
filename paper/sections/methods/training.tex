@@ -26,7 +26,8 @@ following configuration:
     \item \textbf{Learning rate}: $5 \times 10^{-6}$
     \item \textbf{Batch size}: $4$ with gradient accumulation $\times 4$
     \item \textbf{Training steps}: $500$ (across $1{,}000$ game prompts)
-    \item \textbf{Base model}: configurable (any instruction-tuned LLM)
+    \item \textbf{Base models}: 8 open-weight models from 1B to 27B parameters
+          (see Section~\ref{sec:safety-setup})
 \end{itemize}
 
 \noindent Each prompt presents a game state---name, description, available

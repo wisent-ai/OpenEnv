@@ -53,15 +53,15 @@ We evaluate on five established benchmarks:
 \subsection{Experimental Setup}
 \label{sec:safety-setup}
 
-We compare three model configurations:
+For each model in our registry, we compare three configurations: (i)~base
+(unmodified), (ii)~Kant-GRPO, and (iii)~Kant-DPO.
 
-\begin{enumerate}[nosep]
-    \item \textbf{Base model}: unmodified pretrained language model
-    \item \textbf{Kant-GRPO}: base model fine-tuned with GRPO on game environments
-    \item \textbf{Kant-DPO}: base model fine-tuned with DPO on game trajectory pairs
-\end{enumerate}
+\paragraph{Open-weight models (trainable).}
+Llama~3.2-1B, Llama~3.1-8B, Qwen~3.5-9B, Qwen~3.5-27B, Gemma~3-27B,
+Phi-4~Reasoning, Mistral~Small~3.2-24B, and GPT-OSS-20B.
 
-% Model specifications, training details, evaluation protocol
+\paragraph{API baselines (evaluation only).}
+GPT-5.4, Claude~Opus~4.6, Claude~Sonnet~4.6, and Claude~Haiku~4.5.
 
 \subsection{Results}
 \label{sec:safety-results}

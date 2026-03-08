@@ -5,8 +5,9 @@
 
 \subsection{Hardware Specifications}
 
-Training runs on NVIDIA H100 GPUs. GRPO training with a 7B-parameter model
-requires a single H100 (80GB) for 500 steps. DPO training has similar
+Training runs on NVIDIA H100 GPUs. Models range from Llama~3.2-1B (single
+GPU) to Qwen~3.5-27B and Gemma~3-27B (multi-GPU). API baselines (GPT-5.4,
+Claude Opus/Sonnet/Haiku) are evaluated via provider APIs. DPO training has similar
 requirements. The Kant environment server runs on CPU with minimal
 resource requirements ($<1$ GB RAM per concurrent session).
 
@@ -52,7 +53,7 @@ External benchmark evaluation (5 benchmarks) requires an additional
 \item Start the Kant environment:
       \texttt{uvicorn server.app:app -{}-port 8000}
 \item Run GRPO training:
-      \texttt{python train/train.py -{}-model \textless{}model-id\textgreater{}}
+      \texttt{python train/train.py -{}-model meta-llama/Llama-3.1-8B-Instruct}
 \item Run evaluation tournament:
       \texttt{python -m bench.evaluation.tournament}
 \item Run external benchmarks:

@@ -134,38 +134,44 @@ def build_dataset(
     samples = []
 
     with KantBenchEnv(base_url=base_url) as env:
-        for _ in range(n_samples):
+        attempts = 0
+        while len(samples) < n_samples:
+            attempts += 1
             game_key = random.choice(game_keys)
             strategy = random.choice(strat_names)
 
-            # Reset env to get a real observation
-            result = env.reset(game=game_key, strategy=strategy)
-            obs = result.observation
-
-            # Play 0..N-1 random rounds to create diverse game states
-            max_rounds = obs.max_rounds
-            rounds_to_play = random.randint(0, max(max_rounds - 1, 0))
-            for _ in range(rounds_to_play):
-                move = random.choice(obs.available_moves)
-                result = env.step(KantBenchAction(move=move))
-                obs = result.observation
-                if result.done:
-                    break
-
-            if result.done:
-                # Replay without filling all rounds
+            try:
+                # Reset env to get a real observation
                 result = env.reset(game=game_key, strategy=strategy)
                 obs = result.observation
 
-            prompt = _build_prompt(obs)
+                # Play 0..N-1 random rounds to create diverse game states
+                max_rounds = obs.max_rounds
+                rounds_to_play = random.randint(0, max(max_rounds - 1, 0))
+                for _ in range(rounds_to_play):
+                    move = random.choice(obs.available_moves)
+                    result = env.step(KantBenchAction(move=move))
+                    obs = result.observation
+                    if result.done:
+                        break
 
-            samples.append({
-                "prompt": prompt,
-                "game_key": game_key,
-                "strategy": strategy,
-                "available_moves": list(obs.available_moves),
-                "rounds_remaining": obs.max_rounds - obs.round_number,
-            })
+                if result.done:
+                    # Replay without filling all rounds
+                    result = env.reset(game=game_key, strategy=strategy)
+                    obs = result.observation
+
+                prompt = _build_prompt(obs)
+
+                samples.append({
+                    "prompt": prompt,
+                    "game_key": game_key,
+                    "strategy": strategy,
+                    "available_moves": list(obs.available_moves),
+                    "rounds_remaining": obs.max_rounds - obs.round_number,
+                })
+            except (RuntimeError, ConnectionError) as exc:
+                logger.debug("Skipping %s/%s: %s", game_key, strategy, exc)
+                continue
 
     return Dataset.from_list(samples)
 

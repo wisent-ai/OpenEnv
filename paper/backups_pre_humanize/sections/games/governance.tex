@@ -5,13 +5,21 @@
 
 The meta-governance engine is Kant's most distinctive architectural feature:
 it allows players to \emph{change the rules of the game during play}. By
-Agents propose, vote on, and implement modifications to rules; they exercise direct democracy similar to Constitutional AI yet use mechanisms for governance directly.
+proposing, voting on, and applying rule modifications, agents participate in
+a form of constitutional self-governance that directly parallels Constitutional
+AI~\citep{bai2022constitutional} but operates through democratic mechanism
 design rather than static principles.
 
 \subsection{Constitutional Mechanics}
 \label{sec:constitutional}
 
-Governance operations operate at a level above an N player game; between action intervals there is a phase during which players may submit amendments to game rules for voting followed by implementation of accepted changes. This results in a dual game structure comprising first CMD 6 (underlying strategic engagement) and second CMD 7 (governance procedures themselves). States are mutable and tracked through use of a \texttt{Runtime Rules} object that records enforcement status, penalty settings, operational mechanisms, and historical governance data.
+The governance system operates as a layer atop any N-player game. Between
+action rounds, a governance phase allows players to propose modifications to
+the game's rules, vote on proposals, and apply approved changes. This creates
+a two-level game: the \emph{object game} (the underlying strategic interaction)
+and the \emph{meta-game} (the governance process itself). Mutable state is
+maintained in a \texttt{RuntimeRules} object that tracks enforcement mode,
+penalty parameters, active mechanisms, and governance history.
 
 \subsection{Proposal System}
 \label{sec:proposals}
@@ -46,7 +54,8 @@ via \texttt{\_apply\_proposal}, modifying the \texttt{RuntimeRules} state.
 \subsection{Composable Mechanisms}
 \label{sec:mechanisms}
 
-Six mechanisms for governance might be proposed and voted upon and combined into a composition; they proceed in a fixed sequence such as taxation followed by redistribution. MATHI 5 refers to one of
+Six governance mechanisms can be proposed, voted on, and composed.
+Mechanisms are applied in fixed order (taxation $\to$ redistribution
 $\to$ insurance $\to$ quota $\to$ subsidy $\to$ veto), so cumulative
 effects are deterministic.
 
@@ -76,20 +85,26 @@ set to $\bar{u}$.
 \subsection{Custom Modifiers with Delta-Clamping Safety}
 \label{sec:delta-clamping}
 
-Arbitrary modifications to payoffs are specified in custom proposals using Dirac deltas; to avoid instability clamping limits use Delta. Direct translation: Custom proposals specify arbitrary payoff modifications by means of
+Custom proposals specify arbitrary payoff modifications via delta functions.
+To prevent destabilizing changes, a delta-clamping mechanism bounds the
 magnitude of any single modification:
 \[
 \delta_i^{\text{clamped}} = \text{clamp}\!\bigl(\delta_i,\;
   -\max(|u_i| \cdot \rho,\, \rho),\;
   +\max(|u_i| \cdot \rho,\, \rho)\bigr)
 \]
-Where MATHI_30 (defaults). This guarantees that no custom modification allows any player to gain an increase in payoff greater than maximum absolute value of $50\%$ or $0.5$, whichever is larger; thus avoiding malicious suggestions.
+where $\rho = 1/2$ (default). This ensures no custom modifier can change
+any player's payoff by more than $50\%$ of its absolute value (or $0.5$
+in absolute terms, whichever is larger), preventing adversarial proposals
 from destabilizing the game.
 
 \subsection{Governance-Coalition Interaction Loop}
 \label{sec:gov-coalition}
 
-When both coalition building and governance activities occur concurrently, there is emergence of an interaction cycle: coalitions might align voting blocks together, put forward self interest rules, or employ governance for enforcing coalition agreements. Such processes generate resulting dynamic institutions akin to those in actual politics.
+When coalition formation and governance are active simultaneously, a rich
+interaction loop emerges: coalitions may coordinate voting blocs, propose
+self-serving rules, or use governance to enforce coalition agreements. This
+creates emergent institutional dynamics analogous to real-world political
 systems.
 
 The payoff modification chain is: base game payoff $\to$ coalition penalties
@@ -99,8 +114,13 @@ modifiers (with delta-clamping).
 \subsection{Connection to Constitutional AI}
 \label{sec:constitutional-ai}
 
-The governance engine implements important elements of Constitutional AI ~__CMD_30~ within an interactive framework based on game theory with multiple agents. Rather than embedding norms as fixed rules, Kant permits emergence of norms via deliberative democracy; it is assessed here if such agents are capable. Notes: 1) 'Kant' and '~__CMD
+The governance engine operationalizes key ideas from Constitutional
+AI~\citep{bai2022constitutional} in a multi-agent game-theoretic setting.
+Rather than encoding principles as static rules, Kant allows principles to
+emerge through democratic deliberation. This tests whether agents can
 \emph{construct} fair governance systems, not merely follow pre-specified ones.
 
-Where Constitutional AI selects fixed principles designed by designers, Kant's governance system judges whether agents abide by fair rules via democratic discussion; a more stringent test for alignment.
+Where Constitutional AI uses static principles curated by designers,
+Kant's governance engine tests whether agents can \emph{discover} fair
+rules through democratic deliberation---a stronger test of alignment
 that does not presuppose the correct principles.

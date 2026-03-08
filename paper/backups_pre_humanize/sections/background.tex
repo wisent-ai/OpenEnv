@@ -1,0 +1,80 @@
+% background.tex -- Section 3: Related Work
+
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Game-Theoretic AI}
+
+\paragraph{MACHIAVELLI.}
+Pan et al.~\citep{pan2023machiavelli} introduced a text-based benchmark
+measuring trade-offs between reward maximization and ethical behaviour
+in choose-your-own-adventure games. Their work highlights the tension
+between performance and social norms but relies on rich narrative
+environments that conflate language understanding with strategic choice.
+Kant complements this line of work by isolating strategic reasoning in
+minimal, formally specified games while also providing training
+infrastructure for alignment improvement.
+
+\paragraph{Melting Pot.}
+Leibo et al.~\citep{leibo2021meltingpot} proposed Melting Pot for
+evaluating multi-agent reinforcement learning via substrate games with
+emergent social dynamics. While Melting Pot supports rich multi-agent
+scenarios, its substrate complexity can obscure the specific strategic
+competencies under test. Kant deliberately provides games at multiple
+complexity levels, from minimal matrix games to rich governance scenarios.
+
+\paragraph{OpenSpiel.}
+Lanctot et al.~\citep{lanctot2019openspiel} provide a broad framework
+for game-playing research supporting dozens of game types. OpenSpiel is
+designed for algorithm development rather than agent evaluation or
+alignment training; it does not ship pre-defined opponent pools,
+alignment-oriented metrics, or training pipelines.
+
+\paragraph{Axelrod Library.}
+Knight et al.~\citep{knight2016axelrod} offer an open-source framework
+for studying the iterated Prisoner's Dilemma, including over two hundred
+strategies and tournament infrastructure. Kant draws inspiration from this
+project but extends the scope to multiple game types, $N$-player settings,
+coalition formation, and governance mechanics.
+
+\subsection{Safety Benchmarks}
+
+% See Section~\ref{sec:external-benchmarks} for detailed benchmark descriptions.
+
+\paragraph{HarmBench.}
+Mazeika et al.~\citep{mazeika2024harmbench} provide a standardized
+evaluation for LLM safety across multiple attack categories.
+
+\paragraph{ETHICS.}
+Hendrycks et al.~\citep{hendrycks2021ethics} evaluate moral reasoning
+across justice, deontology, virtue ethics, utilitarianism, and commonsense.
+
+\paragraph{TruthfulQA.}
+Lin et al.~\citep{lin2022truthfulqa} measure truthfulness on questions
+designed to elicit common misconceptions.
+
+\paragraph{XSTest.}
+R\"{o}ttger et al.~\citep{rottger2024xstest} test exaggerated safety
+behavior via safe prompts that resemble unsafe ones.
+
+\subsection{Alignment Training}
+
+\paragraph{RLHF.}
+Christiano et al.~\citep{christiano2017deep} introduced reinforcement
+learning from human feedback, training reward models from human
+preferences.
+
+\paragraph{DPO.}
+Rafailov et al.~\citep{rafailov2023direct} proposed Direct Preference
+Optimization, bypassing explicit reward modeling by optimizing directly
+on preference pairs.
+
+\paragraph{GRPO.}
+Shao et al.~\citep{shao2024deepseekmath} introduced Group Relative Policy
+Optimization, using group-level reward comparisons for policy improvement.
+
+\paragraph{Constitutional AI.}
+Bai et al.~\citep{bai2022constitutional} proposed training AI systems
+with a set of constitutional principles that guide self-critique and
+revision. Kant's governance engine operationalizes similar ideas through
+democratic mechanism design in a multi-agent setting.

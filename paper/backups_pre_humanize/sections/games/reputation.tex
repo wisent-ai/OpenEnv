@@ -13,14 +13,18 @@ settings~\citep{nowak2005evolution,axelrod1984evolution}.
 \subsection{Gossip Variant}
 \label{sec:gossip}
 
-The gossip variant follows the composition pattern of `apply *' that has been set by cheap talk and proposals for rules (see Sections \ref{sec:mechanism} and \ref{sec:governance} ). For base actions __MATHEMATICA
+The gossip variant follows the composable \texttt{apply\_*} pattern established
+by cheap talk and rule proposal (Sections~\ref{sec:mechanism}
+and~\ref{sec:governance}). For base actions $\{A, B\}$ and ratings
 $\{$\texttt{trustworthy}, \texttt{untrustworthy}, \texttt{neutral}$\}$,
 gossip produces the expanded action space:
 \[
 \bigl\{\texttt{gossip\_}\langle\text{rating}\rangle\texttt{\_}\langle\text{action}\rangle
 \;\big|\; \text{rating} \in R,\; \text{action} \in A_{\text{base}}\bigr\}
 \]
-Produces 3 mathematical composite actions (for example, six for PD). Crucially, payoffs do not depend directly on basic action components; gossip does not serve as a relevant payoff signal; it merely serves to convey reputations through low cost communication: The text has
+yielding $|R| \times |A_{\text{base}}|$ composite actions (e.g., six for PD).
+Crucially, payoffs depend \emph{only} on the base action component---gossip is
+non-binding cheap talk about reputation, not a payoff-relevant signal:
 \[
 u_i(\texttt{gossip\_}r\texttt{\_}a,\; \texttt{gossip\_}r'\texttt{\_}b) = u_i(a, b)
 \]
@@ -32,12 +36,14 @@ cheap talk, and rule proposal, enabling multi-layered communication studies.
 \subsection{Memory Store}
 \label{sec:memory-store}
 
-At each episode completion, a structured text is stored persistently alongside with data from the Cognee Knowledge Engine as cross episode memory in the store called `Cognee Memory Store'.
+The \texttt{CogneeMemoryStore} provides persistent cross-episode memory backed
+by the Cognee knowledge graph engine. After each episode, a structured text
 summary is ingested:
 
 \begin{quote}\small\ttfamily
 Game Interaction Report\\
-Player: agent_0 ; Competitor: tit_for_tat ; Game: Prisoner's Dilemma; Number of Rounds: Ten; Score for Player: Thirty; Score
+Agent: agent\_0 | Opponent: tit\_for\_tat | Game: prisoners\_dilemma\\
+Rounds: 10 | Agent Score: 30 | Opponent Score: 30\\
 Cooperation Rate: 1.0\\
 Actions: R1: cooperate vs cooperate; R2: cooperate vs cooperate; \ldots
 \end{quote}
@@ -50,7 +56,8 @@ statistics tracking cooperation rates and interaction counts.
 \subsection{Reputation Environment}
 \label{sec:rep-env}
 
-The code block `ReputationEnvironment` surrounds `KantEnvironment` for embedding reputation information into observations and tracking exchanges: ```
+The \texttt{ReputationEnvironment} wraps \texttt{KantEnvironment} to
+inject reputation data into observations and record interactions:
 
 \begin{enumerate}[nosep]
     \item \textbf{Before each episode}: query the memory store for opponent
@@ -62,4 +69,7 @@ The code block `ReputationEnvironment` surrounds `KantEnvironment` for embedding
 \end{enumerate}
 
 \noindent This creates a feedback loop where agent behavior in early episodes
-Shapes reputation of opponents; this subsequently affects reasoning by agents. Architectural testing evaluates if large language models (LLMs) are capable of incorporating historical signals about reputation to make strategic decisions – a key requirement for trusted deployment among multiple agents.
+shapes opponent reputation, which in turn influences agent reasoning in
+subsequent episodes. The architecture tests whether LLMs can integrate
+historical reputation signals into strategic decision-making---a core
+requirement for trustworthy multi-agent deployment.

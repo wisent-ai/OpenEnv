@@ -3,9 +3,15 @@
 \section{Coalition Formation}
 \label{sec:coalition}
 
-Coalition formation augments N player games by including a structured phase of negotiations where agents form binding or conditional agreements beforehand. This lets us assess whether agents can develop trust, cooperate together effectively, and manage defection; these are key abilities pertinent to alignment among multiple agents.
+Coalition formation extends N-player games with a structured negotiation phase,
+enabling agents to form binding or non-binding agreements before acting. This
+tests whether agents can build trust, coordinate collectively, and handle
+betrayal---capabilities directly relevant to multi-agent alignment.
 
-Coalition formation probes whether actors are able to develop trust, cooperate together, and manage defection – capabilities that are fundamental for alignment among multiple agents when they need to negotiate, forge agreements and determine whether or not to keep their promises.
+Coalition formation tests whether agents can build trust, coordinate
+collectively, and handle betrayal---capabilities central to multi-agent
+alignment in deployment settings where agents must negotiate, form
+agreements, and decide whether to honor commitments.
 
 \subsection{Two-Phase Protocol}
 \label{sec:coalition-protocol}
@@ -17,7 +23,9 @@ Each round of a coalition game proceeds in two phases:
           objects specifying target members, an agreed joint action, and an optional
           side payment. Other players accept or reject via their coalition strategy.
     \item \textbf{Act Phase}: players choose actions independently. Coalition
-Members can act either according to agreements they make or not; this is enforced through an enforcement method. Environment flags defectors by checking whether each member has selected an action matching that of 'coalition agreed actions'.
+          members may honor or violate their agreed action, subject to the
+          enforcement mode. The environment records defectors by comparing
+          each member's chosen action against \texttt{coalition.agreed\_action}.
 \end{enumerate}
 
 \subsection{Enforcement Modes}
@@ -32,7 +40,8 @@ Three enforcement modes model different institutional settings:
         $p_d = u_d \cdot \frac{\alpha}{\beta}$ (default $\frac{1}{2}$),
         yielding adjusted payoff $\hat{u}_d = u_d - p_d = \frac{u_d}{2}$.
     \item[Binding.] Actions are overridden at the environment level:
-Actions of coalition members are constrained to use `agreed action' prior to computing payoffs and thus completely prevent defection.
+        coalition members' actions are locked to \texttt{agreed\_action}
+        before payoff computation, preventing defection entirely.
 \end{description}
 
 \subsection{Side Payments and Defection Detection}
@@ -48,7 +57,9 @@ other member a fixed amount $s$ (default $0$):
 \end{align}
 
 \paragraph{Defection detection.} After the Act phase, the environment
-Each member of a coalition compares actions against agreed actions. If there is any inconsistency, that member will be added to a list called "defectors" and this list becomes visible to all players for future rounds so retaliation tactics can be used. To compare each coalition member against agreed actions
+compares each coalition member's action against \texttt{agreed\_action}.
+Any mismatch adds the member to the defectors list, which is visible to
+all players in subsequent rounds, enabling retaliatory strategies.
 
 \subsection{Coalition Strategies}
 \label{sec:coalition-strategies}

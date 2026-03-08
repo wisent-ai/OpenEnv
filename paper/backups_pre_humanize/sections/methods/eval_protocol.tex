@@ -26,7 +26,8 @@ game-specific strategies (6) handle economic games with richer action spaces.}
 \textbf{Category} & \textbf{Strategy} & \textbf{Logic} \\
 \midrule
 \multirow{5}{*}{Unconditional}
-In both cases cooperation and defection are considered; for cooperation always play actions MATHI_0 and for defection they use actions MATHI_1
+& Always Cooperate & Always plays action$[0]$ \\
+& Always Defect & Always plays action$[1]$ \\
 & Random & Uniform random over actions \\
 & Mixed & Cooperate w.p.\ $0.7$, defect w.p.\ $0.3$ \\
 \midrule
@@ -39,7 +40,9 @@ In both cases cooperation and defection are considered; for cooperation always p
 & Generous TFT & Like TFT but cooperate 90\% after defection \\
 & Adaptive & Cooperate if opponent cooperated $>50\%$ historically \\
 \midrule
-Economic and Ultimatum Game - for Pot __MATHI 5__ or __MATHI 6__; Trust Game - generous offers of returns as high as __MATHI 8__ or __MATHI 9__; Public Goods Game - contributions of at least __MATHI 10__ or __MATHI
+Economic & Ultimatum Fair/Low & Offer $5$ or $3$ of pot $10$ \\
+& Trust Fair/Generous & Invest max; return $\tfrac{1}{3}$ or $\tfrac{1}{2}$ \\
+& PG Fair/Free-Rider & Contribute $50\%$ or $10\%$ of endowment \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -102,7 +105,8 @@ Unweighted composite: $M_S = \frac{1}{5}(M_C + M_E + M_P + M_F + M_A)$.
 \subsection{Stratified Game Splitting}
 \label{sec:splitting}
 
-To achieve reliable cross-domain evaluations, we propose domain specific stratification using splitting seeds at $42$ to promote repro
+To ensure evaluation generalization, we introduce domain-aware stratified
+splitting with seed $42$ for reproducibility:
 
 \begin{itemize}[nosep]
     \item \textbf{Train set}: $78\%$ of games ($\approx 89$ games)
@@ -112,4 +116,6 @@ To achieve reliable cross-domain evaluations, we propose domain specific stratif
 \end{itemize}
 
 \noindent The domain constraint ensures no single game category (e.g.,
-Evaluation lacks altogether any consideration of classical issues (such as market competition). Together with games that are procedurally produced (see Section \ref{sec:procedural}), this probes if strategic reasoning adapts to new game architectures.
+classical dilemmas, market competition) is entirely absent from evaluation.
+Combined with procedurally generated games (Section~\ref{sec:procedural}),
+this tests whether strategic reasoning transfers to unseen game structures.

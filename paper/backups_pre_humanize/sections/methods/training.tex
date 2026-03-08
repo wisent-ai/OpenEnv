@@ -3,16 +3,21 @@
 \section{Training Pipeline}
 \label{sec:training}
 
-Kant introduces a pipeline for training using games as environment contexts to enhance alignment of language models via reinforcement learning. This segment details approaches including GPO and DPO for training and self play training along with a curriculum.
+Kant includes a training pipeline that uses game-theoretic environments to
+improve language model alignment through reinforcement learning. This section
+describes the GRPO and DPO training methods, self-play training, curriculum
 learning strategy, and reward shaping approach.
 
-Training pipeline assesses if there is transfer of experience from games towards broader alignment; we employ both online (GRPO) and offline (DPO) approaches.
+The training pipeline tests whether game-theoretic experience transfers to
+broader alignment. We use both online (GRPO) and offline (DPO) methods,
 with the Kant environment as the reward oracle.
 
 \subsection{GRPO on Game Environments}
 \label{sec:grpo}
 
-Group Relative Policy Optimization (GRPO) generates 0 completions per query and refines policies through comparison of relative reward values among groups; we realize GRPO using TRL as follows. You can use "TRL" instead of "TRL".
+Group Relative Policy Optimization (GRPO)~\citep{shao2024deepseekmath}
+generates $G$ completions per prompt and optimizes the policy by comparing
+relative rewards within each group. We implement GRPO via TRL with the
 following configuration:
 
 \begin{itemize}[nosep]
@@ -26,12 +31,16 @@ following configuration:
 \end{itemize}
 
 \noindent Each prompt presents a game state---name, description, available
-Actions, opponent strategies, round number, historical data and total scores are considered. Completion of the LLM results in an action submission to environment Kant; payoffs received from that return serve as reward signals for GRPO. Unparsable moves result in rewards of $-2.0$; errors by the environment use reward code $0.0$.
+moves, opponent strategy, round number, history, and cumulative score.
+The LLM completion is parsed as a move and submitted to the Kant environment;
+the returned payoff becomes the GRPO reward signal. Invalid or unparseable
+moves receive reward $-2.0$; environment errors default to $0.0$.
 
 \subsection{DPO via Trajectory Preference Pairs}
 \label{sec:dpo}
 
-Direct Preference Optimization (DPO), CMD 16 learns preferences based on episodes extracted from gameplay trajectories; for every game episode.
+Direct Preference Optimization (DPO)~\citep{rafailov2023direct} trains on
+preference pairs constructed from game trajectories. For each game episode,
 we generate trajectory pairs where:
 
 \begin{itemize}[nosep]
@@ -51,7 +60,8 @@ explicit reward model. The preference ordering
 \subsection{Self-Play Training}
 \label{sec:self-play}
 
-To go beyond fixed strategy approaches, Kant advocates for self play training where agents compete against frozen replicas of themselves or collections of prior ones.
+To move beyond fixed opponent strategies, Kant supports self-play training
+where the agent plays against frozen copies of itself or a pool of past
 checkpoints.
 
 \paragraph{FrozenOpponent.}
@@ -68,7 +78,9 @@ interval; when the pool exceeds its maximum size, oldest entries are evicted
 pool, preventing overfitting to any single opponent style.
 
 \paragraph{Cross-model self-play.}
-The API interface for opponents allows playing against models using external inference endpoints; it supports diverse learning through agents interacting with adversaries that have very different designs and sizes.
+The API-based opponent interface enables self-play against models served via
+external inference endpoints, supporting heterogeneous training where agents
+learn from opponents with fundamentally different architectures and scales.
 
 \subsection{Curriculum Learning}
 \label{sec:curriculum}
@@ -83,7 +95,8 @@ domain:
     \item \textbf{Phase~IV}: Governance-enabled games and dynamic creation
 \end{enumerate}
 
-Each phase multiplies the size of the resource pool by two and transitions occur when a combined strategic reasoning measure denoted as $M_S > 0.6$ converges to the current pool level. To multiply each phase
+Each phase doubles the game pool, with transition triggered by convergence
+of the composite strategic reasoning metric $M_S > 0.6$ on the current pool.
 
 \subsection{Reward Shaping}
 \label{sec:reward-shaping}
@@ -94,7 +107,8 @@ cooperative and fairness objectives:
 r_{\text{shaped}} = \alpha \cdot u_i + \beta \cdot (u_i + u_{-i})
   - \gamma \cdot |u_i - u_{-i}| - \delta \cdot \mathbb{1}[\text{exploit}]
 \]
-where payoff for the player is denoted by $u_i$, that of the opponent by $u_{-i}$, and exploit signal activates if the agent attains __MATH
+where $u_i$ is the player's payoff, $u_{-i}$ the opponent's, and the
+exploit indicator fires when the agent achieves $T$ (temptation payoff)
 against a cooperative opponent. Default weights:
 $\alpha = 0.4$, $\beta = 0.3$, $\gamma = 0.2$, $\delta = 0.1$.
 This creates a gradient toward Pareto-efficient, fair outcomes while

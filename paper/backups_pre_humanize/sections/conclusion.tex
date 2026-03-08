@@ -1,0 +1,63 @@
+% conclusion.tex -- Section 14: Conclusion and Future Work
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have introduced \textsc{Kant}, a comprehensive game-theoretic framework
+for training and evaluating ethical reasoning in language models. The
+framework makes the following core contributions:
+
+\begin{enumerate}[nosep]
+    \item \textbf{Comprehensive game library}: 90+ games spanning nine
+          strategic domains---from classical dilemmas through market
+          competition, auctions, and cooperative game theory---providing
+          broad coverage of the strategic reasoning landscape.
+    \item \textbf{Multi-agent infrastructure}: $N$-player game support,
+          a coalition formation system with negotiation, enforcement modes,
+          and side payments, and a meta-governance engine enabling democratic
+          rule modification during play.
+    \item \textbf{Training pipeline}: GRPO and DPO training on game
+          trajectories with curriculum learning across game domains,
+          connecting game-theoretic environments directly to alignment
+          training.
+    \item \textbf{Safety transfer evaluation}: systematic evaluation of
+          whether game-theoretic training improves performance on external
+          safety benchmarks including HarmBench, ETHICS, TruthfulQA,
+          XSTest, and MT-Bench.
+    \item \textbf{Alignment-oriented evaluation}: six normalized metrics
+          capturing cooperation, exploitation resistance, Pareto efficiency,
+          fairness, adaptability, and strategic reasoning, with stratified
+          game splitting for robust evaluation.
+\end{enumerate}
+
+The framework integrates with the OpenEnv platform, providing a
+Gymnasium-compatible API, WebSocket-based communication, and automated
+tournament infrastructure. The meta-governance engine---which allows agents
+to propose, vote on, and apply rule modifications during play---represents
+a novel connection between game-theoretic multi-agent systems and
+Constitutional AI~\citep{bai2022constitutional}.
+
+\subsection{Future Work}
+
+\paragraph{Scaling experiments.}
+Evaluating the training pipeline across model scales to understand how
+game-theoretic alignment training interacts with model capacity.
+
+\paragraph{Multi-model tournaments.}
+Agent-vs-agent tournaments where multiple LLMs compete directly,
+enabling comparative evaluation of strategic and ethical reasoning
+across model families.
+
+\paragraph{Governance emergence studies.}
+Systematic study of what governance structures emerge when agents are
+given full meta-governance capabilities across extended interaction
+periods.
+
+\paragraph{Real-world transfer.}
+Evaluating whether game-theoretic training improves agent behavior in
+naturalistic multi-agent settings beyond formal benchmarks.
+
+\paragraph{Dynamic curriculum optimization.}
+Automated curriculum design that identifies which game domains
+contribute most to alignment transfer and adjusts training distribution
+accordingly.

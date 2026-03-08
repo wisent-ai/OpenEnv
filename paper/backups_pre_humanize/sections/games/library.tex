@@ -3,14 +3,18 @@
 \section{Game Library}
 \label{sec:game-library}
 
-The Kant framework includes a collection of 114 different games across ten strategic domains. Each game uses Game Configurations that have formal payoffs, actions spaces, and metadata tags. This part lists all games by category; Appendix \ref{app:catalog} contains full specifications.
+The Kant framework provides a library of 114 games spanning 10 strategic domains.
+Each game is implemented as a \texttt{GameConfig} with formally specified payoff
+structures, action spaces, and metadata tags. This section catalogues every game
+by domain; Appendix~\ref{app:catalog} provides the full specification table.
 
 % Add introductory paragraph connecting game diversity to alignment coverage
 
 \subsection{Classical Dilemmas}
 \label{sec:classical}
 
-Core contrasts in interactions involving strategy are defined by fundamental two player simultaneous moves; cooperation versus interest of one's own and coordinating when risks are involved.
+The foundational two-player simultaneous-move games that define the core tensions
+in strategic interaction: cooperation vs.\ self-interest, coordination under risk,
 conflict escalation, and zero-sum competition.
 
 \begin{table}[h]
@@ -80,11 +84,13 @@ Deadlock and Harmony test dominant-strategy reasoning; RPS tests mixed strategie
 \toprule
 \textbf{BoS} & Opera & Football & \textbf{Deadlock} & Coop & Defect \\
 \midrule
-Music and also Mathi 30 Mathi 31 Cooperative Mathi 32 Mathi 33 Also Football including Mathi 34 Mathi 35
+Opera & $(3,2)$ & $(0,0)$ & Coop & $(2,2)$ & $(1,4)$ \\
+Football & $(0,0)$ & $(2,3)$ & Defect & $(4,1)$ & $(3,3)$ \\
 \midrule
 \textbf{Harmony} & Coop & Defect & \textbf{Pure Coord} & Left & Right \\
 \midrule
-Coop and others such as $(4,4)$, $(2,3)$, Left, $(2,2)$, $(0,0)$: Defects from positions __M
+Coop & $(4,4)$ & $(2,3)$ & Left & $(2,2)$ & $(0,0)$ \\
+Defect & $(3,2)$ & $(1,1)$ & Right & $(0,0)$ & $(2,2)$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -100,7 +106,8 @@ Games with sequential moves or explicit bargaining protocols testing backward
 induction, trust, and fairness.
 
 \paragraph{Ultimatum Game.} A proposer splits a pot of $E=10$. The responder
-Accepts (by yielding $(E - \text{offer}, \text{offer})$) or rejects (both receive $0$). Subgame perfect equilibrium predicts __MATH
+accepts (yielding $(E - \text{offer}, \text{offer})$) or rejects (both get $0$).
+The subgame-perfect equilibrium offers $\epsilon$, but fairness norms predict
 $\approx 50\%$ splits.
 
 \paragraph{Trust Game.} An investor sends $x \in [0, E]$ ($E=10$); the amount
@@ -125,7 +132,12 @@ alternating offers, Nash Demand (simultaneous claims), and Double Auction
 \subsection{Information and Signaling Games}
 \label{sec:signaling}
 
-Games designed to test strategies for transmitting strategic information and updating beliefs. Beef Quiche distinguishes between separation versus pooling equilibria (stronger types prefer beer; payoffs are Mathi 70 versus Mathi 71). Lemon Market models adverse selection regarding quality levels and prices at Mathi 72 and Mathi 73. Cheap talk experiments assess informative equilibria when communication is free of cost (aligned payoffs Mathi 74 and mismatch Mathi 75). It also features Sp
+Games testing strategic information transmission and belief updating.
+Beer-Quiche tests separating vs.\ pooling equilibria (tough type prefers
+beer, payoff $3$ vs.\ $1$). Lemon Market models adverse selection with
+quality $q \in \{2, 8\}$ and price $p \in [0,10]$. Cheap Talk tests
+informative equilibria under costless communication (aligned payoff $3$,
+mismatch $0$). Also includes Spence Signaling and Bayesian Persuasion.
 
 \subsection{Bayesian and Incomplete Information Games}
 \label{sec:bayesian}
@@ -160,19 +172,32 @@ Games testing the role of communication channels and mechanism design principles
 \label{sec:market}
 
 Games modeling competitive market interactions.
-Cournot duopoly uses a function called demand $P = 12 - Q$ using $\text{MC} = 2$; Bertrand theory examines competitive pricing (Nash equilibrium at marginal cost). In the Traveler's Dilemma one player reports claim amount $\in [2,100]$ and another receives a bonus $\pm 2$. This dilemma shows conflict between iterative dominance and cooperative reporting. The Dollar Auction prizes are worth $= 1$; maximum bids allowed are $= 100$. This auction explores commitment to escalate
+Cournot Duopoly uses demand $P = 12 - Q$ with $\text{MC} = 2$;
+Bertrand tests price competition (NE at marginal cost).
+Traveler's Dilemma (claims $\in [2,100]$, bonus $\pm 2$) exhibits the
+paradox of iterated dominance vs.\ cooperative claiming.
+Dollar Auction (prize $= 1$, max bid $= 100$) tests escalation commitment.
+Minority Game rewards anti-coordination (payoff $5$ for minority, $1$ for
+majority). Also includes Hotelling, Entry Deterrence, and Diner's Dilemma.
 
 \subsection{Auctions}
 \label{sec:auctions}
 
 Strategic bidding under various mechanisms.
-First Price Auction with sealed bids necessitates shading (see NE at $b_i = v_i/2$ using uniform priors). For Vickrey auctions second price is a dominant strategy and always truthful. In an all pay auction expenditures are made by bidders regardless of outcome
+First-Price Sealed-Bid requires bid shading (NE at $b_i = v_i/2$ under
+uniform priors). Vickrey (second-price) has truthful bidding as weakly
+dominant strategy. All-Pay Auction requires full expenditure regardless of
 outcome, testing risk assessment and commitment.
 
 \subsection{Cooperative Game Theory}
 \label{sec:cooperative}
 
-Examine games for cooperative solution methods and just sharing. The Shapley value uses parameters __MATHI 85__, __MATHI 86__, __MATHI 87__; players claim portions and get payment when those portions are feasible (__MATHI 88__). Allocation Core apportions an amount __MATHI 89__ according to rational coalition membership. Voting Weighted (quota __MATHI 90__, weights __MATHI 91__ and __MATH
+Games testing cooperative solution concepts and fair division.
+Shapley Value uses $v(\{i\}) = 2$, $v(\{i,j\}) = 8$, $v(N) = 12$; players
+claim shares and receive payoff if claims are feasible ($\sum c_i \leq 12$).
+Core Allocation divides a pot of $10$ subject to coalition rationality.
+Weighted Voting (quota $= 6$, weights $3$ and $4$) tests power index
+awareness. Stable Matching uses three-option preferences with payoffs
 $\{5, 3, 1\}$ for top/mid/low matches. Also includes Median Voter and
 Approval Voting.
 
@@ -243,7 +268,8 @@ Specialized games testing evolutionary stability and advanced strategic concepts
 \subsection{Adaptive Games}
 \label{sec:adaptive}
 
-Five games produced by factories where payoffs change according to interaction history and being tested for whether actors are able to reason about variability that is not stationary.
+Five factory-generated games whose payoff structures evolve based on
+interaction history, testing whether agents can reason about non-stationary
 incentives.
 
 \begin{itemize}[nosep]
@@ -265,7 +291,8 @@ mutable state, registered in the \texttt{GAME\_FACTORIES} dictionary.
 \subsection{Procedural Generation}
 \label{sec:procedural}
 
-For runtime generation of games that evaluate openness and generalize testing, random symmetric/asymmetric zero sum coordination generators create new things.
+Runtime-generated games for open-ended evaluation and generalization testing.
+Random Symmetric/Asymmetric/Zero-Sum/Coordination generators produce novel
 $2\times 2$ payoff matrices with structural constraints (e.g., $u_1 + u_2 = 0$
 for zero-sum, diagonal dominance for coordination). Parameterized Chicken
 continuously varies the Hawk-Dove cost/benefit ratio. These generators

@@ -1,0 +1,74 @@
+% safety.tex -- Section 12: Safety Transfer Evaluation
+
+\section{Safety Transfer Evaluation}
+\label{sec:safety}
+
+A central hypothesis of the Kant project is that game-theoretic training
+transfers to improved performance on established AI safety benchmarks. This
+section describes the external benchmark suite, experimental setup, and
+preliminary results.
+
+% Expand hypothesis motivation
+
+\subsection{Hypothesis: Game Theory to Alignment}
+\label{sec:hypothesis}
+
+We hypothesize that training language models to reason about cooperation,
+fairness, trust, and strategic interaction in game-theoretic settings
+develops internal representations that transfer to broader alignment tasks.
+Specifically, an agent trained on Kant's game library should exhibit:
+
+\begin{itemize}[nosep]
+    \item Improved refusal of harmful requests (HarmBench)
+    \item Better ethical reasoning (ETHICS)
+    \item More truthful responses (TruthfulQA)
+    \item Appropriate compliance with safe prompts (XSTest)
+    \item Maintained general capability (MT-Bench)
+\end{itemize}
+
+% Formalize transfer hypothesis
+
+\subsection{External Benchmark Suite}
+\label{sec:external-benchmarks}
+
+We evaluate on five established benchmarks:
+
+\begin{description}[nosep]
+    \item[HarmBench~\citep{mazeika2024harmbench}.] Tests refusal of harmful
+        requests across multiple attack categories.
+    \item[ETHICS~\citep{hendrycks2021ethics}.] Evaluates moral reasoning
+        across justice, deontology, virtue ethics, utilitarianism, and
+        commonsense morality.
+    \item[TruthfulQA~\citep{lin2022truthfulqa}.] Measures truthfulness on
+        questions designed to elicit common misconceptions.
+    \item[XSTest~\citep{rottger2024xstest}.] Tests exaggerated safety
+        behavior by measuring compliance with safe prompts that resemble
+        unsafe ones.
+    \item[MT-Bench~\citep{zheng2023judging}.] Multi-turn conversation
+        benchmark testing general instruction-following capability.
+\end{description}
+
+% Benchmark configuration details
+
+\subsection{Experimental Setup}
+\label{sec:safety-setup}
+
+For each model in our registry, we compare three configurations: (i)~base
+(unmodified), (ii)~Kant-GRPO, and (iii)~Kant-DPO.
+
+\paragraph{Open-weight models (trainable).}
+Llama~3.2-1B, Llama~3.1-8B, Qwen~3.5-9B, Qwen~3.5-27B, Gemma~3-27B,
+Phi-4~Reasoning, Mistral~Small~3.2-24B, and GPT-OSS-20B.
+
+\paragraph{API baselines (evaluation only).}
+GPT-5.4, Claude~Opus~4.6, Claude~Sonnet~4.6, and Claude~Haiku~4.5.
+
+\subsection{Results}
+\label{sec:safety-results}
+
+% Results table comparing base, Kant-GRPO, and Kant-DPO across all benchmarks
+% Per-category breakdowns
+% Statistical significance tests
+
+\textit{Results are pending completion of training runs. See
+Appendix~\ref{app:results-ext} for extended result tables.}

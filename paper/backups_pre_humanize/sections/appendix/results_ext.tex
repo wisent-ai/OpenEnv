@@ -1,0 +1,60 @@
+% results_ext.tex -- Appendix J (extended results), K (external benchmark details)
+
+\section{Extended Game-Theoretic Results}
+\label{app:results-ext}
+
+Extended experimental results with per-game and per-strategy breakdowns.
+
+\textit{Per-game metric breakdowns, per-strategy heatmaps, learning curves,
+and statistical significance tests will be populated after full experimental
+runs with trained checkpoints. Key analyses will include:}
+
+\begin{itemize}[nosep]
+\item Per-game $M_C$, $M_E$, $M_P$, $M_F$, $M_A$ across all 88 games
+\item Strategy-game heatmaps showing cooperation rate by opponent type
+\item Learning curves across curriculum phases (I--IV)
+\item Paired bootstrap confidence intervals for metric comparisons
+\item Coalition game cooperation/defection rates by enforcement mode
+\item Governance game mechanism adoption frequencies
+\end{itemize}
+
+\section{External Benchmark Details}
+\label{app:external-details}
+
+Detailed per-category results for each external safety benchmark.
+
+\subsection{HarmBench Results}
+
+Per-attack-category refusal rate comparison: base model vs.\ GRPO-trained
+vs.\ DPO-trained. Categories include direct harm, social engineering,
+misinformation, and dual-use research.
+
+\textit{Results pending trained checkpoint availability.}
+
+\subsection{ETHICS Results}
+
+Per-category accuracy (justice, deontology, virtue ethics, utilitarianism,
+commonsense morality) across model variants.
+
+\textit{Results pending trained checkpoint availability.}
+
+\subsection{TruthfulQA Results}
+
+MC1 (single true answer) and MC2 (multi-true) scores, with per-category
+truthfulness rates across 38 categories.
+
+\textit{Results pending trained checkpoint availability.}
+
+\subsection{XSTest Results}
+
+Safe prompt compliance rates and false refusal analysis. XSTest specifically
+tests whether safety training causes over-refusal on benign prompts.
+
+\textit{Results pending trained checkpoint availability.}
+
+\subsection{MT-Bench Results}
+
+Per-category instruction-following scores (writing, roleplay, reasoning,
+math, coding, extraction, STEM, humanities) and turn-level analysis.
+
+\textit{Results pending trained checkpoint availability.}

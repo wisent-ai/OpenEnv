@@ -3,7 +3,8 @@
 \section{Framework Architecture}
 \label{sec:architecture}
 
-Kant implements compatibility with OpenEnv and inherits a client server design along with that of Gymnasium style from it. Kant uses OpenEnv
+Kant is implemented as an OpenEnv-compatible environment, inheriting the
+framework's client--server design and Gymnasium-style
 \texttt{reset}/\texttt{step} interface. This section describes the design
 principles, environment interface, and game taxonomy system.
 
@@ -27,15 +28,19 @@ The framework is built on four principles:
 \label{sec:env-interface}
 
 \paragraph{Server components.}
-The server makes available an application using FastAPI which controls instances of environments internally. Specifically, the class named \texttt{KantEnvironment
+The server exposes a FastAPI application that manages environment
+instances. Internally, the \texttt{KantEnvironment} class
 coordinates three subsystems:
 
 \begin{description}[nosep]
     \item[Game Engine.] A registry of \texttt{GameConfig} objects
-Specifies actions for each game along with corresponding payoff functions and standard number of rounds. For matrix games computed payoff dictionaries are used; for sequential games payoffs are evaluated specifically. This natural rephrasing maintains the core information from the original
+        specifies each game's action space, payoff function, and
+        default round count. Matrix games use pre-computed payoff
+        dictionaries; sequential games evaluate payoffs via dedicated
         functions.
     \item[Strategy Module.] A registry of opponent strategies
-Implements the Opponent Strategy Protocol; each strategy receives information about the game type along with sets of available actions and rounds. Only the sentence has
+        implements the \texttt{OpponentStrategy} protocol. Each
+        strategy receives the game type, available actions, and round
         history, and returns a single action string.
     \item[State Manager.] A Pydantic-based \texttt{GameState} model
         tracks the episode identifier, round counter, cumulative
@@ -43,7 +48,8 @@ Implements the Opponent Strategy Protocol; each strategy receives information ab
 \end{description}
 
 \paragraph{Client interface.}
-Agents connect to their environment via a WebSocket connection; clients wrap OpenEnv object EnvClient and provide types. Rewritten as requested: Agents communicate with the environment using a WebSocket
+Agents interact with the environment through a WebSocket connection.
+The client wraps the OpenEnv \texttt{EnvClient}, providing typed
 \texttt{reset(**kwargs)} and \texttt{step(GameAction)} methods that
 deserialize server responses into \texttt{GameObservation} objects.
 
@@ -72,4 +78,6 @@ dimensions (44 total tags):
     \item \textbf{Governance} --- meta-governance
 \end{enumerate}
 
-This tagging allows splitting games into strata for separating training from evaluation (Section \ref{sec:splitting}); it also performs domain-specific analysis on agent behavior. Full assignments of these tags appear in Appendix \ref{app:tags}.
+These tags enable stratified game splitting for train/eval separation
+(Section~\ref{sec:splitting}) and domain-aware analysis of agent behavior.
+Full tag assignments are listed in Appendix~\ref{app:tags}.

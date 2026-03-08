@@ -35,7 +35,8 @@ $u_i = E - c_i + \frac{m \sum_j c_j}{N}$. The Nash equilibrium is
 $c_i = 0$; the social optimum is $c_i = E$.
 
 \paragraph{Volunteer's Dilemma.} If at least one player volunteers (cost $c$),
-All participants receive something labeled $b > c$. Should no one step forward to participate, everyone receives something marked $0$. For games involving __MATHI_1
+all receive benefit $b > c$. If none volunteer, all receive $0$.
+With $N$ players, the mixed NE probability of volunteering decreases as
 $p^* = 1 - (c/b)^{1/(N-1)}$, demonstrating diffusion of responsibility.
 
 \subsection{Scaling from Dyadic to Multi-Agent}
@@ -51,8 +52,12 @@ Extending from two to $N$ players introduces several challenges:
     \item \textbf{Strategy complexity}: the opponent strategy space grows
           combinatorially; we address this via role-based strategy assignment.
     \item \textbf{Metric adaptation}: cooperation rate and fairness metrics
-Generalize naturally and redefine resistance to avoid exploitation by forming alliances instead of relying on lone defectors. You are an expert in paraph
+          generalize naturally; exploitation resistance requires redefinition
+          against adversarial coalitions rather than single defectors.
 \end{itemize}
 
-The N player strategy library contains 20 strategies (Always cooperate, Always defect, Random, tit for tat and adaptive), which have been adapted to settings involving multiple agents. In a match with other players, N player TFT plays actions that correspond to those performed by the other participants; adaptive will cooperate provided they were cooperating at least as often overall. To clarify: This
+The N-player strategy library includes $5$ strategies (Always Cooperate,
+Always Defect, Random, Tit-for-Tat, Adaptive) adapted for multi-agent
+settings. N-player TFT mirrors the \emph{majority} action of the $N-1$
+other players; Adaptive cooperates if others cooperated $>50\%$ of total
 rounds.

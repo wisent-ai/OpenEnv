@@ -1,13 +1,29 @@
 % front_matter.tex -- Abstract and Section 1 (Introduction)
 
 \begin{abstract}
-As deployment of artificial intelligence (AI) agents increases in more varied socio-economic contexts it becomes essential that such agents also consider ethical issues related to collaboration, trustworthiness and fairness. We introduce Kant as an extensive framework for both training and assessment which surpasses standard benchmarks; built upon Open Env platform, Kant includes a library of 114 games across ten different strategic domains including classic dilemma games through information games, competitive markets and auctions to cooperative game theory and dynamic games involving history dependent rewards. Framework enables interactions among MATHI players, supporting mechanisms for coalitions to form along with negotiation and enforcement processes and featuring a new high-level governance system enabling agents to interact.
+As AI agents are deployed in increasingly complex social and economic
+settings, ensuring they reason ethically about cooperation, trust, and
+fairness becomes critical for alignment. We present \textsc{Kant}, a
+comprehensive game-theoretic training and evaluation framework that goes
+far beyond simple benchmarking. Built on the OpenEnv platform, Kant
+provides a library of 114 games spanning ten strategic domains---from
+classical dilemmas through information games, market competition, and
+auctions to cooperative game theory and adaptive games with
+history-dependent payoffs. The framework supports $N$-player
+interactions, coalition formation with negotiation and enforcement
+mechanisms, a novel meta-governance engine that allows agents to
 \emph{change the rules of the game during play} through democratic
-Proposals and voting procedures along with a reputation system that uses memory across different episodes relying on querying of a knowledge graph. Creation of dynamic games is also enabled. Rephrased: Considerations for
+proposals and voting, and a reputation system with cross-episode social
+memory backed by knowledge graph queries. Dynamic game creation enables
 open-ended evaluation
-where agents dynamically build new strategic contexts; we specify a training pipeline with GRPO, DPO, and self play on trajectory data of games via curriculum learning across different types of games; we also assess safety.
+where agents construct new strategic environments at runtime. We define a
+training pipeline using GRPO, DPO, and self-play on game trajectories
+with curriculum learning across game domains, and evaluate safety
 transfer on external
-By integrating deep game theoretical settings along with training related to alignment, Kant creates a platform for investigating if strategic reasoning can form a basis for instructing ethical conduct in language model learning. Using comprehensive scenarios from various tests like HarmBench, ETHICS, Truthful QA, XSTest, and MT Bench. To integrate deep game theory settings together with training on alignment,
+benchmarks including HarmBench, ETHICS, TruthfulQA, XSTest, and MT-Bench.
+By combining comprehensive game-theoretic environments with alignment
+training, Kant provides a platform for studying whether strategic reasoning
+can serve as a foundation for teaching ethical behavior to language models.
 \end{abstract}
 
 \section{Introduction}
@@ -20,7 +36,8 @@ these agents to reason ethically about strategic interactions?} Classical game
 theory offers a rich library of settings that distil key social dilemmas into
 tractable formal
 games~\citep{nash1950equilibrium,rapoport1965prisoner,axelrod1984evolution}.
-Yet current benchmarks for artificial intelligence focus mainly on decisions made by a single agent or include strategic reasoning in highly intricate and large spaces.
+Yet existing AI benchmarks either focus on single-agent decision-making
+or embed strategic reasoning inside complex, high-dimensional environments
 that make controlled evaluation
 difficult~\citep{pan2023machiavelli,leibo2021meltingpot}.
 

@@ -1,0 +1,61 @@
+% reproducibility.tex -- Appendix L (compute requirements, reproducibility)
+
+\section{Compute Requirements and Reproducibility}
+\label{app:reproducibility}
+
+\subsection{Hardware Specifications}
+
+Training runs on NVIDIA H100 GPUs. Models range from Llama~3.2-1B (single
+GPU) to Qwen~3.5-27B and Gemma~3-27B (multi-GPU). API baselines (GPT-5.4,
+Claude Opus/Sonnet/Haiku) are evaluated via provider APIs. DPO training has similar
+requirements. The Kant environment server runs on CPU with minimal
+resource requirements ($<1$ GB RAM per concurrent session).
+
+\subsection{Training Compute Budget}
+
+\begin{table}[h]
+\centering\small
+\caption{Estimated compute budget per training method.}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Method} & \textbf{Steps} & \textbf{Est.\ GPU Hours (H100)} \\
+\midrule
+GRPO (7B, 1000 prompts) & 500 & $\sim$2--4 \\
+DPO (7B, preference pairs) & 500 & $\sim$1--2 \\
+Full curriculum (Phases I--IV) & 2000 & $\sim$8--16 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Evaluation Runtime}
+
+A full tournament (88 games $\times$ 11 strategies $\times$ 3 episodes
+$= 2{,}904$ episodes) completes in under 30 minutes with LLM inference.
+External benchmark evaluation (5 benchmarks) requires an additional
+2--4 GPU hours depending on benchmark size.
+
+\subsection{Random Seed Handling}
+
+\begin{itemize}[nosep]
+\item \textbf{Game split}: seed $= 42$, deterministic stratified split
+\item \textbf{Dataset generation}: Python \texttt{random} module with
+      configurable seed for prompt sampling
+\item \textbf{Training}: PyTorch seed set via \texttt{GRPOConfig}
+\item \textbf{Stochastic strategies}: \texttt{random.choice} with
+      episode-level seeding for reproducibility
+\end{itemize}
+
+\subsection{Step-by-Step Reproduction}
+
+\begin{enumerate}[nosep]
+\item Clone the repository: \texttt{github.com/wisent-ai/OpenEnv}
+\item Install dependencies: \texttt{pip install -r requirements.txt}
+\item Start the Kant environment:
+      \texttt{uvicorn server.app:app -{}-port 8000}
+\item Run GRPO training:
+      \texttt{python train/train.py -{}-model meta-llama/Llama-3.1-8B-Instruct}
+\item Run evaluation tournament:
+      \texttt{python -m bench.evaluation.tournament}
+\item Run external benchmarks:
+      \texttt{python -m bench.safety.run\_benchmarks}
+\end{enumerate}

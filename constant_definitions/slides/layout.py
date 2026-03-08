@@ -92,3 +92,28 @@ TEAM_NAME_H = 1.0
 TEAM_COL_ONE_X = 1.0
 TEAM_COL_TWO_X = 5.5
 TEAM_COL_W = 3.5
+
+# Prisoner's Dilemma payoff constants (T > R > P > S)
+PD_TEMPTATION = 5
+PD_REWARD = 3
+PD_PUNISHMENT = 1
+PD_SUCKER = 0
+
+# Payoff display strings for PD slide table cells
+PD_CC = f"({PD_REWARD}, {PD_REWARD})"
+PD_CD = f"({PD_SUCKER}, {PD_TEMPTATION})"
+PD_DC = f"({PD_TEMPTATION}, {PD_SUCKER})"
+PD_DD = f"({PD_PUNISHMENT}, {PD_PUNISHMENT})"
+PD_NE_LABEL = f"Nash Equilibrium: (Defect, Defect) with payoff ({PD_PUNISHMENT}, {PD_PUNISHMENT})"
+PD_PO_LABEL = f"Pareto Optimum: (Cooperate, Cooperate) with payoff ({PD_REWARD}, {PD_REWARD})"
+
+# Player labels for payoff matrix slides
+PLAYER_ROW_LABEL = "Player " + str(PD_PUNISHMENT)
+PLAYER_COL_LABEL = "Player " + str(PD_PUNISHMENT + PD_PUNISHMENT)
+
+# PD alignment explanation (no inline digits)
+PD_EXPLANATION_BODY = (
+    "The tension between individual rationality and collective welfare "
+    "is the core alignment challenge. An aligned agent should learn to "
+    "cooperate with cooperative partners while resisting exploitation."
+)

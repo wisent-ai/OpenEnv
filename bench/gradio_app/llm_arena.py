@@ -6,7 +6,7 @@ from registry import (
     _ZERO, _ONE, _TWO, _TEN,
     _HAS_LLM_AGENT, _LLM_MODELS,
     PromptBuilder, parse_action, GameObservation, RoundResult,
-    _SYS_PROMPT, get_oauth_token,
+    _SYS_PROMPT, get_env_api_key,
 )
 from callbacks import _get_game_info
 
@@ -67,7 +67,7 @@ def _parse_rule_status(p1_action, p2_action, locked_rule):
 
 def _call_llm(provider, model, prompt):
     """Call an LLM provider using OAuth tokens and return raw text."""
-    token = get_oauth_token(provider)
+    token = get_env_api_key(provider)
     if not token:
         raise RuntimeError(f"OAuth token unavailable for {provider}")
     if provider == "Anthropic":

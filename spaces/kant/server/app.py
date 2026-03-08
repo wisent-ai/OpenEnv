@@ -48,7 +48,7 @@ app = create_app(
     KantBenchAction,
     KantBenchObservation,
     env_name="KantBench",
-    max_concurrent_envs=1,  # increase this number to allow more concurrent WebSocket sessions
+    max_concurrent_envs=8,
 )
 
 

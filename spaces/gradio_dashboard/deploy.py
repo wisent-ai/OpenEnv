@@ -19,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent  # OpenEnv root
 SPACE_DIR = Path(__file__).resolve().parent  # spaces/gradio_dashboard/
 
 # Directories from the main repo needed by the app
-REQUIRED_DIRS = ["common", "env", "constant_definitions", "bench"]
+REQUIRED_DIRS = ["common", "env", "constant_definitions", "bench", "train"]
 
 IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".git")
 

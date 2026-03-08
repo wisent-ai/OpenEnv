@@ -1,10 +1,4 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
-
-"""Kantbench Environment Client."""
+"""KantBench Environment Client."""
 
 from typing import Dict
 
@@ -12,69 +6,54 @@ from openenv.core.client_types import StepResult
 from openenv.core.env_server.types import State
 from openenv.core import EnvClient
 
-from .models import KantbenchAction, KantbenchObservation
+from .models import KantBenchAction, KantBenchObservation
 
 
-class KantbenchEnv(
-    EnvClient[KantbenchAction, KantbenchObservation]
+class KantBenchEnv(
+    EnvClient[KantBenchAction, KantBenchObservation]
 ):
     """
-    Client for the Kantbench Environment.
+    Client for the KantBench game theory environment.
 
-    This client maintains a persistent WebSocket connection to the environment server,
-    enabling efficient multi-step interactions with lower latency.
-    Each client instance has its own dedicated environment session on the server.
+    Maintains a persistent WebSocket connection to the environment server.
+    Each client instance has its own dedicated environment session.
 
     Example:
-        >>> # Connect to a running server
-        >>> with KantbenchEnv(base_url="http://localhost:8000") as client:
+        >>> with KantBenchEnv(base_url="http://localhost:8000") as client:
         ...     result = client.reset()
-        ...     print(result.observation.echoed_message)
+        ...     print(result.observation.game_name)
+        ...     print(result.observation.available_moves)
         ...
-        ...     result = client.step(KantbenchAction(message="Hello!"))
-        ...     print(result.observation.echoed_message)
+        ...     result = client.step(KantBenchAction(move="cooperate"))
+        ...     print(result.observation.your_payoff)
 
-    Example with Docker:
-        >>> # Automatically start container and connect
-        >>> client = KantbenchEnv.from_docker_image("KantBench-env:latest")
-        >>> try:
+    Example with HF Space:
+        >>> with KantBenchEnv(base_url="https://openenv-community-kantbench.hf.space") as client:
         ...     result = client.reset()
-        ...     result = client.step(KantbenchAction(message="Test"))
-        ... finally:
-        ...     client.close()
+        ...     result = client.step(KantBenchAction(move="cooperate"))
     """
 
-    def _step_payload(self, action: KantbenchAction) -> Dict:
-        """
-        Convert KantbenchAction to JSON payload for step message.
+    def _step_payload(self, action: KantBenchAction) -> Dict:
+        return {"move": action.move}
 
-        Args:
-            action: KantbenchAction instance
-
-        Returns:
-            Dictionary representation suitable for JSON encoding
-        """
-        return {
-            "message": action.message,
-        }
-
-    def _parse_result(self, payload: Dict) -> StepResult[KantbenchObservation]:
-        """
-        Parse server response into StepResult[KantbenchObservation].
-
-        Args:
-            payload: JSON response data from server
-
-        Returns:
-            StepResult with KantbenchObservation
-        """
+    def _parse_result(self, payload: Dict) -> StepResult[KantBenchObservation]:
         obs_data = payload.get("observation", {})
-        observation = KantbenchObservation(
-            echoed_message=obs_data.get("echoed_message", ""),
-            message_length=obs_data.get("message_length", 0),
+        observation = KantBenchObservation(
+            game_name=obs_data.get("game_name", ""),
+            game_description=obs_data.get("game_description", ""),
+            available_moves=obs_data.get("available_moves", []),
+            your_move=obs_data.get("your_move", ""),
+            opponent_move=obs_data.get("opponent_move", ""),
+            your_payoff=obs_data.get("your_payoff", 0.0),
+            opponent_payoff=obs_data.get("opponent_payoff", 0.0),
+            cumulative_score=obs_data.get("cumulative_score", 0.0),
+            round_number=obs_data.get("round_number", 0),
+            max_rounds=obs_data.get("max_rounds", 10),
+            opponent_strategy=obs_data.get("opponent_strategy", ""),
+            history=obs_data.get("history", []),
             done=payload.get("done", False),
             reward=payload.get("reward"),
-            metadata=obs_data.get("metadata", {}),
+            message=obs_data.get("message", ""),
         )
 
         return StepResult(
@@ -84,15 +63,6 @@ class KantbenchEnv(
         )
 
     def _parse_state(self, payload: Dict) -> State:
-        """
-        Parse server response into State object.
-
-        Args:
-            payload: JSON response from state request
-
-        Returns:
-            State object with episode_id and step_count
-        """
         return State(
             episode_id=payload.get("episode_id"),
             step_count=payload.get("step_count", 0),

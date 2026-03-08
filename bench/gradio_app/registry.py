@@ -210,3 +210,31 @@ _LLM_MODELS = {
     "OpenAI": [GPT_5_4],
 }
 _LLM_OPPONENT_LABEL = "LLM"
+
+# -- OAuth token support --
+_HAS_OAUTH = False
+_oauth_get_anthropic = None
+_oauth_get_openai = None
+try:
+    from train.self_play.oauth import (
+        get_anthropic_access_token as _oauth_get_anthropic,
+        get_openai_credentials as _oauth_get_openai,
+    )
+    _HAS_OAUTH = True
+except ImportError:
+    pass
+
+
+def get_oauth_token(provider: str) -> str | None:
+    """Get an OAuth access token for the given provider, or None."""
+    if not _HAS_OAUTH:
+        return None
+    try:
+        if provider == "Anthropic":
+            return _oauth_get_anthropic()
+        if provider == "OpenAI":
+            token, _acct = _oauth_get_openai()
+            return token
+    except Exception:
+        return None
+    return None

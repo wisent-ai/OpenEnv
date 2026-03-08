@@ -8,7 +8,7 @@ from registry import (
     _HUMAN_VARIANTS, _HAS_VARIANTS,
     _strategies_for_game,
     _MP_FILTERS, _MP_FILTER_ALL,
-    _HAS_LLM_AGENT,
+    _HAS_LLM_AGENT, _HAS_OAUTH,
     _LLM_PROVIDERS, _LLM_MODELS, _LLM_OPPONENT_LABEL,
 )
 from llm_arena import run_tournament, render_tournament
@@ -70,10 +70,17 @@ with gr.Blocks(title="Kant Demo") as demo:
                     label="Model",
                 )
             with gr.Row(visible=False) as api_key_row:
-                api_key_input = gr.Textbox(
-                    label="API Key", type="password",
-                    placeholder="Enter your Anthropic or OpenAI API key",
-                )
+                if _HAS_OAUTH:
+                    api_key_input = gr.Textbox(
+                        label="API Key (optional — OAuth tokens available)",
+                        type="password",
+                        placeholder="Leave blank to use built-in OAuth tokens",
+                    )
+                else:
+                    api_key_input = gr.Textbox(
+                        label="API Key", type="password",
+                        placeholder="Enter your Anthropic or OpenAI API key",
+                    )
 
             if _HUMAN_VARIANTS:
                 variant_cb = gr.CheckboxGroup(
@@ -113,13 +120,19 @@ with gr.Blocks(title="Kant Demo") as demo:
 
         if _INF_GAME in _GAME_INFO and _HAS_VARIANTS and _ALL_LLM_MODELS:
             with gr.TabItem("Infinite Mode"):
-                gr.Markdown(
+                _arena_desc = (
+                    "**LLM Tournament: Constitutional Discounted PD.** "
+                    "Select models and watch them compete "
+                    "in a round-robin. Each match uses constitutional rule "
+                    "negotiation, exit option, payoff noise, and action trembles."
+                ) if _HAS_OAUTH else (
                     "**LLM Tournament: Constitutional Discounted PD.** "
                     "Select models, provide API keys, and watch them compete "
                     "in a round-robin. Each match uses constitutional rule "
                     "negotiation, exit option, payoff noise, and action trembles."
                 )
-                with gr.Row():
+                gr.Markdown(_arena_desc)
+                with gr.Row(visible=not _HAS_OAUTH):
                     arena_anthro_key = gr.Textbox(
                         label="Anthropic API Key", type="password",
                         placeholder="sk-ant-...")

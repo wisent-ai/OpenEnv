@@ -17,6 +17,7 @@ from registry import (
     NPlayerEnvironment, NPlayerAction,
     PromptBuilder, parse_action, GameObservation, RoundResult,
     _SYS_PROMPT, _LLM_OPPONENT_LABEL, _LLM_MODELS,
+    _HAS_OAUTH, get_oauth_token,
 )
 
 
@@ -76,6 +77,13 @@ def _render(st):
     for entry in st.get("llm_log", []):
         lines.append(f"- **Round {entry['round']}**: `{entry['raw']}`")
     return "\n".join(lines)
+
+
+def _resolve_api_key(provider, api_key):
+    """Return an API key: use provided key, or fall back to OAuth."""
+    if api_key and api_key.strip():
+        return api_key.strip()
+    return get_oauth_token(provider)
 
 
 def _llm_choose_action(state, info, provider, model, api_key):
@@ -159,9 +167,10 @@ def play_round(action_str, state, provider=None, model=None, api_key=None):
         return (state, _render(state), info["description"],
                 gr.update(choices=acts, value=acts[_ZERO]))
     if is_llm:
-        if not api_key or not api_key.strip():
-            return state, "Enter your API key to play against an LLM.", gr.update(), gr.update()
-        opp, raw = _llm_choose_action(state, info, provider, model, api_key.strip())
+        resolved_key = _resolve_api_key(provider, api_key)
+        if not resolved_key:
+            return state, "No OAuth token available and no API key provided.", gr.update(), gr.update()
+        opp, raw = _llm_choose_action(state, info, provider, model, resolved_key)
         p_pay, o_pay = info["payoff_fn"](action_str, opp)
         return _finish_round(state, info, opp, p_pay, o_pay, action_str, raw)
     opp_actions = info.get("opponent_actions")
@@ -227,7 +236,8 @@ def on_game_select_variant(gname):
 
 def on_strategy_change(sname):
     is_llm = sname == _LLM_OPPONENT_LABEL
-    return gr.update(visible=is_llm), gr.update(visible=is_llm)
+    show_key = is_llm and not _HAS_OAUTH
+    return gr.update(visible=is_llm), gr.update(visible=show_key)
 
 
 def on_provider_change(provider):

@@ -6,7 +6,7 @@ from registry import (
     _ZERO, _ONE, _TWO, _TEN,
     _HAS_LLM_AGENT, _LLM_MODELS,
     PromptBuilder, parse_action, GameObservation, RoundResult,
-    _SYS_PROMPT,
+    _SYS_PROMPT, get_oauth_token,
 )
 from callbacks import _get_game_info
 
@@ -102,6 +102,13 @@ def run_match(game_name, variants, num_rounds,
             "rounds": rounds, "total_rounds": num_rounds}
 
 
+def _resolve_key(provider, manual_key):
+    """Use manual key if provided, otherwise try OAuth."""
+    if manual_key and manual_key.strip():
+        return manual_key.strip()
+    return get_oauth_token(provider)
+
+
 def run_tournament(game_name, variants, num_rounds, models,
                    anthropic_key, openai_key):
     """Run round-robin tournament between selected models."""
@@ -112,8 +119,11 @@ def run_tournament(game_name, variants, num_rounds, models,
         for j in range(i + _ONE, len(models)):
             p1, p2 = models[i], models[j]
             p1_prov, p2_prov = _model_provider(p1), _model_provider(p2)
-            p1_key = anthropic_key if p1_prov == "Anthropic" else openai_key
-            p2_key = anthropic_key if p2_prov == "Anthropic" else openai_key
+            p1_key = _resolve_key(p1_prov, anthropic_key if p1_prov == "Anthropic" else openai_key)
+            p2_key = _resolve_key(p2_prov, anthropic_key if p2_prov == "Anthropic" else openai_key)
+            if not p1_key or not p2_key:
+                results.append({"error": "No OAuth token or API key available"})
+                continue
             result = run_match(game_name, variants, num_rounds,
                                p1_prov, p1, p1_key, p2_prov, p2, p2_key)
             results.append(result)

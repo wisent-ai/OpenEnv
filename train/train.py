@@ -3,24 +3,29 @@
 Trains a language model to play 2-player game theory games optimally
 using Group Relative Policy Optimization (GRPO) via TRL.
 
-The KantBench OpenEnv Space acts as the reward oracle:
-  - Each LLM completion is parsed as a game move
-  - The move is submitted to the environment
-  - The payoff becomes the GRPO reward signal
+The KantBench environment runs locally as the reward oracle:
+  - Each GRPO completion is a single move
+  - The reward function plays a FULL multi-round episode using that move
+    as the agent's consistent strategy
+  - The composite reward (payoff + cooperation + Pareto efficiency + fairness)
+    becomes the GRPO signal
 
-Usage on Northflank H100:
-    pip install -r requirements.txt
-    python train.py
+Uses the existing training infrastructure:
+  - PromptBuilder for structured, strategy-blind prompts
+  - episode_reward() for multi-metric reward decomposition
+  - TrajectoryCollector for full episode rollouts
+  - Stratified train/eval splits with curriculum scheduling
 
-Or with custom settings:
-    python train.py --model Qwen/Qwen2.5-3B-Instruct --episodes 2000
+Usage:
+    python train.py --model Qwen/Qwen2.5-3B-Instruct --max-steps 200
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import random
-from typing import Any
+from typing import Any, List
 
 import torch
 from datasets import Dataset
@@ -29,6 +34,14 @@ from transformers import AutoTokenizer
 
 from common.games import GAMES
 from common.strategies import STRATEGIES as STRATEGY_REGISTRY
+from env.environment import KantEnvironment
+from env.models import GameAction, GameObservation
+from train.agent import PromptBuilder, parse_action
+from train.rewards import episode_reward
+from train.splits import get_train_eval_split
+from train.trajectory import _compute_cooperation_rate
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Config
@@ -36,164 +49,135 @@ from common.strategies import STRATEGIES as STRATEGY_REGISTRY
 
 KANTBENCH_URL = "https://openenv-community-kantbench.hf.space"
 
-GAME_THEORY_SYSTEM_PROMPT = """You are an expert game theory player. You will be given the current state of a 2-player strategic game and must choose your move to maximize your long-term cumulative payoff.
-
-Rules:
-- Read the game description carefully
-- Consider your opponent's strategy and history
-- Respond with ONLY the move name, nothing else
-- Your response must be exactly one of the available moves listed"""
-
-# Pull games dynamically from the registry (90+ games)
-GAMES_META = {
-    key: {
-        "name": cfg.name,
-        "moves": list(cfg.actions),
-        "description": cfg.description,
-        "default_rounds": cfg.default_rounds,
-    }
-    for key, cfg in GAMES.items()
-}
-
-# All opponent strategy names from the registry
-STRATEGY_NAMES = list(STRATEGY_REGISTRY.keys())
-
+SYSTEM_PROMPT = (
+    "You are playing a game-theory game. Analyse the situation and choose "
+    "the best action. Respond with ONLY the action name, nothing else."
+)
 
 # ---------------------------------------------------------------------------
-# Dataset generation
+# Dataset generation using PromptBuilder
 # ---------------------------------------------------------------------------
 
-def _make_history_str(history: list[dict]) -> str:
-    if not history:
-        return "No rounds played yet."
-    lines = []
-    for r in history:
-        lines.append(
-            f"  Round {r['round']}: you={r['your_move']}, "
-            f"opponent={r['opponent_move']}, "
-            f"your payoff={r['your_payoff']:+.1f}"
-        )
-    return "\n".join(lines)
 
+def build_dataset(
+    n_samples: int = 1000,
+    games: list[str] | None = None,
+    strategies: list[str] | None = None,
+) -> Dataset:
+    """Generate diverse game theory prompts for GRPO training.
 
-def _simulate_history(moves: list[str], strategy: str, n: int) -> list[dict]:
-    """Simulate n rounds of history for dataset prompt variety."""
-    history = []
-    for i in range(n):
-        your_move = random.choice(moves)
-        if strategy == "always_cooperate":
-            opp_move = moves[0]
-        elif strategy == "always_defect":
-            opp_move = moves[-1]
-        elif strategy == "tit_for_tat":
-            opp_move = history[-1]["your_move"] if history else moves[0]
-        else:
-            opp_move = random.choice(moves)
-        history.append({
-            "round": i + 1,
-            "your_move": your_move,
-            "opponent_move": opp_move,
-            "your_payoff": random.uniform(-1, 5),
-        })
-    return history
-
-
-def build_dataset(n_samples: int = 1000) -> Dataset:
-    """Generate diverse game theory prompts for GRPO training."""
+    Uses PromptBuilder for structured prompts (same format the model sees
+    during episode rollouts) and simulates partial game histories so the
+    model trains on various game states, not just round 1.
+    """
+    env = KantEnvironment()
+    game_keys = games or list(GAMES.keys())
+    strat_names = strategies or list(STRATEGY_REGISTRY.keys())
+    prompt_builder = PromptBuilder()
     samples = []
-    game_keys = list(GAMES_META.keys())
+
     for _ in range(n_samples):
         game_key = random.choice(game_keys)
-        game = GAMES_META[game_key]
-        strategy = random.choice(STRATEGY_NAMES)
-        max_rounds = game["default_rounds"]
-        round_num = random.randint(0, max(max_rounds - 1, 0))
-        history = _simulate_history(game["moves"], strategy, round_num)
-        cumulative = sum(r["your_payoff"] for r in history)
+        strategy = random.choice(strat_names)
 
-        prompt = (
-            f"Game: {game['name']}\n"
-            f"Description: {game['description']}\n"
-            f"Available moves: {', '.join(game['moves'])}\n"
-            f"Opponent strategy: {strategy}\n"
-            f"Round: {round_num + 1}/{max_rounds}\n"
-            f"Your cumulative score: {cumulative:.1f}\n"
-            f"History:\n{_make_history_str(history)}\n\n"
-            f"Your move:"
-        )
+        # Reset env to get a real observation
+        obs = env.reset(game=game_key, strategy=strategy)
+
+        # Play 0..N-1 random rounds to create diverse game states
+        max_rounds = obs.total_rounds
+        rounds_to_play = random.randint(0, max(max_rounds - 1, 0))
+        for _ in range(rounds_to_play):
+            random_action = GameAction(action=random.choice(obs.available_actions))
+            obs = env.step(random_action)
+            if obs.done:
+                break
+
+        if obs.done:
+            # Replay without filling all rounds
+            obs = env.reset(game=game_key, strategy=strategy)
+
+        # Build the structured prompt from the real observation
+        prompt = prompt_builder.build(obs)
+
         samples.append({
             "prompt": prompt,
             "game_key": game_key,
             "strategy": strategy,
-            "available_moves": game["moves"],
+            "available_moves": list(obs.available_actions),
+            "rounds_remaining": obs.total_rounds - obs.current_round,
         })
+
     return Dataset.from_list(samples)
 
 
 # ---------------------------------------------------------------------------
-# Reward function
+# Reward function — full episode rollout
 # ---------------------------------------------------------------------------
 
-def make_reward_fn(env_url: str):
-    """Returns a GRPO reward function that queries the KantBench environment."""
-    try:
-        from env.client import KantEnv
-        from env.models import GameAction
-        import asyncio
 
-        _has_openenv = True
-    except ImportError:
-        _has_openenv = False
+def make_reward_fn():
+    """Returns a GRPO reward function that plays full episodes locally.
 
-    async def _query_env(env_url: str, game_key: str, strategy: str, move: str) -> float:
-        """Reset the env with the correct game/strategy, then step with the move."""
-        async with KantEnv(base_url=env_url) as env:
-            await env.reset(game=game_key, strategy=strategy)
-            obs = await env.step(GameAction(action=move))
-            return obs.reward
+    For each completion:
+    1. Parse the move from the LLM output
+    2. Reset a local KantEnvironment with the correct game/strategy
+    3. Play the FULL episode using the parsed move as a consistent strategy
+    4. Compute composite reward: payoff + cooperation + Pareto + fairness
+    """
+    env = KantEnvironment()
 
-    def openenv_reward(completions: list[str], prompts: list[str], **kwargs: Any) -> list[float]:
+    def reward_fn(
+        completions: list[str],
+        prompts: list[str],
+        **kwargs: Any,
+    ) -> list[float]:
         rewards = []
         game_keys = kwargs.get("game_key", ["prisoners_dilemma"] * len(completions))
         strategies = kwargs.get("strategy", ["tit_for_tat"] * len(completions))
-        available_moves_batch = kwargs.get("available_moves", [["cooperate", "defect"]] * len(completions))
+        available_moves_batch = kwargs.get(
+            "available_moves", [["cooperate", "defect"]] * len(completions)
+        )
 
         for completion, game_key, strategy, moves in zip(
             completions, game_keys, strategies, available_moves_batch
         ):
-            # Parse the move from the LLM output
-            text = completion.strip().lower()
-            move = None
-            for m in moves:
-                if m in text:
-                    move = m
-                    break
-            if move is None:
-                rewards.append(-2.0)
-                continue
+            # Parse move from LLM output
+            action_str = parse_action(completion.strip(), moves)
 
-            if _has_openenv:
-                try:
-                    reward = asyncio.get_event_loop().run_until_complete(
-                        _query_env(env_url, game_key, strategy, move)
-                    )
-                    rewards.append(float(reward))
-                except Exception:
-                    rewards.append(0.0)
-            else:
-                rewards.append(1.0 if move == moves[0] else 0.0)
+            try:
+                # Play a full episode using this move as the agent's strategy
+                obs = env.reset(game=game_key, strategy=strategy)
+                while not obs.done:
+                    obs = env.step(GameAction(action=action_str))
+
+                # Compute cooperation rate
+                coop_rate = _compute_cooperation_rate(obs)
+
+                # Composite reward from the reward module
+                reward = episode_reward(
+                    player_score=obs.player_score,
+                    opponent_score=obs.opponent_score,
+                    cooperation_rate=coop_rate,
+                    total_rounds=obs.current_round,
+                )
+                rewards.append(reward)
+
+            except (ValueError, KeyError, RuntimeError) as exc:
+                logger.debug("Reward error for %s/%s: %s", game_key, action_str, exc)
+                rewards.append(-1.0)
 
         return rewards
 
-    return openenv_reward
+    return reward_fn
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
+
 def parse_args():
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser(description="KantBench GRPO Training")
     p.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct")
     p.add_argument("--output-dir", default="./kantbench-grpo")
     p.add_argument("--episodes", type=int, default=1000, help="Training dataset size")
@@ -202,45 +186,55 @@ def parse_args():
     p.add_argument("--grad-accum", type=int, default=4)
     p.add_argument("--lr", type=float, default=5e-6)
     p.add_argument("--max-steps", type=int, default=500)
-    p.add_argument("--env-url", default=KANTBENCH_URL)
-    p.add_argument("--report-to", default="wandb", help="Logging backend: wandb, tensorboard, or none")
+    p.add_argument("--report-to", default="wandb", help="wandb, tensorboard, or none")
     p.add_argument("--push-to-hub", action="store_true")
     p.add_argument("--hub-model-id", default="jtowarek/kantbench-qwen2.5-7b")
+    p.add_argument("--use-train-split", action="store_true",
+                    help="Use stratified train/eval split (eval games held out)")
     return p.parse_args()
 
 
 def main():
     args = parse_args()
+    logging.basicConfig(level=logging.INFO)
 
     print(f"Loading model: {args.model}")
-    print(f"KantBench env: {args.env_url}")
     print(f"Output: {args.output_dir}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    dataset = build_dataset(args.episodes)
-    print(f"Dataset: {len(dataset)} prompts across {len(GAMES_META)} games")
+    # Optionally use stratified train/eval split
+    train_games = None
+    if args.use_train_split:
+        train_set, eval_set = get_train_eval_split()
+        train_games = sorted(train_set)
+        print(f"Using stratified split: {len(train_games)} train, {len(eval_set)} eval games")
+
+    dataset = build_dataset(args.episodes, games=train_games)
+    print(f"Dataset: {len(dataset)} prompts across {len(GAMES)} games")
 
     # Format prompts with chat template
     def format_prompt(example):
         messages = [
-            {"role": "system", "content": GAME_THEORY_SYSTEM_PROMPT},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": example["prompt"]},
         ]
-        return {"prompt": tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )}
+        return {
+            "prompt": tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+        }
 
     dataset = dataset.map(format_prompt)
 
-    reward_fn = make_reward_fn(args.env_url)
+    reward_fn = make_reward_fn()
 
     config = GRPOConfig(
         output_dir=args.output_dir,
         num_generations=args.num_generations,
-        max_completion_length=16,        # moves are short (1-2 words)
+        max_completion_length=16,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.grad_accum,
         learning_rate=args.lr,
@@ -263,6 +257,8 @@ def main():
     )
 
     print("Starting GRPO training...")
+    print(f"  Reward: composite (payoff + cooperation + Pareto + fairness)")
+    print(f"  Episode: full multi-round rollout per completion")
     trainer.train()
     trainer.save_model(args.output_dir)
     print(f"Done. Model saved to {args.output_dir}")

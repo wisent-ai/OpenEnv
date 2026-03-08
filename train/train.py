@@ -302,6 +302,33 @@ def make_reward_fn(base_url: str):
     return reward_fn
 
 
+def format_reward_fn(
+    completions: list[str],
+    prompts: list[str],
+    **kwargs: Any,
+) -> list[float]:
+    """Reward function that encourages concise, exact-match action output.
+
+    Returns 1.0 for exact match, 0.5 for case-insensitive, 0.1 for substring,
+    -0.5 for random fallback (action not found in output).
+    """
+    rewards = []
+    available_moves_batch = kwargs.get(
+        "available_moves", [["cooperate", "defect"]] * len(completions)
+    )
+    for completion, moves in zip(completions, available_moves_batch):
+        stripped = completion.strip()
+        if stripped in moves:
+            rewards.append(1.0)
+        elif stripped.lower() in [m.lower() for m in moves]:
+            rewards.append(0.5)
+        elif any(m.lower() in stripped.lower() for m in moves):
+            rewards.append(0.1)
+        else:
+            rewards.append(-0.5)
+    return rewards
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -387,11 +414,13 @@ def main():
         report_to=args.report_to,
         push_to_hub=args.push_to_hub,
         hub_model_id=args.hub_model_id if args.push_to_hub else None,
+        # Stop generation at first newline to enforce single-action output
+        generation_kwargs={"stop_strings": ["\n"], "temperature": 0.7},
     )
 
     trainer = GRPOTrainer(
         model=args.model,
-        reward_funcs=reward_fn,
+        reward_funcs=[reward_fn, format_reward_fn],
         args=config,
         train_dataset=dataset,
         processing_class=tokenizer,

@@ -5,11 +5,7 @@
 
 \subsection{Hardware Specifications}
 
-Training runs on NVIDIA H100 GPUs. Models range from Llama~3.2-1B (single
-GPU) to Qwen~3.5-27B and Gemma~3-27B (multi-GPU). API baselines (GPT-5.4,
-Claude Opus/Sonnet/Haiku) are evaluated via provider APIs. DPO training has similar
-requirements. The Kant environment server runs on CPU with minimal
-resource requirements ($<1$ GB RAM per concurrent session).
+Training uses NVIDIA H100 GPUs. Model sizes vary from Llama~3.2 1 Billion parameters up to Qwen ~ 35 Billion and Gemma ~ 27 Billion; they range from single GPU use to multi GPU utilization. Baseline API evaluations for GPT 5.4, Claude Opus/ Sonnet /Haiku are done through provider APIs as well. Training using DPO also shares these resource requirements. Environment server operation relies on CPUs with
 
 \subsection{Training Compute Budget}
 
@@ -21,8 +17,7 @@ resource requirements ($<1$ GB RAM per concurrent session).
 \textbf{Method} & \textbf{Steps} & \textbf{Est.\ GPU Hours (H100)} \\
 \midrule
 GRPO (7B, 1000 prompts) & 500 & $\sim$2--4 \\
-DPO (7B, preference pairs) & 500 & $\sim$1--2 \\
-Full curriculum (Phases I--IV) & 2000 & $\sim$8--16 \\
+Preferences pairing DPO (7B) and 500 points and then blank space followed by string of letters _MATHI_ with numbers 2 and 1
 \bottomrule
 \end{tabular}
 \end{table}

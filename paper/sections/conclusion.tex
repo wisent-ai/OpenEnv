@@ -3,30 +3,23 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-We have introduced \textsc{Kant}, a comprehensive game-theoretic framework
-for training and evaluating ethical reasoning in language models. The
+We have introduced Kant as an overall framework for both training and evaluation of ethical reasoning using language models. Key changes made: - "have introduced" to "introduced" - "
 framework makes the following core contributions:
 
 \begin{enumerate}[nosep]
     \item \textbf{Comprehensive game library}: 90+ games spanning nine
-          strategic domains---from classical dilemmas through market
-          competition, auctions, and cooperative game theory---providing
-          broad coverage of the strategic reasoning landscape.
+Strategic areas ranging from classic dilemmas via competition in markets to auction mechanisms and cooperative game theory offer comprehensive coverage of the terrain of strategic reasoning.
     \item \textbf{Multi-agent infrastructure}: $N$-player game support,
-          a coalition formation system with negotiation, enforcement modes,
-          and side payments, and a meta-governance engine enabling democratic
+A system for forming coalitions including mechanisms for negotiation, enforcement methods and side payments; alongside a high level governance engine that supports democracy.
           rule modification during play.
     \item \textbf{Training pipeline}: GRPO and DPO training on game
-          trajectories with curriculum learning across game domains,
-          connecting game-theoretic environments directly to alignment
+Trajectories for curriculum learning through different game contexts; linking direct alignment of theoretical environments to games. To connect game theory environments directly with
           training.
     \item \textbf{Safety transfer evaluation}: systematic evaluation of
-          whether game-theoretic training improves performance on external
-          safety benchmarks including HarmBench, ETHICS, TruthfulQA,
+whether training using games theory also enhances performance on external safety benchmarks such as HarmBench and ETHICS and Truthful QA Par
           XSTest, and MT-Bench.
     \item \textbf{Alignment-oriented evaluation}: six normalized metrics
-          capturing cooperation, exploitation resistance, Pareto efficiency,
-          fairness, adaptability, and strategic reasoning, with stratified
+Capturing cooperation, resistance to exploitation, Pareto efficiency, fairness, adaptability as well as strategic reasoning; stratification also involved
           game splitting for robust evaluation.
 \end{enumerate}
 
@@ -40,22 +33,18 @@ Constitutional AI~\citep{bai2022constitutional}.
 \subsection{Future Work}
 
 \paragraph{Scaling experiments.}
-Evaluating the training pipeline across model scales to understand how
-game-theoretic alignment training interacts with model capacity.
+Comparing different stages of a training pipeline at varying levels of models for understanding how game theoretic alignment training relates to model capacity.
 
 \paragraph{Multi-model tournaments.}
-Agent-vs-agent tournaments where multiple LLMs compete directly,
-enabling comparative evaluation of strategic and ethical reasoning
+Competitions among agents that pit multiple Large Language Models (LLMs) against each other directly allow for comparison of reasoning strategies and ethics. You are an
 across model families.
 
 \paragraph{Governance emergence studies.}
-Systematic study of what governance structures emerge when agents are
-given full meta-governance capabilities across extended interaction
+Detailed investigation into how governance structures develop when actors are endowed with comprehensive meta governance capability through broad interactions.
 periods.
 
 \paragraph{Real-world transfer.}
-Evaluating whether game-theoretic training improves agent behavior in
-naturalistic multi-agent settings beyond formal benchmarks.
+Assessing if training using games theory enhances performance of agents in realistic scenarios involving multiple agents above formal standards. To assess whether training using game theory
 
 \paragraph{Dynamic curriculum optimization.}
 Automated curriculum design that identifies which game domains

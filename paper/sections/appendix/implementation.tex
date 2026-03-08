@@ -3,8 +3,7 @@
 \section{Dynamic Game API Reference}
 \label{app:api}
 
-The dynamic game creation system (Section~\ref{sec:game-api}) exposes
-three construction modes via the \texttt{GameConfig} dataclass:
+Section \ref{sec:game-api} introduces a dynamic game development system that presents three construction modes through use of the \texttt{GameConfig}
 
 \begin{description}[nosep]
 \item[Matrix.] Specify payoff matrix as nested dict
@@ -16,8 +15,7 @@ three construction modes via the \texttt{GameConfig} dataclass:
   that computes payoffs from action profiles. Supports arbitrary game logic.
 \end{description}
 
-Games are registered in the global \texttt{GAMES} dictionary with a unique
-string key. Extension modules (across \texttt{games\_ext/},
+Games are registered into the global dictionary called \texttt{GAMES} using a unique string key. Modules of extension (from \texttt{games_ext/})
 \texttt{games\_info/}, \texttt{games\_market/}, \texttt{games\_coop/},
 \texttt{games\_meta/}, \texttt{games\_adaptive/}) are loaded dynamically
 via \texttt{\_load\_extensions()}. Adaptive games are registered as
@@ -88,7 +86,6 @@ Rules:\\
 - Your response must be exactly one of the available moves listed
 \end{quote}
 
-Each user prompt includes: game name, description, available moves,
-opponent strategy, round number (e.g., ``Round 3/10''), cumulative score,
+Each user query contains: name of the game, description, possible actions, strategy of opponent, current round (for example, "Round 3 out of 10"), total
 and full action history formatted as
 ``Round $k$: you=X, opponent=Y, your payoff=$\pm z$''.

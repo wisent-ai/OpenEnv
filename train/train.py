@@ -414,9 +414,16 @@ def main():
         report_to=args.report_to,
         push_to_hub=args.push_to_hub,
         hub_model_id=args.hub_model_id if args.push_to_hub else None,
-        # Stop generation at first newline to enforce single-action output
-        generation_kwargs={"stop_strings": ["\n"], "temperature": 0.7},
+        # Stop generation at newline token to enforce single-action output
+        generation_kwargs={"temperature": 0.7},
     )
+
+    # Add newline token as an extra EOS so generation stops after one line
+    newline_token_id = tokenizer.encode("\n", add_special_tokens=False)
+    if newline_token_id:
+        config.generation_kwargs["eos_token_id"] = [
+            tokenizer.eos_token_id, newline_token_id[0],
+        ]
 
     trainer = GRPOTrainer(
         model=args.model,

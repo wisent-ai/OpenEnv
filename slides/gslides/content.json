@@ -70,6 +70,23 @@
     "caption": "Cooperation vs. self-interest \u00b7 Coordination under risk \u00b7 Conflict escalation"
   },
   {
+    "type": "two_col_text",
+    "title": "The Prisoner's Dilemma",
+    "left": [
+      "Two suspects are arrested and interrogated separately. Each can Cooperate (stay silent) or Defect (betray the other).",
+      "Both cooperate \u2192 1 year each",
+      "Both defect \u2192 3 years each",
+      "One defects, one cooperates \u2192 0 vs 5 years",
+      "Rational self-interest drives both to defect, even though mutual cooperation is better for both."
+    ],
+    "right": [
+      "Why it matters for alignment:",
+      "Defection is the Nash equilibrium \u2014 individually rational but collectively harmful.",
+      "An aligned agent should learn to cooperate when facing cooperative partners, while resisting exploitation by defectors.",
+      "This tension between individual and collective rationality is the core challenge of multi-agent alignment."
+    ]
+  },
+  {
     "type": "figure",
     "title": "Architecture",
     "image": "architecture.svg",
@@ -97,6 +114,7 @@
     "type": "team",
     "title": "Team",
     "members": ["Jakub Towarek", "Lukasz Bartoszcze"],
+    "photos": ["jakub-towarek.png", "lukasz-bartoszcze.png"],
     "org": "Wisent"
   },
   {

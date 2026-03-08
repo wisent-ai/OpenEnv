@@ -30,3 +30,19 @@ SELF_PLAY_WARMUP_EPISODES = 32
 
 # Opponent strategy label used in trajectory metadata
 SELF_PLAY_OPPONENT_LABEL = "agent"
+
+# Anthropic OAuth constants for self-play integration
+ANTHROPIC_OAUTH_TOKEN_URL = "https://platform.claude.com/v1/oauth/token"
+ANTHROPIC_OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+ANTHROPIC_OAUTH_BETA_HEADER = "oauth-2025-04-20"
+ANTHROPIC_OAUTH_MAX_TOKENS = 5
+
+# OpenAI OAuth constants for self-play integration
+OPENAI_OAUTH_TOKEN_URL = "https://auth.openai.com/oauth/token"
+OPENAI_OAUTH_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+OPENAI_CODEX_API_URL = "https://chatgpt.com/backend-api/codex/responses"
+
+# Supabase constants for credential storage
+SUPABASE_OAUTH_TABLE = "oauth_credentials"
+SUPABASE_PROVIDER_ANTHROPIC = "anthropic"
+SUPABASE_PROVIDER_OPENAI = "openai"

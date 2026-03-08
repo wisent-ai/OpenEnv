@@ -220,12 +220,14 @@ Illustrative data. Full multi-model results TBD.
 
 # Team
 
-<div class="flex justify-center mt-16">
+<div class="flex justify-center mt-8">
 <div class="grid grid-cols-2 gap-16 text-center">
 <div>
+  <img src="/figures/jakub-towarek.webp" class="h-40 w-40 rounded-full mx-auto mb-4 object-cover" />
   <div class="text-2xl font-bold text-white">Jakub Towarek</div>
 </div>
 <div>
+  <img src="/figures/lukasz-bartoszcze.webp" class="h-40 w-40 rounded-full mx-auto mb-4 object-cover" />
   <div class="text-2xl font-bold text-white">Lukasz Bartoszcze</div>
 </div>
 </div>

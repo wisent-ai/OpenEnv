@@ -196,8 +196,17 @@ def build_team(prs, sd):
     add_text(slide, sd["title"], TITLE_X, TITLE_Y, TITLE_W, TITLE_H,
              PT_TITLE, ACCENT, bold=True, align=PP_ALIGN.CENTER)
     xs = [TEAM_COL_ONE_X, TEAM_COL_TWO_X]
+    photo_xs = [POS_TWO, POS_SIX]
+    photos = sd.get("photos", [])
     for idx, name in enumerate(sd["members"]):
-        add_text(slide, name, xs[idx], TEAM_NAME_Y, TEAM_COL_W,
+        if idx < len(photos):
+            img_path = str(FIGURES_DIR / photos[idx])
+            if os.path.exists(img_path):
+                slide.shapes.add_picture(
+                    img_path, Inches(photo_xs[idx]),
+                    Inches(POS_ONE_HALF), Inches(POS_TWO),
+                    Inches(POS_TWO))
+        add_text(slide, name, xs[idx], POS_FOUR, TEAM_COL_W,
                  TEAM_NAME_H, PT_TEAM, WHITE, bold=True,
                  align=PP_ALIGN.CENTER)
     add_text(slide, sd["org"], POS_EIGHT, FOOTER_Y, POS_TWO, POS_HALF,

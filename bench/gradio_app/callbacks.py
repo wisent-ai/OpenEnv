@@ -17,7 +17,7 @@ from registry import (
     NPlayerEnvironment, NPlayerAction,
     PromptBuilder, parse_action, GameObservation, RoundResult,
     _SYS_PROMPT, _LLM_OPPONENT_LABEL, _LLM_MODELS,
-    _HAS_OAUTH, get_oauth_token,
+    _HAS_ENV_KEYS, get_env_api_key,
 )
 
 
@@ -80,10 +80,10 @@ def _render(st):
 
 
 def _resolve_api_key(provider, api_key):
-    """Return an API key: use provided key, or fall back to OAuth."""
+    """Return an API key: use provided key, or fall back to env var."""
     if api_key and api_key.strip():
         return api_key.strip()
-    return get_oauth_token(provider)
+    return get_env_api_key(provider)
 
 
 def _llm_choose_action(state, info, provider, model, api_key):
@@ -236,8 +236,7 @@ def on_game_select_variant(gname):
 
 def on_strategy_change(sname):
     is_llm = sname == _LLM_OPPONENT_LABEL
-    show_key = is_llm and not _HAS_OAUTH
-    return gr.update(visible=is_llm), gr.update(visible=show_key)
+    return gr.update(visible=is_llm), gr.update(visible=is_llm)
 
 
 def on_provider_change(provider):

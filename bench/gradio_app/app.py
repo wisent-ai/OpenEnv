@@ -8,7 +8,7 @@ from registry import (
     _HUMAN_VARIANTS, _HAS_VARIANTS,
     _strategies_for_game,
     _MP_FILTERS, _MP_FILTER_ALL,
-    _HAS_LLM_AGENT, _HAS_OAUTH,
+    _HAS_LLM_AGENT, _HAS_ENV_KEYS,
     _LLM_PROVIDERS, _LLM_MODELS, _LLM_OPPONENT_LABEL,
 )
 from llm_arena import run_infinite_tournament
@@ -69,17 +69,11 @@ with gr.Blocks(title="Kant Demo") as demo:
                     label="Model",
                 )
             with gr.Row(visible=False) as api_key_row:
-                if _HAS_OAUTH:
-                    api_key_input = gr.Textbox(
-                        label="API Key (optional -- OAuth tokens available)",
-                        type="password",
-                        placeholder="Leave blank to use built-in OAuth tokens",
-                    )
-                else:
-                    api_key_input = gr.Textbox(
-                        label="API Key", type="password",
-                        placeholder="Enter your Anthropic or OpenAI API key",
-                    )
+                api_key_input = gr.Textbox(
+                    label="API Key (optional)" if _HAS_ENV_KEYS else "API Key",
+                    type="password",
+                    placeholder="Leave blank to use server key" if _HAS_ENV_KEYS else "Enter your Anthropic or OpenAI API key",
+                )
 
             if _HUMAN_VARIANTS:
                 variant_cb = gr.CheckboxGroup(
@@ -125,7 +119,7 @@ with gr.Blocks(title="Kant Demo") as demo:
                     "Discounted PD with rule negotiation, exit option, payoff "
                     "noise, and action trembles. Runs forever until you stop it."
                 )
-                with gr.Row(visible=not _HAS_OAUTH):
+                with gr.Row(visible=not _HAS_ENV_KEYS):
                     arena_anthro_key = gr.Textbox(
                         label="Anthropic API Key", type="password",
                         placeholder="sk-ant-...")
@@ -155,4 +149,4 @@ with gr.Blocks(title="Kant Demo") as demo:
         with gr.TabItem("Game Theory Reference"):
             gr.Markdown(value=_build_reference_md())
 
-demo.launch()
+demo.launch(server_name="0.0.0.0", server_port=7860)

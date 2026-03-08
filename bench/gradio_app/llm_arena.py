@@ -6,7 +6,7 @@ from registry import (
     _ZERO, _ONE, _TWO, _TEN,
     _HAS_LLM_AGENT, _LLM_MODELS,
     PromptBuilder, parse_action, GameObservation, RoundResult,
-    _SYS_PROMPT, get_oauth_token,
+    _SYS_PROMPT, get_env_api_key,
 )
 from callbacks import _get_game_info
 
@@ -69,10 +69,10 @@ def _model_provider(model_name):
 
 
 def _resolve_key(provider, manual_key):
-    """Use manual key if provided, otherwise try OAuth."""
+    """Use manual key if provided, otherwise try env var."""
     if manual_key and manual_key.strip():
         return manual_key.strip()
-    return get_oauth_token(provider)
+    return get_env_api_key(provider)
 
 
 def _init_matchups(models, anthropic_key, openai_key):

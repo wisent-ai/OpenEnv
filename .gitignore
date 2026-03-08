@@ -6,3 +6,13 @@ dist/
 build/
 .pytest_cache/
 .env
+node_modules/
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.nav
+*.snm
+*.toc
+*.pdf

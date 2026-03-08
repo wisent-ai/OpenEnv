@@ -1,7 +1,15 @@
 """Kant Gradio Demo -- self-contained HuggingFace Spaces app."""
 from __future__ import annotations
-import gradio as gr
+import sys
+print("[APP] Starting imports...", flush=True)
+print(f"[APP] Python: {sys.version}", flush=True)
+print(f"[APP] Path: {sys.path[:3]}", flush=True)
 
+print("[APP] Importing gradio...", flush=True)
+import gradio as gr
+print("[APP] Gradio imported.", flush=True)
+
+print("[APP] Importing registry...", flush=True)
 from registry import (
     _ZERO, _ONE, _TWO, _TEN,
     _GAME_INFO, _CATEGORY_DIMS, _ALL_FILTER,
@@ -10,7 +18,13 @@ from registry import (
     _MP_FILTERS, _MP_FILTER_ALL,
     _LLM_PROVIDERS, _LLM_MODELS, _LLM_OPPONENT_LABEL,
 )
+print("[APP] Registry imported.", flush=True)
+
+print("[APP] Importing llm_arena...", flush=True)
 from llm_arena import run_infinite_tournament
+print("[APP] llm_arena imported.", flush=True)
+
+print("[APP] Importing callbacks...", flush=True)
 from callbacks import (
     _get_game_info, _blank, _render,
     play_round, reset_game, on_game_change,
@@ -19,6 +33,7 @@ from callbacks import (
     on_strategy_change, on_provider_change,
     _build_reference_md,
 )
+print("[APP] All imports done.", flush=True)
 
 # -- UI constants --
 _GAME_NAMES = sorted(_GAME_INFO.keys())
@@ -134,4 +149,5 @@ with gr.Blocks(title="Kant Demo") as demo:
         with gr.TabItem("Game Theory Reference"):
             gr.Markdown(value=_build_reference_md())
 
-demo.launch(server_name="0.0.0.0", server_port=7860)
+print("[APP] Launching Gradio...", flush=True)
+demo.launch(server_name="0.0.0.0", server_port=7860, share=False, show_api=False)

@@ -24,13 +24,15 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import random
+import time
 from typing import Any, List
 
 import torch
 from datasets import Dataset
 from trl import GRPOConfig, GRPOTrainer
-from transformers import AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 from common.games import GAMES
 from common.strategies import STRATEGIES as STRATEGY_REGISTRY
@@ -264,38 +266,48 @@ def make_reward_fn(base_url: str):
                     i, game_key, moves, action_str, completion[:200],
                 )
 
-            try:
-                # Play a full episode using this move as a consistent strategy
-                reset_kwargs = {"game": game_key, "strategy": strategy}
-                if variant:
-                    reset_kwargs["variant"] = variant
+            # Retry with exponential backoff for transient connection issues
+            reward = -1.0
+            for attempt in range(3):
+                try:
+                    reset_kwargs = {"game": game_key, "strategy": strategy}
+                    if variant:
+                        reset_kwargs["variant"] = variant
 
-                result = env.reset(**reset_kwargs)
-                while not result.done:
-                    result = env.step(KantBenchAction(move=action_str))
+                    result = env.reset(**reset_kwargs)
+                    while not result.done:
+                        result = env.step(KantBenchAction(move=action_str))
 
-                obs = result.observation
+                    obs = result.observation
+                    coop_rate = _obs_cooperation_rate(obs)
 
-                # Compute cooperation rate from observation history
-                coop_rate = _obs_cooperation_rate(obs)
-
-                # Composite reward from the reward module
-                # opponent_score not directly available in KantBenchObservation,
-                # approximate from history
-                opp_score = sum(
-                    h.get("opponent_payoff", 0.0) for h in obs.history
-                )
-                reward = episode_reward(
-                    player_score=obs.cumulative_score,
-                    opponent_score=opp_score,
-                    cooperation_rate=coop_rate,
-                    total_rounds=obs.round_number,
-                )
-                rewards.append(reward)
-
-            except (ValueError, KeyError, RuntimeError, ConnectionError) as exc:
-                logger.debug("Reward error for %s/%s: %s", game_key, action_str, exc)
-                rewards.append(-1.0)
+                    opp_score = sum(
+                        h.get("opponent_payoff", 0.0) for h in obs.history
+                    )
+                    reward = episode_reward(
+                        player_score=obs.cumulative_score,
+                        opponent_score=opp_score,
+                        cooperation_rate=coop_rate,
+                        total_rounds=obs.round_number,
+                    )
+                    break
+                except (ConnectionError, RuntimeError, OSError) as exc:
+                    if attempt < 2:
+                        wait = 2 ** attempt
+                        logger.warning(
+                            "Reward retry %d/3 for %s/%s: %s (wait %ds)",
+                            attempt + 1, game_key, action_str, exc, wait,
+                        )
+                        time.sleep(wait)
+                    else:
+                        logger.debug(
+                            "Reward error for %s/%s after 3 attempts: %s",
+                            game_key, action_str, exc,
+                        )
+                except (ValueError, KeyError) as exc:
+                    logger.debug("Reward error for %s/%s: %s", game_key, action_str, exc)
+                    break
+            rewards.append(reward)
 
         return rewards
 
@@ -346,7 +358,13 @@ def parse_args():
     p.add_argument("--grad-accum", type=int, default=4)
     p.add_argument("--lr", type=float, default=3e-6)
     p.add_argument("--max-steps", type=int, default=500)
+    p.add_argument("--save-steps", type=int, default=50,
+                    help="Checkpoint save interval (steps)")
+    p.add_argument("--temperature", type=float, default=0.8,
+                    help="Generation temperature (higher = more GRPO diversity)")
     p.add_argument("--report-to", default="wandb", help="wandb, tensorboard, or none")
+    p.add_argument("--wandb-run-name", type=str, default=None,
+                    help="wandb run name for identification")
     p.add_argument("--push-to-hub", action="store_true")
     p.add_argument("--hub-model-id", default="jtowarek/kantbench-qwen2.5-7b")
     p.add_argument("--use-train-split", action="store_true",
@@ -355,6 +373,17 @@ def parse_args():
                     help="Fraction of samples using dynamic variant composition")
     p.add_argument("--resume-from-checkpoint", type=str, default=None,
                     help="Path to checkpoint or 'latest' to resume training")
+    # LoRA / QLoRA options
+    p.add_argument("--use-lora", action="store_true",
+                    help="Use LoRA for parameter-efficient training")
+    p.add_argument("--lora-r", type=int, default=16,
+                    help="LoRA rank")
+    p.add_argument("--lora-alpha", type=int, default=32,
+                    help="LoRA alpha scaling factor")
+    p.add_argument("--quantize-4bit", action="store_true",
+                    help="Load model in 4-bit quantization (requires bitsandbytes)")
+    p.add_argument("--kl-beta", type=float, default=0.1,
+                    help="KL penalty coefficient (higher = more diverse outputs, fights mode collapse)")
     return p.parse_args()
 
 
@@ -369,6 +398,42 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+
+    # --- Model loading (with optional 4-bit quantization) ---
+    model_or_path = args.model
+    peft_config = None
+
+    if args.use_lora or args.quantize_4bit:
+        load_kwargs = {
+            "torch_dtype": torch.bfloat16,
+            "device_map": "auto",
+        }
+        if args.quantize_4bit:
+            load_kwargs["quantization_config"] = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+            )
+            print(f"Loading with 4-bit quantization")
+
+        model_or_path = AutoModelForCausalLM.from_pretrained(
+            args.model, **load_kwargs
+        )
+
+        if args.use_lora:
+            from peft import LoraConfig, TaskType
+            peft_config = LoraConfig(
+                r=args.lora_r,
+                lora_alpha=args.lora_alpha,
+                target_modules=[
+                    "q_proj", "v_proj", "k_proj", "o_proj",
+                    "gate_proj", "up_proj", "down_proj",
+                ],
+                task_type=TaskType.CAUSAL_LM,
+                bias="none",
+            )
+            print(f"Using LoRA: r={args.lora_r}, alpha={args.lora_alpha}")
 
     # Optionally use stratified train/eval split
     train_games = None
@@ -412,15 +477,16 @@ def main():
         warmup_steps=50,
         max_steps=args.max_steps,
         logging_steps=10,
-        save_steps=100,
-        save_total_limit=2,
+        save_steps=args.save_steps,
+        save_total_limit=3,
+        beta=args.kl_beta,
         bf16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8,
         fp16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 8,
         report_to=args.report_to,
+        run_name=args.wandb_run_name,
         push_to_hub=args.push_to_hub,
         hub_model_id=args.hub_model_id if args.push_to_hub else None,
-        # Stop generation at newline token to enforce single-action output
-        generation_kwargs={"temperature": 0.7},
+        generation_kwargs={"temperature": args.temperature},
     )
 
     # Add newline token as an extra EOS so generation stops after one line
@@ -430,17 +496,28 @@ def main():
             tokenizer.eos_token_id, newline_token_id[0],
         ]
 
-    trainer = GRPOTrainer(
-        model=args.model,
-        reward_funcs=[reward_fn, format_reward_fn],
-        args=config,
-        train_dataset=dataset,
-        processing_class=tokenizer,
-    )
+    trainer_kwargs = {
+        "model": model_or_path,
+        "reward_funcs": [reward_fn, format_reward_fn],
+        "args": config,
+        "train_dataset": dataset,
+        "processing_class": tokenizer,
+    }
+    if peft_config is not None:
+        trainer_kwargs["peft_config"] = peft_config
+
+    trainer = GRPOTrainer(**trainer_kwargs)
 
     resume_ckpt = args.resume_from_checkpoint
     if resume_ckpt == "latest":
-        resume_ckpt = True  # Trainer auto-finds latest checkpoint in output_dir
+        # Check if any checkpoint actually exists; if not, start fresh
+        import glob as _glob
+        ckpt_dirs = _glob.glob(os.path.join(args.output_dir, "checkpoint-*"))
+        if ckpt_dirs:
+            resume_ckpt = True  # Trainer auto-finds latest checkpoint in output_dir
+        else:
+            print("No existing checkpoints found, starting fresh.")
+            resume_ckpt = None
 
     print("Starting GRPO training...")
     print(f"  Reward: composite (payoff + cooperation + Pareto + fairness)")

@@ -123,15 +123,18 @@ class ModelHandle:
 
     def _generate_anthropic(self, prompt: str) -> str:
         try:
-            import anthropic
+            from anthropic import AnthropicVertex
         except ImportError as exc:
             msg = (
-                "anthropic is required for API inference. "
-                "Install with: pip install anthropic"
+                "anthropic[vertex] is required for API inference. "
+                "Install with: pip install anthropic[vertex]"
             )
             raise ImportError(msg) from exc
 
-        client = anthropic.Anthropic()
+        import os
+        project = os.environ.get("GCP_PROJECT", "wisent-480400")
+        region = os.environ.get("ANTHROPIC_VERTEX_REGION", "us-east5")
+        client = AnthropicVertex(project_id=project, region=region)
         response = client.messages.create(
             model=self.model_name_or_path,
             max_tokens=self.max_new_tokens,

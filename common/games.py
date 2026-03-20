@@ -75,7 +75,10 @@ def _matrix_payoff_fn(matrix: dict) -> Callable:
     """Return a payoff function backed by a pre-built matrix dict."""
 
     def _payoff(player_action: str, opponent_action: str) -> tuple[float, float]:
-        return matrix[(player_action, opponent_action)]
+        try:
+            return matrix[(player_action, opponent_action)]
+        except KeyError:
+            return (0.0, 0.0)
 
     return _payoff
 

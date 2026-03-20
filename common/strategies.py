@@ -128,7 +128,13 @@ class MixedStrategy(_MatrixBase):
 # ---------------------------------------------------------------------------
 
 def _parse_amount(action: str) -> int:
-    return int(action.rsplit("_", _ONE)[_ONE])
+    parts = action.rsplit("_", _ONE)
+    if len(parts) > _ONE:
+        try:
+            return int(parts[_ONE])
+        except ValueError:
+            pass
+    return _ZERO
 
 
 class UltimatumFairStrategy:

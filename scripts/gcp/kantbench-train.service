@@ -1,0 +1,20 @@
+[Unit]
+Description=KantBench GRPO Training
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/workspace/wisent-openenv
+EnvironmentFile=/opt/kantbench/secrets.env
+EnvironmentFile=/opt/kantbench/current_model.env
+ExecStart=/opt/kantbench/train_with_recovery.sh
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=35
+
+[Install]
+WantedBy=multi-user.target

@@ -135,6 +135,8 @@ class KantGRPOTrainer:
             prompt = PromptBuilder.build(obs)
             if self._tokenizer is not None and self._model is not None:
                 inputs = self._tokenizer(prompt, return_tensors="pt")
+                device = next(self._model.parameters()).device
+                inputs = {k: v.to(device) for k, v in inputs.items()}
                 outputs = self._model.generate(
                     **inputs,
                     max_new_tokens=self._config.max_completion_length,

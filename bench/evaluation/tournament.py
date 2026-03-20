@@ -5,8 +5,11 @@ structured results for downstream metric computation and reporting.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence
+
+logger = logging.getLogger(__name__)
 
 from env.models import GameAction, GameObservation
 from common.games import GAMES, GameConfig

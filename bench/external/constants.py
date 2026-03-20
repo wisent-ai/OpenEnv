@@ -13,7 +13,6 @@ from constant_definitions.game_constants import (
     EVAL_ZERO,
     EVAL_ZERO_FLOAT,
 )
-from constant_definitions.train.models.openai_constants import GPT_5_4
 
 # ---------------------------------------------------------------------------
 # Default generation parameters
@@ -87,7 +86,7 @@ HARMBENCH_MAX_CLASSIFY_TOKENS = EVAL_EIGHT
 # ---------------------------------------------------------------------------
 
 MTBENCH_QUESTIONS_DATASET = "HuggingFaceH4/mt_bench_prompts"
-MTBENCH_DEFAULT_JUDGE = GPT_5_4
+MTBENCH_DEFAULT_JUDGE = "claude-sonnet-4-6"
 MTBENCH_MIN_SCORE = EVAL_ONE
 MTBENCH_MAX_SCORE = EVAL_TEN
 MTBENCH_NUM_QUESTIONS = EVAL_EIGHTY

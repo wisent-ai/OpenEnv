@@ -257,28 +257,49 @@ def _build_local_prompt(obs) -> str:
     return "\n\n".join(sections)
 
 
-def _generate_action_local(model, tokenizer, obs, device):
-    """Generate action from model given a local GameObservation. ~5ms on GPU."""
-    prompt = _build_local_prompt(obs)
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": prompt},
-    ]
-    text = tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
-    )
-    inputs = tokenizer(text, return_tensors="pt")
+def _batch_generate_actions(model, tokenizer, obs_list, device):
+    """Generate actions for MULTIPLE observations in a single batched call.
+
+    10-20x faster than sequential _generate_action_local calls.
+    """
+    if not obs_list:
+        return []
+
+    # Build all prompts
+    texts = []
+    for obs in obs_list:
+        prompt = _build_local_prompt(obs)
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ]
+        texts.append(tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        ))
+
+    # Batch tokenize with left-padding for generation
+    tokenizer.padding_side = "left"
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+    inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True)
     inputs = {k: v.to(device) for k, v in inputs.items()}
+
     with torch.no_grad():
         outputs = model.generate(
             **inputs, max_new_tokens=16, temperature=0.7,
-            do_sample=True,
+            do_sample=True, pad_token_id=tokenizer.pad_token_id,
         )
-    completion = tokenizer.decode(
-        outputs[0][len(inputs["input_ids"][0]):],
-        skip_special_tokens=True,
-    )
-    return parse_action(completion.strip(), obs.available_actions)
+
+    # Decode each completion
+    actions = []
+    for idx, obs in enumerate(obs_list):
+        input_len = inputs["attention_mask"][idx].sum().item()
+        completion_ids = outputs[idx][input_len:]
+        completion = tokenizer.decode(completion_ids, skip_special_tokens=True)
+        action = parse_action(completion.strip(), obs.available_actions)
+        actions.append(action)
+
+    return actions
 
 
 def _local_coop_rate(history) -> float:
@@ -289,36 +310,85 @@ def _local_coop_rate(history) -> float:
     return sum(1 for r in history if any(c in r.player_action for c in coop)) / len(history)
 
 
-def _play_interactive_episode_local(
-    local_env, game_key: str, strategy: str, first_action: str,
-    model, tokenizer, device,
-) -> dict | None:
-    """Play interactive episode using LOCAL env (no network). ~100x faster."""
+def _play_batch_interactive_episodes(
+    envs, episode_configs, model, tokenizer, device,
+):
+    """Play multiple interactive episodes in BATCHED mode.
+
+    Instead of 288 sequential model.generate() calls per step,
+    this does ~9 batched calls (one per round after round 1),
+    each processing all active episodes simultaneously.
+
+    Args:
+        envs: list of KantEnvironment instances (one per episode)
+        episode_configs: list of (game_key, strategy, first_action)
+        model, tokenizer, device: for batched generation
+
+    Returns:
+        list of episode result dicts (or None for failed episodes)
+    """
     from env.models import GameAction as LocalGameAction
 
-    try:
-        obs = local_env.reset(game=game_key, strategy=strategy)
-        action_str = first_action
+    n = len(episode_configs)
+    results = [None] * n
 
-        while not obs.done:
-            if action_str not in obs.available_actions:
-                action_str = parse_action(action_str, obs.available_actions)
-            obs = local_env.step(LocalGameAction(action=action_str))
-            if not obs.done:
-                action_str = _generate_action_local(
-                    model, tokenizer, obs, device,
-                )
+    # Initialize all environments
+    obs_list = [None] * n
+    actions = [None] * n
+    active = [True] * n
 
-        return {
-            "player_score": obs.player_score,
-            "opponent_score": obs.opponent_score,
-            "cooperation_rate": _local_coop_rate(obs.history),
-            "rounds": obs.current_round,
-            "strategy": strategy,
-        }
-    except Exception as exc:
-        logger.debug("Local episode error %s/%s/%s: %s", game_key, strategy, first_action, exc)
-        return None
+    for i, (game_key, strategy, first_action) in enumerate(episode_configs):
+        try:
+            obs_list[i] = envs[i].reset(game=game_key, strategy=strategy)
+            actions[i] = first_action
+        except Exception as exc:
+            logger.debug("Init error %s/%s: %s", game_key, strategy, exc)
+            active[i] = False
+
+    # Play rounds until all episodes finish
+    max_rounds = 20  # safety limit
+    for _ in range(max_rounds):
+        # Step all active episodes with their current actions
+        for i in range(n):
+            if not active[i]:
+                continue
+            try:
+                action_str = actions[i]
+                if action_str not in obs_list[i].available_actions:
+                    action_str = parse_action(action_str, obs_list[i].available_actions)
+                obs_list[i] = envs[i].step(LocalGameAction(action=action_str))
+                if obs_list[i].done:
+                    active[i] = False
+                    obs = obs_list[i]
+                    results[i] = {
+                        "player_score": obs.player_score,
+                        "opponent_score": obs.opponent_score,
+                        "cooperation_rate": _local_coop_rate(obs.history),
+                        "rounds": obs.current_round,
+                        "strategy": episode_configs[i][1],
+                    }
+            except Exception as exc:
+                logger.debug("Step error episode %d: %s", i, exc)
+                active[i] = False
+
+        # Collect observations from still-active episodes for batched generation
+        active_indices = [i for i in range(n) if active[i]]
+        if not active_indices:
+            break
+
+        active_obs = [obs_list[i] for i in active_indices]
+        if model is not None and tokenizer is not None:
+            batch_actions = _batch_generate_actions(
+                model, tokenizer, active_obs, device,
+            )
+            for j, i in enumerate(active_indices):
+                actions[i] = batch_actions[j]
+        else:
+            # Fallback: random action
+            for i in active_indices:
+                actions[i] = random.choice(obs_list[i].available_actions)
+
+    return results
 
 
 def make_reward_fn(base_url: str, model=None, tokenizer=None):
@@ -340,50 +410,62 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
     else:
         device = torch.device("cpu")
 
+    # Create a pool of local envs (one per concurrent episode)
+    from env.environment import KantEnvironment as _KantEnv
+    env_pool = [_KantEnv() for _ in range(len(REWARD_STRATEGIES) * 32)]
+
     def reward_fn(
         completions: list[str],
         prompts: list[str],
         **kwargs: Any,
     ) -> list[float]:
-        rewards = []
         game_keys = kwargs.get("game_key", ["prisoners_dilemma"] * len(completions))
         variants = kwargs.get("variant", [""] * len(completions))
         available_moves_batch = kwargs.get(
             "available_moves", [["cooperate", "defect"]] * len(completions)
         )
 
-        for i, (completion, game_key, variant, moves) in enumerate(zip(
-            completions, game_keys, variants, available_moves_batch
-        )):
-            first_action = parse_action(completion.strip(), moves)
-
+        # Parse all first actions
+        first_actions = []
+        for i, (completion, moves) in enumerate(zip(completions, available_moves_batch)):
+            action = parse_action(completion.strip(), moves)
+            first_actions.append(action)
             if i < 3:
                 logger.info(
                     "Completion [%d] game=%s moves=%s -> parsed=%s | raw=%r",
-                    i, game_key, moves, first_action, completion[:200],
+                    i, game_keys[i], moves, action, completion[:200],
                 )
 
-            # Play interactive episodes against ALL 3 strategies
-            # (not rotating — every completion gets cross-strategy signal)
-            episodes = {}
+        # Build ALL episode configs: each completion × 3 strategies
+        episode_configs = []  # (game_key, strategy, first_action)
+        completion_map = []   # maps episode index → completion index
+        for i, (game_key, first_action) in enumerate(zip(game_keys, first_actions)):
             for strat in REWARD_STRATEGIES:
-                if model is not None and tokenizer is not None:
-                    ep = _play_interactive_episode_local(
-                        local_env, game_key, strat, first_action,
-                        model, tokenizer, device,
-                    )
-                else:
-                    ep = _play_fixed_episode(
-                        local_env, game_key, strat, first_action,
-                    )
-                if ep is not None:
-                    episodes[strat] = ep
+                episode_configs.append((game_key, strat, first_action))
+                completion_map.append(i)
+
+        # Play ALL episodes in batched mode
+        episode_results = _play_batch_interactive_episodes(
+            env_pool, episode_configs, model, tokenizer, device,
+        )
+
+        # Group results by completion and compute 5 metrics
+        rewards = []
+        n_strats = len(REWARD_STRATEGIES)
+        for i in range(len(completions)):
+            # Gather this completion's 3 episode results
+            episodes = {}
+            for j in range(n_strats):
+                ep_idx = i * n_strats + j
+                strat = REWARD_STRATEGIES[j]
+                if episode_results[ep_idx] is not None:
+                    episodes[strat] = episode_results[ep_idx]
 
             if not episodes:
                 rewards.append(-1.0)
                 continue
 
-            # --- Compute all 5 metrics (cross-strategy, matches eval) ---
+            # --- All 5 metrics with real cross-strategy data ---
             coop_rates = [ep["cooperation_rate"] for ep in episodes.values()]
             cooperation = sum(coop_rates) / len(coop_rates)
 
@@ -407,7 +489,6 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
                     fairness_scores.append(1.0)
             fairness = sum(fairness_scores) / len(fairness_scores)
 
-            # Exploitation resistance: now computed with REAL cross-strategy data
             scores_by_strat = {
                 s: ep["player_score"] for s, ep in episodes.items()
             }
@@ -422,7 +503,6 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
             else:
                 exploit_resist = 0.5
 
-            # Adaptability: now computed with REAL cross-strategy variance
             if len(coop_rates) > 1:
                 mean_c = sum(coop_rates) / len(coop_rates)
                 var_c = sum((c - mean_c) ** 2 for c in coop_rates) / len(coop_rates)
@@ -430,7 +510,6 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
             else:
                 adaptability = 0.0
 
-            # Equal weights matching eval metric (strategic_reasoning)
             reward = (
                 cooperation * 0.2
                 + pareto * 0.2

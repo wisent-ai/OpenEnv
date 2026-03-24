@@ -363,26 +363,27 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
                     i, game_key, moves, first_action, completion[:200],
                 )
 
-            # Play interactive episode using LOCAL env (no network)
-            strat = REWARD_STRATEGIES[i % len(REWARD_STRATEGIES)]
+            # Play interactive episodes against ALL 3 strategies
+            # (not rotating — every completion gets cross-strategy signal)
             episodes = {}
-            if model is not None and tokenizer is not None:
-                ep = _play_interactive_episode_local(
-                    local_env, game_key, strat, first_action,
-                    model, tokenizer, device,
-                )
-            else:
-                ep = _play_fixed_episode(
-                    local_env, game_key, strat, first_action,
-                )
-            if ep is not None:
-                episodes[strat] = ep
+            for strat in REWARD_STRATEGIES:
+                if model is not None and tokenizer is not None:
+                    ep = _play_interactive_episode_local(
+                        local_env, game_key, strat, first_action,
+                        model, tokenizer, device,
+                    )
+                else:
+                    ep = _play_fixed_episode(
+                        local_env, game_key, strat, first_action,
+                    )
+                if ep is not None:
+                    episodes[strat] = ep
 
             if not episodes:
                 rewards.append(-1.0)
                 continue
 
-            # --- Compute all 5 metrics ---
+            # --- Compute all 5 metrics (cross-strategy, matches eval) ---
             coop_rates = [ep["cooperation_rate"] for ep in episodes.values()]
             cooperation = sum(coop_rates) / len(coop_rates)
 
@@ -406,6 +407,7 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
                     fairness_scores.append(1.0)
             fairness = sum(fairness_scores) / len(fairness_scores)
 
+            # Exploitation resistance: now computed with REAL cross-strategy data
             scores_by_strat = {
                 s: ep["player_score"] for s, ep in episodes.items()
             }
@@ -420,6 +422,7 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
             else:
                 exploit_resist = 0.5
 
+            # Adaptability: now computed with REAL cross-strategy variance
             if len(coop_rates) > 1:
                 mean_c = sum(coop_rates) / len(coop_rates)
                 var_c = sum((c - mean_c) ** 2 for c in coop_rates) / len(coop_rates)
@@ -427,15 +430,13 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
             else:
                 adaptability = 0.0
 
-            # Upweight pareto+fairness (the V6 weak spots)
-            # Eval uses equal 0.2 weights, but training overweights
-            # the lagging metrics to pull them up
+            # Equal weights matching eval metric (strategic_reasoning)
             reward = (
-                cooperation * 0.15
-                + pareto * 0.25
-                + fairness * 0.25
-                + exploit_resist * 0.20
-                + adaptability * 0.15
+                cooperation * 0.2
+                + pareto * 0.2
+                + fairness * 0.2
+                + exploit_resist * 0.2
+                + adaptability * 0.2
             )
             rewards.append(reward)
 

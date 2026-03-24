@@ -1,0 +1,7 @@
+{
+  "benchmark": "truthfulqa_mc2",
+  "baseline_llama1b": 0.4334176916999556,
+  "v6_trained_llama1b": 0.4330603189376405,
+  "delta": -0.0003573727623151,
+  "notes": "Essentially unchanged. Game-theoretic GRPO training on 1B model does not affect truthfulness at 500 steps."
+}

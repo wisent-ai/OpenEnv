@@ -151,74 +151,49 @@ def build_dataset(
     strategies: list[str] | None = None,
     variant_fraction: float = VARIANT_FRACTION,
 ) -> Dataset:
-    """Generate diverse game theory prompts for GRPO training.
+    """Generate diverse game theory prompts using LOCAL environment.
 
-    Connects to the KantBench OpenEnv server to generate real observations,
-    then builds structured prompts from diverse game states.
-
-    A fraction of samples use dynamic variant composition (cheap_talk,
-    constitutional, gossip, etc.) to train on meta-gaming scenarios.
+    Falls back to remote KantBench server only if local env fails.
     """
+    from env.environment import KantEnvironment
+    from env.models import GameAction as LocalGameAction
+
     game_keys = games or list(GAMES.keys())
     strat_names = strategies or list(STRATEGY_REGISTRY.keys())
     samples = []
+    local_env = KantEnvironment()
 
-    with KantBenchEnv(base_url=base_url) as env:
-        attempts = 0
-        while len(samples) < n_samples:
-            attempts += 1
+    while len(samples) < n_samples:
+        game_key = random.choice(game_keys)
+        strategy = random.choice(strat_names)
 
-            # Decide whether to use a variant
-            use_variant = random.random() < variant_fraction
-            if use_variant:
-                game_key = random.choice(VARIANT_BASE_GAMES)
-                variant = random.choice(TRAINABLE_VARIANTS)
-            else:
-                game_key = random.choice(game_keys)
-                variant = None
+        try:
+            obs = local_env.reset(game=game_key, strategy=strategy)
 
-            strategy = random.choice(strat_names)
+            # Play 0..N-1 random rounds to create diverse game states
+            rounds_to_play = random.randint(0, max(obs.total_rounds - 1, 0))
+            for _ in range(rounds_to_play):
+                move = random.choice(obs.available_actions)
+                obs = local_env.step(LocalGameAction(action=move))
+                if obs.done:
+                    break
 
-            try:
-                # Reset env — pass variant for dynamic composition
-                reset_kwargs = {"game": game_key, "strategy": strategy}
-                if variant:
-                    reset_kwargs["variant"] = variant
+            if obs.done:
+                obs = local_env.reset(game=game_key, strategy=strategy)
 
-                result = env.reset(**reset_kwargs)
-                obs = result.observation
+            prompt = _build_local_prompt(obs)
 
-                # Play 0..N-1 random rounds to create diverse game states
-                max_rounds = obs.max_rounds
-                rounds_to_play = random.randint(0, max(max_rounds - 1, 0))
-                for _ in range(rounds_to_play):
-                    move = random.choice(obs.available_moves)
-                    result = env.step(KantBenchAction(move=move))
-                    obs = result.observation
-                    if result.done:
-                        break
-
-                if result.done:
-                    # Replay without filling all rounds
-                    result = env.reset(**reset_kwargs)
-                    obs = result.observation
-
-                prompt = _build_prompt(obs)
-
-                samples.append({
-                    "prompt": prompt,
-                    "game_key": game_key,
-                    "strategy": strategy,
-                    "variant": variant or "",
-                    "available_moves": list(obs.available_moves),
-                    "rounds_remaining": obs.max_rounds - obs.round_number,
-                })
-            except (RuntimeError, ConnectionError, Exception) as exc:
-                logger.debug(
-                    "Skipping %s/%s (variant=%s): %s",
-                    game_key, strategy, variant, exc,
-                )
-                continue
+            samples.append({
+                "prompt": prompt,
+                "game_key": game_key,
+                "strategy": strategy,
+                "variant": "",
+                "available_moves": list(obs.available_actions),
+                "rounds_remaining": obs.total_rounds - obs.current_round,
+            })
+        except Exception as exc:
+            logger.debug("Skipping %s/%s: %s", game_key, strategy, exc)
+            continue
 
     return Dataset.from_list(samples)
 

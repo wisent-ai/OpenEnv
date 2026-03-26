@@ -252,28 +252,45 @@ def _batch_generate_actions(model, tokenizer, obs_list, device):
             messages, tokenize=False, add_generation_prompt=True
         ))
 
-    # Batch tokenize with left-padding for generation
-    tokenizer.padding_side = "left"
+    # Try batched generation first, fall back to sequential if it fails
+    # (4-bit quantized models often can't handle batched padded inputs)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
-    inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True)
-    inputs = {k: v.to(device) for k, v in inputs.items()}
 
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs, max_new_tokens=16, temperature=0.7,
-            do_sample=True, pad_token_id=tokenizer.pad_token_id,
-        )
+    try:
+        tokenizer.padding_side = "left"
+        inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs, max_new_tokens=16, temperature=0.7,
+                do_sample=True, pad_token_id=tokenizer.pad_token_id,
+            )
+        actions = []
+        for idx, obs in enumerate(obs_list):
+            input_len = inputs["attention_mask"][idx].sum().item()
+            completion_ids = outputs[idx][input_len:]
+            completion = tokenizer.decode(completion_ids, skip_special_tokens=True)
+            actions.append(parse_action(completion.strip(), obs.available_actions))
+        return actions
+    except RuntimeError:
+        pass
 
-    # Decode each completion
+    # Sequential fallback for quantized models
     actions = []
-    for idx, obs in enumerate(obs_list):
-        input_len = inputs["attention_mask"][idx].sum().item()
-        completion_ids = outputs[idx][input_len:]
-        completion = tokenizer.decode(completion_ids, skip_special_tokens=True)
-        action = parse_action(completion.strip(), obs.available_actions)
-        actions.append(action)
-
+    for text, obs in zip(texts, obs_list):
+        inputs = tokenizer(text, return_tensors="pt")
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs, max_new_tokens=16, temperature=0.7,
+                do_sample=True, pad_token_id=tokenizer.pad_token_id,
+            )
+        completion = tokenizer.decode(
+            outputs[0][len(inputs["input_ids"][0]):],
+            skip_special_tokens=True,
+        )
+        actions.append(parse_action(completion.strip(), obs.available_actions))
     return actions
 
 
@@ -632,6 +649,8 @@ def main():
         )
         print(f"Loading with 4-bit quantization")
 
+    # Use eager attention for compatibility with batched left-padded generation
+    load_kwargs["attn_implementation"] = "eager"
     model_or_path = AutoModelForCausalLM.from_pretrained(
         args.model, **load_kwargs
     )

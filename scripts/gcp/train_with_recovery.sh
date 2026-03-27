@@ -45,15 +45,23 @@ echo "GCS:       $GCS_CKPT_DIR"
 # --- Sync helper ---
 sync_to_gcs() {
     echo "[sync] Uploading checkpoints to GCS..."
-    gsutil -m -q rsync -r "$LOCAL_CKPT_DIR" "$GCS_CKPT_DIR" 2>/dev/null || true
+    # -d flag: delete GCS files not present locally (prevents restoring deleted checkpoints)
+    gsutil -m -q rsync -r -d "$LOCAL_CKPT_DIR" "$GCS_CKPT_DIR" 2>/dev/null || true
     echo "[sync] Done."
 }
 
 sync_from_gcs() {
     echo "[sync] Restoring checkpoints from GCS..."
     mkdir -p "$LOCAL_CKPT_DIR"
-    gsutil -m -q rsync -r "$GCS_CKPT_DIR" "$LOCAL_CKPT_DIR" 2>/dev/null || true
-    echo "[sync] Restored. Contents:"
+    LATEST=$(gsutil ls "$GCS_CKPT_DIR/" 2>/dev/null | grep "checkpoint-" | sort -t- -k2 -n | tail -2 || true)
+    if [ -n "$LATEST" ]; then
+        for ckpt in $LATEST; do
+            gsutil -m -q rsync -r "$ckpt" "$LOCAL_CKPT_DIR/$(basename $ckpt)/" 2>/dev/null || true
+        done
+    else
+        echo "[sync] No checkpoints in GCS (fresh run)"
+    fi
+    echo "[sync] Contents:"
     ls -la "$LOCAL_CKPT_DIR" 2>/dev/null || echo "  (empty)"
 }
 

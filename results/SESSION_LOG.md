@@ -134,6 +134,42 @@ The paper "Kant: Teaching Ethical Reasoning to Language Models via Comprehensive
 - **Eval**: strategic_reasoning=0.256. WORSE than V6. Overtrained — training reward diverged from eval metric.
 - **Lesson**: More steps ≠ better when reward and eval are misaligned.
 
+### V8 — Mode collapse band-aids (kl_beta=0.4, lr=2e-5, temp=1.5 from Optuna sweep)
+- **Changes**: Applied optimal anti-collapse config from hyperparameter sweep to V6 pipeline
+- **Training**: No collapse (confirmed via zero_std=0.00), reward trend positive
+- **Eval**: strategic_reasoning=0.282 — still 4% below baseline despite no collapse
+- **Saved**: `results/v8_trained_llama1b.json`
+- **Lesson**: Anti-collapse band-aids alone can't fix GRPO's structural variance problem
+
+### Qwen 2.5-7B GRPO — Larger model experiment
+- **Model**: Qwen/Qwen2.5-7B-Instruct with LoRA r=16, 4-bit quantization
+- **Config**: V8 settings (kl_beta=0.4, lr=2e-5, temp=1.5, gen=8), 1000 steps
+- **Eval**: strategic_reasoning=0.304 — BEATS BASELINE (+3%)
+  - cooperation_rate: 0.025 (+3% vs baseline)
+  - exploitation_resistance: 0.497 (+9% vs baseline — biggest improvement)
+  - pareto_efficiency: 0.395 (+10% vs baseline)
+  - fairness_index: 0.595 (-3% vs baseline)
+  - adaptability: 0.009 (-29% vs baseline)
+- **Saved**: `results/qwen7b_trained.json`
+- **Lesson**: Larger models overcome GRPO's mode collapse threshold. 7B can learn conditional strategies that 1B can't learn under GRPO.
+
+### REINFORCE 1B — Architectural fix for mode collapse
+- **Motivation**: GRPO collapses because `advantage = (r_i - mean(r_j)) / std(r_j)` → 0 when all completions share identical rewards (std → 0). Fix: use absolute advantage against EMA baseline instead.
+- **Implementation**: `train/ppo_train.py` — REINFORCE from scratch (TRL 0.29 removed PPO entirely)
+  - `advantage = reward - baseline`, `baseline = (1-0.01)*baseline + 0.01*mean_reward`
+  - KL penalty against frozen reference model: `loss = -(log_prob_sum * advantage) + kl_coef * kl`
+  - No mode collapse possible: advantage is non-zero even when all rewards are equal
+- **Config**: kl=0.05, temp=0.8, batch=4, 500 steps — no band-aids needed
+- **Training**: reward 0.37–0.45 through all 500 steps, no collapse confirmed
+- **Eval**: **strategic_reasoning=0.348 — BEATS BASELINE by 18%, BEATS 7B GRPO by 14%**
+  - cooperation_rate: 0.030 (+24% vs baseline)
+  - exploitation_resistance: 0.437 (-5% vs baseline)
+  - pareto_efficiency: 0.744 (+107% vs baseline — dominant improvement)
+  - fairness_index: 0.530 (-14% vs baseline)
+  - adaptability: 0.0002 (-98% vs baseline)
+- **Saved**: `results/llama1b_reinforce.json`
+- **Fast eval**: `scripts/gcp/quick_eval.py` — 3-strategy pipeline (same metrics as full tournament, 126s vs 45+ min)
+
 ---
 
 ## Key Discoveries
@@ -155,33 +191,39 @@ V6's interactive play was the only approach that improved exploitation_resistanc
 
 ---
 
-## Current Best Results (V6)
+## Full Results Table
 
-| Metric | Baseline | V6 Trained | Change |
-|---|---|---|---|
-| cooperation_rate | 0.024 | 0.047 | **+96%** |
-| exploitation_resistance | 0.458 | 0.486 | **+6%** |
-| pareto_efficiency | 0.359 | 0.311 | -13% |
-| fairness_index | 0.616 | 0.514 | -17% |
-| adaptability | 0.013 | 0.020 | **+53%** |
-| strategic_reasoning | 0.294 | 0.276 | -6% |
+| Metric | Baseline 1B | V8 GRPO 1B | 7B GRPO | **REINFORCE 1B** |
+|---|---|---|---|---|
+| cooperation_rate | 0.024 | 0.048 (+100%) | 0.025 (+3%) | 0.030 (+25%) |
+| exploitation_resistance | 0.458 | 0.441 (-4%) | **0.497 (+9%)** | 0.437 (-5%) |
+| pareto_efficiency | 0.359 | 0.353 (-2%) | 0.395 (+10%) | **0.744 (+107%)** |
+| fairness_index | 0.616 | 0.554 (-10%) | 0.595 (-3%) | 0.530 (-14%) |
+| adaptability | 0.013 | 0.016 (+23%) | 0.009 (-29%) | 0.0002 (-98%) |
+| **strategic_reasoning** | **0.294** | **0.282 (-4%)** | **0.304 (+3%)** | **0.348 (+18%)** |
 
-Three of five metrics improved. Composite still 6% below baseline due to pareto/fairness degradation.
+### Per-Metric Story for Paper Narrative
+
+**Pareto efficiency** is where REINFORCE 1B dominates: +107% improvement. This metric captures whether the model maximizes joint payoffs — both players winning more. The dramatic improvement suggests REINFORCE trains genuine cooperative strategy (finding mutually beneficial outcomes) rather than the unconditional cooperation GRPO learns (cooperate regardless of opponent behavior).
+
+**Exploitation resistance** is where 7B GRPO excels: +9%. This metric captures whether the model avoids being exploited by defectors. GRPO with a larger model learns to discriminate between opponents and respond conditionally. REINFORCE 1B shows slight regression here (-5%) — the aggressive pareto optimization may come at the cost of some exploitation resistance.
+
+**Fairness** degrades in all trained models. All approaches push toward higher joint payoffs or higher own payoffs, creating asymmetric outcomes. This suggests fairness may require explicit reward shaping.
+
+**Adaptability** near-zero for REINFORCE 1B. The model converges to a consistent cooperative strategy rather than varying behavior per opponent. This is a tradeoff with the high pareto efficiency — consistent cooperation maximizes joint payoffs but reduces behavioral variance.
+
+**Key structural finding**: GRPO (group-relative advantages) and REINFORCE (EMA-baseline advantages) train *different capabilities*:
+- GRPO learns to discriminate between opponents → exploitation resistance
+- REINFORCE learns to maximize joint outcomes → pareto efficiency
+- Neither fully dominates. A hybrid or two-stage approach might achieve both.
+
+### Best Result: REINFORCE 1B — strategic_reasoning=0.348 (+18% over baseline)
 
 ---
 
 ## What's Not Done Yet
 
-### Priority 1: Beat baseline on composite score
-- Pareto and fairness consistently drop during training
-- **Root cause theory**: the model learns to cooperate unconditionally (good for cooperation metric) but gets exploited, leading to unequal outcomes (bad for fairness) and suboptimal joint payoffs (bad for pareto)
-- **Potential fixes**:
-  - Train longer with lower lr (V6 was still improving at step 500, V7 overtrained at 1000 with same lr)
-  - Try lr=1e-5 (half of current) with 1000 steps
-  - Add per-round reward shaping: bonus for mutual cooperation (pareto-optimal), penalty for being exploited (one-sided outcomes)
-  - Train on more diverse game states (current dataset overrepresents round-0 states)
-
-### Priority 2: Safety transfer benchmarks
+### Priority 1: Safety transfer benchmarks
 - Infrastructure ready: `ExternalBenchmarkRunner.run_all()` in `bench/external/runner.py`
 - MT-Bench judge configured for Claude Sonnet 4.6 via Vertex AI
 - HarmBench, ETHICS, TruthfulQA, XSTest don't need external API keys
@@ -329,3 +371,6 @@ gcloud compute instances stop kantbench-train --zone=us-central1-a --project=wis
 1. `9e615a6` — GCP infra, GRPO fixes, first eval results
 2. `44ecdcf` — Interactive episode reward + v5/v6 configs
 3. `2ec47ea` — V6 results + V7 config
+4. `f9e8dd3` — Qwen 2.5-7B BEATS BASELINE: strategic_reasoning=0.304
+5. `9923160` — Add PPO/REINFORCE training script as GRPO alternative
+6. `3063ec2` — Add REINFORCE 1B eval results: strategic_reasoning=0.348

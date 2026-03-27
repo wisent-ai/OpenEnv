@@ -26,6 +26,7 @@ export WANDB_API_KEY
 export HF_TOKEN
 export OPENAI_API_KEY
 export WANDB_PROJECT="kantbench-grpo"
+export PYTHONUNBUFFERED=1
 export WANDB_RESUME="allow"
 export WANDB_RUN_ID="$(cat "${KANTBENCH_DIR}/run_id")"
 
@@ -96,38 +97,52 @@ cd "$WORK_DIR"
 # Choose GRPO or PPO training script
 if [[ "${USE_PPO:-false}" == "true" ]]; then
     TRAIN_MODULE="train.ppo_train"
+    TRAIN_CMD=(
+        python3 -m "$TRAIN_MODULE"
+        --model "$MODEL_NAME"
+        --output-dir "$LOCAL_CKPT_DIR"
+        --episodes "${EPISODES:-1000}"
+        --batch-size "${BATCH_SIZE:-4}"
+        --lr "${LR:-5e-6}"
+        --max-steps "${MAX_STEPS:-500}"
+        --save-steps "${SAVE_STEPS:-100}"
+        --temperature "${TEMPERATURE:-0.8}"
+        --use-train-split
+        --report-to wandb
+        --wandb-run-name "kantbench-${WANDB_RUN_ID}"
+        --kl-coef "${KL_BETA:-0.05}"
+    )
+    if [[ "${USE_LORA:-false}" == "true" ]]; then
+        TRAIN_CMD+=(--use-lora --lora-r "${LORA_R:-16}" --lora-alpha "${LORA_ALPHA:-32}")
+    fi
 else
     TRAIN_MODULE="train.train"
-fi
-
-TRAIN_CMD=(
-    python3 -m "$TRAIN_MODULE"
-    --model "$MODEL_NAME"
-    --output-dir "$LOCAL_CKPT_DIR"
-    --episodes "${EPISODES:-1000}"
-    --num-generations "${NUM_GEN:-8}"
-    --batch-size "${BATCH_SIZE:-4}"
-    --grad-accum "${GRAD_ACCUM:-4}"
-    --lr "${LR:-5e-6}"
-    --max-steps "${MAX_STEPS:-500}"
-    --save-steps "${SAVE_STEPS:-50}"
-    --temperature "${TEMPERATURE:-0.8}"
-    --use-train-split
-    --resume-from-checkpoint latest
-    --report-to wandb
-    --wandb-run-name "kantbench-${WANDB_RUN_ID}"
-)
-
-# LoRA flags
-if [[ "${USE_LORA:-false}" == "true" ]]; then
-    TRAIN_CMD+=(--use-lora --lora-r "${LORA_R:-16}" --lora-alpha "${LORA_ALPHA:-32}")
-fi
-if [[ "${QUANTIZE_4BIT:-false}" == "true" ]]; then
-    TRAIN_CMD+=(--quantize-4bit)
-fi
-# KL penalty (higher = fights mode collapse)
-if [[ -n "${KL_BETA:-}" ]]; then
-    TRAIN_CMD+=(--kl-beta "${KL_BETA}")
+    TRAIN_CMD=(
+        python3 -m "$TRAIN_MODULE"
+        --model "$MODEL_NAME"
+        --output-dir "$LOCAL_CKPT_DIR"
+        --episodes "${EPISODES:-1000}"
+        --num-generations "${NUM_GEN:-8}"
+        --batch-size "${BATCH_SIZE:-4}"
+        --grad-accum "${GRAD_ACCUM:-4}"
+        --lr "${LR:-5e-6}"
+        --max-steps "${MAX_STEPS:-500}"
+        --save-steps "${SAVE_STEPS:-50}"
+        --temperature "${TEMPERATURE:-0.8}"
+        --use-train-split
+        --resume-from-checkpoint latest
+        --report-to wandb
+        --wandb-run-name "kantbench-${WANDB_RUN_ID}"
+    )
+    if [[ "${USE_LORA:-false}" == "true" ]]; then
+        TRAIN_CMD+=(--use-lora --lora-r "${LORA_R:-16}" --lora-alpha "${LORA_ALPHA:-32}")
+    fi
+    if [[ "${QUANTIZE_4BIT:-false}" == "true" ]]; then
+        TRAIN_CMD+=(--quantize-4bit)
+    fi
+    if [[ -n "${KL_BETA:-}" ]]; then
+        TRAIN_CMD+=(--kl-beta "${KL_BETA}")
+    fi
 fi
 
 echo ""

@@ -51,7 +51,10 @@ class KantGRPOTrainer:
         self._model = model
         self._tokenizer = tokenizer
         self._env = env if env is not None else KantEnvironment()
-        self._train_games, self._eval_games = get_train_eval_split()
+        from common.games import GAMES as _AVAILABLE_GAMES
+        raw_train, raw_eval = get_train_eval_split()
+        self._train_games = frozenset(g for g in raw_train if g in _AVAILABLE_GAMES)
+        self._eval_games = frozenset(g for g in raw_eval if g in _AVAILABLE_GAMES)
         self._current_games: List[str] = sorted(self._train_games)[
             :config.curriculum_initial_games
         ]

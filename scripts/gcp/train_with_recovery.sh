@@ -93,8 +93,15 @@ WATCHER_PID=$!
 # --- Step 3: Build training command ---
 cd "$WORK_DIR"
 
+# Choose GRPO or PPO training script
+if [[ "${USE_PPO:-false}" == "true" ]]; then
+    TRAIN_MODULE="train.ppo_train"
+else
+    TRAIN_MODULE="train.train"
+fi
+
 TRAIN_CMD=(
-    python3 -m train.train
+    python3 -m "$TRAIN_MODULE"
     --model "$MODEL_NAME"
     --output-dir "$LOCAL_CKPT_DIR"
     --episodes "${EPISODES:-1000}"

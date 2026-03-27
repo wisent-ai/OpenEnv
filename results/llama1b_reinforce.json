@@ -1,0 +1,11 @@
+{
+  "cooperation_rate": 0.030158730158730156,
+  "exploitation_resistance": 0.4368530020703934,
+  "pareto_efficiency": 0.7444444444444445,
+  "fairness_index": 0.5299612317291863,
+  "adaptability": 0.00021164021164021157,
+  "strategic_reasoning": 0.3483258097228789,
+  "games_evaluated": 21,
+  "games_failed": 0,
+  "eval_time_seconds": 126.42512345314026
+}

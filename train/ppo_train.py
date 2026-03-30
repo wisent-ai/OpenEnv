@@ -129,15 +129,26 @@ def compute_reward(completion: str, game_key: str, moves: list[str],
     else:
         exploit_resist = 0.5
 
-    if len(coop_rates) > 1:
+    # Adaptability: reward conditional behavior (cooperate with cooperators,
+    # resist defectors) rather than raw variance of cooperation rates.
+    # Variance never fires when the model already always-cooperates, creating
+    # a dead gradient that lets the model stay at adaptability=0 indefinitely.
+    # The new formula is maximised by TFT-style play: coop_vs_coop=1, coop_vs_defect=0.
+    if "always_cooperate" in episodes and "always_defect" in episodes:
+        coop_vs_coop = episodes["always_cooperate"]["cooperation_rate"]
+        coop_vs_defect = episodes["always_defect"]["cooperation_rate"]
+        adaptability = coop_vs_coop * (1.0 - coop_vs_defect)
+    elif len(coop_rates) > 1:
         mean_c = sum(coop_rates) / len(coop_rates)
         var_c = sum((c - mean_c) ** 2 for c in coop_rates) / len(coop_rates)
         adaptability = min(var_c / 0.5, 1.0)
     else:
         adaptability = 0.0
 
-    return (cooperation * 0.2 + pareto * 0.2 + fairness * 0.2
-            + exploit_resist * 0.2 + adaptability * 0.2)
+    # Weight rebalance: reduce pure-cooperation incentive (drives always-cooperate
+    # collapse), raise exploitation-resistance (underpowered at 20% previously).
+    return (cooperation * 0.1 + pareto * 0.2 + fairness * 0.2
+            + exploit_resist * 0.3 + adaptability * 0.2)
 
 
 def compute_log_probs(model, input_ids: torch.Tensor, response_start: int) -> torch.Tensor:

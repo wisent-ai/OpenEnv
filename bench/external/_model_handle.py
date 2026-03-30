@@ -124,16 +124,32 @@ class ModelHandle:
         return response.choices[ZERO].message.content or ""
 
     def _generate_anthropic(self, prompt: str) -> str:
+        import os
+        # Prefer direct Anthropic API when ANTHROPIC_API_KEY is set;
+        # fall back to Vertex AI otherwise.
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if api_key:
+            try:
+                from anthropic import Anthropic
+            except ImportError as exc:
+                raise ImportError(
+                    "anthropic is required. Install with: pip install anthropic"
+                ) from exc
+            client = Anthropic(api_key=api_key)
+            response = client.messages.create(
+                model=self.model_name_or_path,
+                max_tokens=self.max_new_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.content[ZERO].text
+
         try:
             from anthropic import AnthropicVertex
         except ImportError as exc:
-            msg = (
-                "anthropic[vertex] is required for API inference. "
-                "Install with: pip install anthropic[vertex]"
-            )
-            raise ImportError(msg) from exc
+            raise ImportError(
+                "anthropic[vertex] is required. Install with: pip install anthropic[vertex]"
+            ) from exc
 
-        import os
         project = os.environ.get("GCP_PROJECT", "wisent-480400")
         region = os.environ.get("ANTHROPIC_VERTEX_REGION", "us-central1")
         client = AnthropicVertex(project_id=project, region=region)

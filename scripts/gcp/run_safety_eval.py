@@ -24,7 +24,8 @@ BASE_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
 LOCAL_CHECKPOINT = "/workspace/reinforce-checkpoint"
 RESULTS_DIR = "/workspace/safety-eval-results"
 
-BENCHMARKS = ["xstest", "ethics", "mtbench", "harmbench"]
+BENCHMARKS = ["xstest", "ethics", "harmbench", "truthfulqa"]
+# mtbench excluded: requires API judge (Vertex AI unavailable, no OPENAI_API_KEY)
 
 
 # ---------------------------------------------------------------------------

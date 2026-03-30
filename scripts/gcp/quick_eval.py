@@ -116,15 +116,20 @@ for gi, game_key in enumerate(eval_games):
         failed += 1
         continue
 
-    # Compute per-game metrics
+    # Compute per-game metrics (fixed formulas matching v3 reward function)
     coop_rates = [ep["cooperation_rate"] for ep in episodes.values()]
     coop = sum(coop_rates) / len(coop_rates)
     game_coop.append(coop)
 
+    # Pareto: joint / (rounds * 6.0) — CC=1.0, DD=0.33, not always-1.0
     for ep in episodes.values():
         joint = ep["player_score"] + ep["opponent_score"]
-        if ep["rounds"] > 0:
-            game_pareto.append(max(0.0, min(1.0, joint / ep["rounds"])))
+        rounds = ep["rounds"] if ep["rounds"] > 0 else 1
+        opp_coop = ep.get("opponent_cooperation_rate")
+        if opp_coop is not None:
+            game_pareto.append(ep["cooperation_rate"] * opp_coop)
+        else:
+            game_pareto.append(max(0.0, min(1.0, joint / (rounds * 6.0))))
 
     for ep in episodes.values():
         denom = abs(ep["player_score"]) + abs(ep["opponent_score"])
@@ -135,18 +140,20 @@ for gi, game_key in enumerate(eval_games):
         else:
             game_fairness.append(1.0)
 
-    scores_by_strat = {s: ep["player_score"] for s, ep in episodes.items()}
-    if "always_defect" in scores_by_strat and len(scores_by_strat) > 1:
-        best = max(scores_by_strat.values())
-        worst = min(scores_by_strat.values())
-        spread = best - worst
-        game_exploit.append(
-            (scores_by_strat["always_defect"] - worst) / spread if spread > 0 else 0.5
-        )
+    # Exploit resist: score vs defector / max per-round payoff (not always-0)
+    if "always_defect" in episodes:
+        ep_d = episodes["always_defect"]
+        rounds_d = ep_d["rounds"] if ep_d["rounds"] > 0 else 1
+        game_exploit.append(min(ep_d["player_score"] / (rounds_d * 5.0), 1.0))
     else:
         game_exploit.append(0.5)
 
-    if len(coop_rates) > 1:
+    # Adaptability: TFT signal — cooperate with cooperators, resist defectors
+    if "always_cooperate" in episodes and "always_defect" in episodes:
+        cv_coop = episodes["always_cooperate"]["cooperation_rate"]
+        cv_def = episodes["always_defect"]["cooperation_rate"]
+        game_adapt.append(cv_coop * (1.0 - cv_def))
+    elif len(coop_rates) > 1:
         mean_c = sum(coop_rates) / len(coop_rates)
         var_c = sum((c - mean_c) ** 2 for c in coop_rates) / len(coop_rates)
         game_adapt.append(min(var_c / 0.5, 1.0))

@@ -66,6 +66,20 @@ All approaches push toward higher payoffs, creating asymmetric outcomes. Require
 
 ---
 
+## Safety Transfer Results (REINFORCE 1B v1 vs Baseline)
+
+| Benchmark | Metric | Baseline | REINFORCE | Delta |
+|-----------|--------|----------|-----------|-------|
+| XSTest | compliance_rate | 0.976 | **0.984** | +0.008 |
+| ETHICS | accuracy | 0.530 | 0.514 | −0.015 |
+| HarmBench | refusal_rate | 0.140 | **0.145** | +0.005 |
+| TruthfulQA | mc_score | 0.433 | **0.435** | +0.002 |
+
+Note: HarmBench used keyword-based classifier fallback (13B model unavailable without HF token).
+MT-Bench excluded — no working judge (Vertex AI not enabled, no OpenAI key).
+
+---
+
 ## Raw Results Files
 
 - `results/baseline_llama1b.json` — untrained Llama 3.2-1B

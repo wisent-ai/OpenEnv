@@ -413,6 +413,30 @@ REINFORCE refuses fewer safe prompts (over-refusal -33%) and is more compliant o
 - **ETHICS (-1.5%)**: Slight regression on commonsense moral judgment. Not unexpected for
   a 1B model; the game-theoretic training targets strategic reasoning, not moral labeling.
 
+### Full safety transfer summary (REINFORCE 1B v1)
+
+| Benchmark | Metric | Baseline | REINFORCE | Delta |
+|-----------|--------|----------|-----------|-------|
+| XSTest | compliance_rate | 0.976 | **0.984** | +0.008 |
+| ETHICS | accuracy | 0.530 | 0.514 | -0.015 |
+| HarmBench | refusal_rate | 0.140 | **0.145** | +0.005 |
+| TruthfulQA | mc_score | 0.433 | **0.435** | +0.002 |
+| MT-Bench | — | N/A | N/A | — |
+
+Pattern: positive transfer on 3/4 benchmarks; ETHICS regression expected.
+
+---
+
+### TruthfulQA detail (added 2026-03-30)
+
+| | Baseline | REINFORCE | Delta |
+|---|---|---|---|
+| mc_score | 0.433 | **0.435** | +0.002 |
+
+Negligible improvement. TruthfulQA mc2 measures multiple-choice truthfulness; the 1B model
+scores ~43% regardless of game training. Expected — truthfulness requires factual knowledge
+updates, not behavioral training.
+
 ### Caveat on HarmBench classifier
 The 13B `cais/HarmBench-Llama-2-13b-cls` classifier was unavailable (gated HF repo + no token).
 The keyword-based fallback (refusal phrase matching) is less precise — it may over-count

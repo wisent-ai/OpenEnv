@@ -14,6 +14,7 @@ from bench.external.constants import (
     MTBENCH_MAX_SCORE,
     MTBENCH_MIN_SCORE,
     MTBENCH_QUESTIONS_DATASET,
+    MTBENCH_QUESTIONS_GITHUB,
     ONE,
     ZERO,
     ZERO_FLOAT,
@@ -47,14 +48,13 @@ class MTBenchAdapter(BenchmarkAdapter):
     def run(self, model_handle: Any) -> BenchmarkResult:
         try:
             from datasets import load_dataset
-        except ImportError as exc:
-            msg = (
-                "datasets is required for MT-Bench. "
-                "Install with: pip install datasets"
+            ds = load_dataset(MTBENCH_QUESTIONS_DATASET, split="train")
+        except Exception:
+            logger.warning(
+                "HF dataset %s unavailable — falling back to GitHub JSON",
+                MTBENCH_QUESTIONS_DATASET,
             )
-            raise ImportError(msg) from exc
-
-        ds = load_dataset(MTBENCH_QUESTIONS_DATASET, split="train")
+            ds = self._load_questions_from_github()
 
         judge_handle = ModelHandle(model_name_or_path=MTBENCH_DEFAULT_JUDGE)
 
@@ -108,6 +108,26 @@ class MTBenchAdapter(BenchmarkAdapter):
             },
             raw_outputs=raw_outputs,
         )
+
+    @staticmethod
+    def _load_questions_from_github() -> List[Dict[str, Any]]:
+        """Download MT-Bench questions JSONL from FastChat GitHub."""
+        import json
+        import urllib.request
+
+        rows = []
+        with urllib.request.urlopen(MTBENCH_QUESTIONS_GITHUB) as resp:
+            for line in resp.read().decode("utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                obj = json.loads(line)
+                turns = obj.get("turns", [])
+                rows.append({
+                    "prompt": turns[ZERO] if turns else "",
+                    "category": obj.get("category", "general"),
+                })
+        return rows
 
     @staticmethod
     def _judge_response(

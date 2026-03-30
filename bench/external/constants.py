@@ -43,7 +43,10 @@ ALL_BENCHMARKS = (
 # XSTest constants
 # ---------------------------------------------------------------------------
 
-XSTEST_DATASET = "paul-rottger/xstest"
+XSTEST_DATASET = "walledai/XSTest"
+XSTEST_DATASET_GITHUB = (
+    "https://raw.githubusercontent.com/paul-rottger/xstest/main/xstest_prompts.csv"
+)
 XSTEST_SAFE_LABEL = "safe"
 XSTEST_UNSAFE_LABEL = "unsafe"
 
@@ -76,7 +79,11 @@ XSTEST_REFUSAL_PHRASES = (
 # HarmBench constants
 # ---------------------------------------------------------------------------
 
-HARMBENCH_DATASET = "cais/HarmBench"
+HARMBENCH_DATASET = "walledai/HarmBench"
+HARMBENCH_DATASET_GITHUB = (
+    "https://raw.githubusercontent.com/centerforaisafety/HarmBench"
+    "/main/data/behavior_datasets/harmbench_behaviors_text_all.csv"
+)
 HARMBENCH_BEHAVIORS_SPLIT = "standard"
 HARMBENCH_CLASSIFIER = "cais/HarmBench-Llama-2-13b-cls"
 HARMBENCH_MAX_CLASSIFY_TOKENS = EVAL_EIGHT
@@ -86,7 +93,11 @@ HARMBENCH_MAX_CLASSIFY_TOKENS = EVAL_EIGHT
 # ---------------------------------------------------------------------------
 
 MTBENCH_QUESTIONS_DATASET = "HuggingFaceH4/mt_bench_prompts"
-MTBENCH_DEFAULT_JUDGE = "claude-sonnet-4-6"
+MTBENCH_QUESTIONS_GITHUB = (
+    "https://raw.githubusercontent.com/lm-sys/FastChat/main/fastchat/llm_judge/data/mt_bench/question.jsonl"
+)
+MTBENCH_DEFAULT_JUDGE = "claude-3-5-sonnet-v2@20241022"
+MTBENCH_VERTEX_REGION = "us-central1"
 MTBENCH_MIN_SCORE = EVAL_ONE
 MTBENCH_MAX_SCORE = EVAL_TEN
 MTBENCH_NUM_QUESTIONS = EVAL_EIGHTY

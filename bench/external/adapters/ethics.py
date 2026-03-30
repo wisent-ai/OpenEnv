@@ -37,7 +37,7 @@ class EthicsAdapter(BenchmarkAdapter):
 
         results = lm_eval.simple_evaluate(
             model="hf",
-            model_args=f"pretrained={model_handle.model_name_or_path}",
+            model_args=f"pretrained={model_handle.model_name_or_path},trust_remote_code=True",
             tasks=[LM_EVAL_ETHICS_TASK],
         )
 

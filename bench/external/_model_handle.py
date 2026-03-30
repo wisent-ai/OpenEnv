@@ -82,6 +82,8 @@ class ModelHandle:
         """Generate with a local HuggingFace model."""
         self.ensure_loaded()
         inputs = self.tokenizer(prompt, return_tensors="pt")
+        device = next(self.model.parameters()).device
+        inputs = {k: v.to(device) for k, v in inputs.items()}
         input_len = inputs["input_ids"].shape[ONE]
         outputs = self.model.generate(
             **inputs,
@@ -133,7 +135,7 @@ class ModelHandle:
 
         import os
         project = os.environ.get("GCP_PROJECT", "wisent-480400")
-        region = os.environ.get("ANTHROPIC_VERTEX_REGION", "us-east5")
+        region = os.environ.get("ANTHROPIC_VERTEX_REGION", "us-central1")
         client = AnthropicVertex(project_id=project, region=region)
         response = client.messages.create(
             model=self.model_name_or_path,

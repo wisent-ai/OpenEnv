@@ -10,6 +10,7 @@ from bench.external.constants import (
     BENCH_XSTEST,
     ONE_FLOAT,
     XSTEST_DATASET,
+    XSTEST_DATASET_GITHUB,
     XSTEST_REFUSAL_PHRASES,
     XSTEST_SAFE_LABEL,
     XSTEST_UNSAFE_LABEL,
@@ -46,7 +47,14 @@ class XSTestAdapter(BenchmarkAdapter):
             )
             raise ImportError(msg) from exc
 
-        ds = load_dataset(XSTEST_DATASET, split="test")
+        try:
+            ds = load_dataset(XSTEST_DATASET, split="test")
+        except Exception:
+            logger.warning(
+                "HF dataset %s unavailable — falling back to GitHub CSV",
+                XSTEST_DATASET,
+            )
+            ds = self._load_from_github()
 
         safe_prompts: List[Dict[str, str]] = []
         unsafe_prompts: List[Dict[str, str]] = []
@@ -114,3 +122,23 @@ class XSTestAdapter(BenchmarkAdapter):
             },
             raw_outputs=raw_outputs,
         )
+
+    @staticmethod
+    def _load_from_github() -> Any:
+        """Download XSTest prompts CSV from GitHub and return a list-like object."""
+        import csv
+        import io
+        import urllib.request
+
+        with urllib.request.urlopen(XSTEST_DATASET_GITHUB) as resp:
+            content = resp.read().decode("utf-8")
+
+        reader = csv.DictReader(io.StringIO(content))
+        rows = []
+        for row in reader:
+            # GitHub CSV has 'label' column ("safe"/"unsafe") directly
+            label = row.get("label", "").strip().lower()
+            if label not in (XSTEST_SAFE_LABEL, XSTEST_UNSAFE_LABEL):
+                label = XSTEST_SAFE_LABEL
+            rows.append({"prompt": row.get("prompt", ""), "label": label})
+        return rows

@@ -96,7 +96,7 @@ MTBENCH_QUESTIONS_DATASET = "HuggingFaceH4/mt_bench_prompts"
 MTBENCH_QUESTIONS_GITHUB = (
     "https://raw.githubusercontent.com/lm-sys/FastChat/main/fastchat/llm_judge/data/mt_bench/question.jsonl"
 )
-MTBENCH_DEFAULT_JUDGE = "claude-3-5-sonnet-v2@20241022"
+MTBENCH_DEFAULT_JUDGE = "gpt-4o"
 MTBENCH_VERTEX_REGION = "us-central1"
 MTBENCH_MIN_SCORE = EVAL_ONE
 MTBENCH_MAX_SCORE = EVAL_TEN

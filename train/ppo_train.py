@@ -409,17 +409,17 @@ def main():
             f"({elapsed:.1f}s)",
             flush=True,
         )
-            if args.report_to == "wandb":
-                try:
-                    import wandb
-                    wandb.log({
-                        "reward": mean_reward,
-                        "baseline": baseline,
-                        "kl": total_kl / max(len(batch_idx), 1),
-                        "loss": total_loss.item(),
-                    }, step=step)
-                except Exception:
-                    pass
+        if args.report_to == "wandb":
+            try:
+                import wandb
+                wandb.log({
+                    "reward": mean_reward,
+                    "baseline": baseline,
+                    "kl": total_kl / max(len(batch_idx), 1),
+                    "loss": total_loss.item(),
+                }, step=step)
+            except Exception:
+                pass
 
         if step % args.save_steps == 0:
             ckpt = os.path.join(args.output_dir, f"checkpoint-{step}")

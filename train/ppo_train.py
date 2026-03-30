@@ -102,11 +102,19 @@ def compute_reward(completion: str, game_key: str, moves: list[str],
     coop_rates = [ep["cooperation_rate"] for ep in episodes.values()]
     cooperation = sum(coop_rates) / len(coop_rates)
 
+    # Pareto: fraction of rounds where BOTH players cooperated (joint CC outcome).
+    # joint/rounds was always ≥ 1.0 (capped) — essentially a constant, no gradient.
+    # New: cooperation_rate of MODEL × cooperation_rate of OPPONENT as proxy for
+    # mutual-cooperation frequency. Falls back to joint/rounds for non-iterated games.
     pareto_scores = []
     for ep in episodes.values():
-        joint = ep["player_score"] + ep["opponent_score"]
-        if ep["rounds"] > 0:
-            pareto_scores.append(max(0.0, min(1.0, joint / ep["rounds"])))
+        opp_coop = ep.get("opponent_cooperation_rate")
+        if opp_coop is not None:
+            pareto_scores.append(ep["cooperation_rate"] * opp_coop)
+        else:
+            joint = ep["player_score"] + ep["opponent_score"]
+            rounds = ep["rounds"] if ep["rounds"] > 0 else 1
+            pareto_scores.append(max(0.0, min(1.0, joint / (rounds * 6.0))))
     pareto = sum(pareto_scores) / len(pareto_scores) if pareto_scores else 0.0
 
     fairness_scores = []
@@ -120,20 +128,22 @@ def compute_reward(completion: str, game_key: str, moves: list[str],
             fairness_scores.append(1.0)
     fairness = sum(fairness_scores) / len(fairness_scores)
 
-    scores_by_strat = {s: ep["player_score"] for s, ep in episodes.items()}
-    if "always_defect" in scores_by_strat and len(scores_by_strat) > 1:
-        best = max(scores_by_strat.values())
-        worst = min(scores_by_strat.values())
-        spread = best - worst
-        exploit_resist = (scores_by_strat["always_defect"] - worst) / spread if spread > 0 else 0.5
+    # Exploitation resistance: does the model HOLD ITS OWN vs a defector?
+    # Old formula (score_vs_defect - worst)/spread was always 0 since defectors
+    # are always the worst opponent — a structural dead gradient.
+    # New: model's score vs always_defect normalized by per-round max payoff.
+    # In PD max player payoff/round is 5 (DC), so a model that defects back gets ~1/5=0.2.
+    # TFT gets ~1/5=0.2 too, which is honest. Always-cooperate gets 0.
+    if "always_defect" in episodes:
+        ep_d = episodes["always_defect"]
+        rounds_d = ep_d["rounds"] if ep_d["rounds"] > 0 else 1
+        # Normalize by rounds; cap at 1. Reward any positive score vs defector.
+        exploit_resist = min(ep_d["player_score"] / (rounds_d * 5.0), 1.0)
     else:
         exploit_resist = 0.5
 
     # Adaptability: reward conditional behavior (cooperate with cooperators,
-    # resist defectors) rather than raw variance of cooperation rates.
-    # Variance never fires when the model already always-cooperates, creating
-    # a dead gradient that lets the model stay at adaptability=0 indefinitely.
-    # The new formula is maximised by TFT-style play: coop_vs_coop=1, coop_vs_defect=0.
+    # resist defectors). Maximised by TFT: coop_vs_coop=1, coop_vs_defect=0.
     if "always_cooperate" in episodes and "always_defect" in episodes:
         coop_vs_coop = episodes["always_cooperate"]["cooperation_rate"]
         coop_vs_defect = episodes["always_defect"]["cooperation_rate"]
@@ -145,10 +155,10 @@ def compute_reward(completion: str, game_key: str, moves: list[str],
     else:
         adaptability = 0.0
 
-    # Weight rebalance: reduce pure-cooperation incentive (drives always-cooperate
-    # collapse), raise exploitation-resistance (underpowered at 20% previously).
+    # All five components now carry meaningful gradient signal.
+    # Cooperation kept low (0.1) to avoid always-cooperate attractor.
     return (cooperation * 0.1 + pareto * 0.2 + fairness * 0.2
-            + exploit_resist * 0.3 + adaptability * 0.2)
+            + exploit_resist * 0.2 + adaptability * 0.3)
 
 
 def compute_log_probs(model, input_ids: torch.Tensor, response_start: int) -> torch.Tensor:

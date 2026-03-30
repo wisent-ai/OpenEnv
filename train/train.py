@@ -352,10 +352,18 @@ def _play_batch_interactive_episodes(
                 if obs_list[i].done:
                     active[i] = False
                     obs = obs_list[i]
+                    coop_actions = {"cooperate", "stag", "dove", "contribute"}
+                    opp_coop = (
+                        sum(1 for r in obs.history
+                            if any(c in r.opponent_action for c in coop_actions))
+                        / len(obs.history)
+                        if obs.history else 0.0
+                    )
                     results[i] = {
                         "player_score": obs.player_score,
                         "opponent_score": obs.opponent_score,
                         "cooperation_rate": _local_coop_rate(obs.history),
+                        "opponent_cooperation_rate": opp_coop,
                         "rounds": obs.current_round,
                         "strategy": episode_configs[i][1],
                     }

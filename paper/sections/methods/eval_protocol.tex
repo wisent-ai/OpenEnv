@@ -7,9 +7,14 @@ This section describes the comprehensive evaluation protocol used to assess
 agent behavior across the full Kant game library, including strategies,
 tournament structure, formal metrics, and stratified game splitting.
 
-Evaluation measures whether game-theoretic training produces agents that are
-not only strategically competent but also cooperative, fair, and robust to
-exploitation---properties that transfer to broader alignment.
+Evaluation has two distinct goals. First, the headline question:
+do agents converge to the Nash equilibrium of each game under raw-payoff
+training, and which non-payoff factors deflect them? This is measured by
+Nash distance ($M_N$, \S\ref{sec:formal-metrics}). Second, as
+\emph{measured outcomes} (never as training signals), we report
+cooperation rate, fairness, Pareto efficiency, exploitation resistance,
+and adaptability so that any deviation from Nash can be characterised
+along the dimensions that matter for alignment transfer.
 
 \subsection{Strategy Library}
 \label{sec:strategy-library}
@@ -57,7 +62,7 @@ executes $k$ episodes (default $k=3$) and aggregates results:
     \item \quad\quad Reset environment with $(g, s)$; play until terminal state
     \item \quad\quad Record per-round actions, payoffs, cooperation flags
     \item \quad Aggregate: total scores, mean cooperation rate over $k$ episodes
-    \item Compute six metrics over the full results matrix (Section~\ref{sec:formal-metrics})
+    \item Compute seven metrics over the full results matrix (Section~\ref{sec:formal-metrics})
 \end{enumerate}
 
 \noindent With $114$ games and $11$ base strategies, a full tournament
@@ -66,7 +71,25 @@ executes $114 \times 11 \times 3 = 3{,}762$ episodes.
 \subsection{Formal Metrics}
 \label{sec:formal-metrics}
 
-We define six metrics, each normalized to $[0, 1]$:
+We define seven metrics, each normalized to $[0, 1]$. $M_N$ is the
+headline convergence metric; $M_C, M_E, M_P, M_F, M_A$ are alignment-side
+measured outcomes; $M_S$ is retained for backwards comparison only.
+
+\paragraph{Nash Distance ($M_N$).}
+For each game $g$ with declared symmetric mixed-strategy Nash equilibria
+$\mathcal{N}_g = \{\pi_g^{(1)}, \ldots, \pi_g^{(m)}\}$ and observed
+empirical action distribution $\hat{\pi}_{g,s}$ over $k$ tournament
+episodes against strategy $s$,
+\[
+M_N^{(g,s)} = \min_{\pi \in \mathcal{N}_g} \tfrac{1}{2}
+              \sum_{a \in \mathcal{A}_g} | \hat{\pi}_{g,s}(a) - \pi(a) |
+\]
+is the total-variation distance from $\hat{\pi}_{g,s}$ to the nearest
+equilibrium. Score of $0.0$ means the agent's empirical play sits
+exactly on a Nash equilibrium; $1.0$ means it is on a disjoint support.
+Games whose equilibrium is role-asymmetric or sequential (Ultimatum,
+Trust) are excluded from $M_N$ until their equilibria are specified
+on a per-role basis.
 
 \paragraph{Cooperation Rate ($M_C$).}
 Mean fraction of cooperative actions across all $(g, s)$ pairs:
@@ -96,8 +119,12 @@ Normalized variance of cooperation rate across strategies within each game:
 $M_A^{(g)} = \frac{\min(\text{Var}_s(\bar{c}_{g,s}),\; 0.5)}{0.5}$,
 averaged over games. High variance indicates context-dependent behavior.
 
-\paragraph{Strategic Reasoning ($M_S$).}
+\paragraph{Strategic Reasoning ($M_S$, deprecated).}
 Unweighted composite: $M_S = \frac{1}{5}(M_C + M_E + M_P + M_F + M_A)$.
+Retained for backwards comparison with prior versions of this benchmark;
+not used as a headline metric, since averaging alignment-side outcomes
+into a single number obscures which non-payoff factors actually drove
+deviation from Nash.
 
 \subsection{Stratified Game Splitting}
 \label{sec:splitting}

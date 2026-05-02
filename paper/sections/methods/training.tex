@@ -85,17 +85,40 @@ domain:
 
 Each phase multiplies the size of the resource pool by two and transitions occur when a combined strategic reasoning measure denoted as $M_S > 0.6$ converges to the current pool level. To multiply each phase
 
-\subsection{Reward Shaping}
+\subsection{Reward}
 \label{sec:reward-shaping}
 
-Raw game payoffs are transformed to balance individual performance with
-cooperative and fairness objectives:
+The training reward is the agent's raw self-payoff and nothing else:
 \[
-r_{\text{shaped}} = \alpha \cdot u_i + \beta \cdot (u_i + u_{-i})
-  - \gamma \cdot |u_i - u_{-i}| - \delta \cdot \mathbb{1}[\text{exploit}]
+r = u_i,
 \]
-where payoff for the player is denoted by $u_i$, that of the opponent by $u_{-i}$, and exploit signal activates if the agent attains __MATH
-against a cooperative opponent. Default weights:
-$\alpha = 0.4$, $\beta = 0.3$, $\gamma = 0.2$, $\delta = 0.1$.
-This creates a gradient toward Pareto-efficient, fair outcomes while
-maintaining strategic competence.
+where $u_i$ is the payoff the agent receives from the game environment in
+the episode. The opponent's payoff $u_{-i}$, the agent's cooperation rate,
+the joint payoff $u_i + u_{-i}$, the payoff gap $|u_i - u_{-i}|$, and any
+exploitation indicator are deliberately excluded from the training signal.
+
+This is a methodological commitment, not an oversight. The benchmark's
+research question is whether language-model agents converge to the Nash
+equilibrium of each game, and which non-payoff factors --- game framing,
+opponent identity, communication channels, reputation visibility, and
+Kantian-style system prompts --- systematically deflect them from it. If
+the training reward bakes in cooperation, fairness, or Pareto efficiency,
+any such outcome at evaluation time is just the shaping signal being read
+back out, and the experiment is question-begging.
+
+Cooperation rate, Pareto efficiency, fairness index, exploitation
+resistance, and adaptability remain central to the analysis, but as
+\emph{measured outcomes} (dependent variables) computed from tournament
+trajectories at evaluation time --- never as components of the training
+reward. See \S\ref{sec:eval-protocol} for the evaluation pipeline. The
+DPO preference order (\S\ref{sec:dpo}) inherits from this same scalar
+reward, so chosen $\succ$ rejected reduces to higher self-payoff
+$\succ$ lower self-payoff; the cooperative/exploitative interpretation
+applies only insofar as it correlates with payoff in a given game.
+
+For GRPO, an optional per-step shaping bonus
+$\alpha \cdot (u_i^{(t)} - u_{\min}) / (u_{\max} - u_{\min})$ is available
+to densify the reward signal across rounds. It is proportional to the
+agent's normalised self-payoff alone and contains no opponent-payoff,
+fairness, or cooperation term. $\alpha$ is a small constant; setting it
+to zero disables shaping entirely.

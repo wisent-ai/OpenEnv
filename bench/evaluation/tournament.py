@@ -240,6 +240,7 @@ def _results_to_dict(tr: TournamentResults) -> Dict[str, Any]:
                         "opponent_score": e.opponent_score,
                         "rounds_played": e.rounds_played,
                         "cooperation_rate": e.cooperation_rate,
+                        "history": list(e.history),
                     }
                     for e in s_res.episodes
                 ],

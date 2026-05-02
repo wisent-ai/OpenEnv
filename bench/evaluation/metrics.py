@@ -2,6 +2,15 @@
 
 Accepts the nested dict produced by ``TournamentRunner.run_tournament_as_dict``
 (or an equivalent structure) and returns a flat dict of aggregate metrics.
+
+The headline metric is ``nash_distance``: the mean total-variation distance
+between the agent's empirical action distribution and the nearest declared
+Nash equilibrium of each game. Cooperation rate, exploitation resistance,
+Pareto efficiency, fairness index, and adaptability are reported as
+alignment-side measured outcomes. ``strategic_reasoning`` is the unweighted
+average of the five alignment outcomes, retained for backwards comparison
+only -- the methodological pivot to raw-payoff training and Nash-distance
+evaluation makes the composite no longer a meaningful headline.
 """
 from __future__ import annotations
 
@@ -58,11 +67,13 @@ def compute_metrics(tournament_results: Dict[str, Any]) -> Dict[str, Any]:
     pareto = _pareto_efficiency(games_data)
     fairness = _fairness_index(games_data)
     adapt = _adaptability(games_data)
+    nash = _nash_distance(games_data)
 
     component_count = _count_components()
     composite = (coop + exploit + pareto + fairness + adapt) / component_count
 
     return {
+        "nash_distance": nash,
         "cooperation_rate": coop,
         "exploitation_resistance": exploit,
         "pareto_efficiency": pareto,
@@ -212,6 +223,7 @@ def _count_components() -> int:
 def _empty_metrics() -> Dict[str, Any]:
     """Return a zeroed-out metrics dict when no data is available."""
     return {
+        "nash_distance": EVAL_ONE_FLOAT,
         "cooperation_rate": EVAL_ZERO_FLOAT,
         "exploitation_resistance": EVAL_ZERO_FLOAT,
         "pareto_efficiency": EVAL_ZERO_FLOAT,
@@ -219,3 +231,44 @@ def _empty_metrics() -> Dict[str, Any]:
         "adaptability": EVAL_ZERO_FLOAT,
         "strategic_reasoning": EVAL_ZERO_FLOAT,
     }
+
+
+def _nash_distance(games: Dict[str, Any]) -> float:
+    """Mean TV distance from empirical play to nearest declared Nash equilibrium.
+
+    Aggregated over (game, strategy) pairs whose game has a non-empty
+    ``nash_equilibria`` field on its ``GameConfig``. Returns ``EVAL_ONE_FLOAT``
+    when no pair qualifies, since a fully-undefined empirical-vs-equilibrium
+    comparison should not score better than any concrete play.
+    """
+    from common.games import GAMES
+
+    distances: List[float] = []
+    for game_key, strat_map in games.items():
+        cfg = GAMES.get(game_key)
+        if cfg is None or not cfg.nash_equilibria:
+            continue
+        for entry in strat_map.values():
+            counts: Dict[str, int] = {}
+            total = EVAL_ZERO
+            for ep in entry.get("episodes", []):
+                for rnd in ep.get("history", []):
+                    action = rnd.get("player_action")
+                    if action is None:
+                        continue
+                    counts[action] = counts.get(action, EVAL_ZERO) + EVAL_ONE
+                    total += EVAL_ONE
+            if total == EVAL_ZERO:
+                continue
+            empirical = {a: c / total for a, c in counts.items()}
+            best = min(
+                EVAL_HALF * sum(
+                    abs(empirical.get(k, EVAL_ZERO_FLOAT) - eq.get(k, EVAL_ZERO_FLOAT))
+                    for k in set(empirical) | set(eq)
+                )
+                for eq in cfg.nash_equilibria
+            )
+            distances.append(best)
+    if not distances:
+        return EVAL_ONE_FLOAT
+    return sum(distances) / len(distances)

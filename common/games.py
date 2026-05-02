@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable
+from dataclasses import dataclass, field
+from typing import Callable, Dict, Tuple
 
 from constant_definitions.game_constants import (
     DEFAULT_ZERO_FLOAT,
@@ -18,11 +18,6 @@ from constant_definitions.game_constants import (
     DEFAULT_NUM_ROUNDS, SINGLE_SHOT_ROUNDS, DEFAULT_TWO_PLAYERS,
     OPPONENT_MODE_STRATEGY,
 )
-
-# ---------------------------------------------------------------------------
-# GameConfig dataclass
-# ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class GameConfig:
@@ -43,11 +38,8 @@ class GameConfig:
     allow_side_payments: bool = False
     opponent_mode: str = OPPONENT_MODE_STRATEGY
     opponent_actions: tuple[str, ...] | None = None
-
-
-# ---------------------------------------------------------------------------
-# Matrix-game payoff helpers
-# ---------------------------------------------------------------------------
+    # Symmetric mixed Nash equilibria as distributions over `actions`.
+    nash_equilibria: Tuple[Dict[str, float], ...] = ()
 
 _PD_MATRIX = {
     ("cooperate", "cooperate"): (float(PD_CC_PAYOFF), float(PD_CC_PAYOFF)),
@@ -183,6 +175,7 @@ GAMES: dict[str, GameConfig] = {
         game_type="matrix",
         default_rounds=DEFAULT_NUM_ROUNDS,
         payoff_fn=_matrix_payoff_fn(_PD_MATRIX),
+        nash_equilibria=({"cooperate": 0.0, "defect": 1.0},),
     ),
     "stag_hunt": GameConfig(
         name="Stag Hunt",
@@ -195,6 +188,11 @@ GAMES: dict[str, GameConfig] = {
         game_type="matrix",
         default_rounds=DEFAULT_NUM_ROUNDS,
         payoff_fn=_matrix_payoff_fn(_SH_MATRIX),
+        nash_equilibria=(
+            {"stag": 1.0, "hare": 0.0},
+            {"stag": 0.0, "hare": 1.0},
+            {"stag": 2.0 / 3.0, "hare": 1.0 / 3.0},
+        ),
     ),
     "hawk_dove": GameConfig(
         name="Hawk-Dove",
@@ -207,6 +205,7 @@ GAMES: dict[str, GameConfig] = {
         game_type="matrix",
         default_rounds=DEFAULT_NUM_ROUNDS,
         payoff_fn=_matrix_payoff_fn(_HD_MATRIX),
+        nash_equilibria=({"hawk": 1.0 / 3.0, "dove": 2.0 / 3.0},),
     ),
     "ultimatum": GameConfig(
         name="Ultimatum Game",
@@ -219,6 +218,8 @@ GAMES: dict[str, GameConfig] = {
         game_type="ultimatum",
         default_rounds=SINGLE_SHOT_ROUNDS,
         payoff_fn=_ultimatum_payoff,
+        # Subgame-perfect equilibrium for the proposer: offer the minimum.
+        nash_equilibria=({"offer_0": 1.0},),
     ),
     "trust": GameConfig(
         name="Trust Game",
@@ -231,6 +232,8 @@ GAMES: dict[str, GameConfig] = {
         game_type="trust",
         default_rounds=SINGLE_SHOT_ROUNDS,
         payoff_fn=_trust_payoff,
+        # SPE for the investor: invest nothing (trustee will return nothing).
+        nash_equilibria=({"invest_0": 1.0},),
     ),
     "public_goods": GameConfig(
         name="Public Goods Game",
@@ -244,6 +247,8 @@ GAMES: dict[str, GameConfig] = {
         game_type="public_goods",
         default_rounds=SINGLE_SHOT_ROUNDS,
         payoff_fn=_public_goods_payoff,
+        # multiplier 1.5 / num_players 4 = 0.375 < 1 -> free-ride dominates.
+        nash_equilibria=({"contribute_0": 1.0},),
     ),
 }
 
@@ -269,28 +274,7 @@ def get_game(name: str) -> GameConfig:
     return GAMES[name]
 
 
-def _load_extensions() -> None:
-    """Import extension modules that register additional games."""
-    import importlib
-    for mod in [
-        "common.games_ext.matrix_games", "common.games_ext.sequential",
-        "common.games_ext.auction", "common.games_ext.nplayer",
-        "common.games_ext.generated", "common.games_info.signaling",
-        "common.games_info.contracts", "common.games_info.communication",
-        "common.games_info.bayesian", "common.games_info.network",
-        "common.games_market.oligopoly", "common.games_market.contests",
-        "common.games_market.classic", "common.games_market.generated_v2",
-        "common.games_market.advanced", "common.games_coop.cooperative",
-        "common.games_coop.dynamic", "common.games_coop.pd_variants",
-        "common.games_coop.infinite", "common.games_coop.stochastic",
-        "common.meta.meta_games",
-        "common.games_adaptive.factories",
-    ]:
-        try:
-            importlib.import_module(mod)
-        except ImportError:
-            pass
-
+from common.games_init import load_extensions as _load_extensions  # noqa: E402
 
 _load_extensions()
 

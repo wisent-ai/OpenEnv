@@ -9,7 +9,11 @@ from env.environment import KantEnvironment
 from env.models import GameAction, GameObservation
 from train.agent import LLMAgent, PromptBuilder, parse_action
 from train.grpo.config import GRPOConfig
-from train.rewards import episode_reward, per_step_shaping
+from train.rewards import (
+    episode_reward,
+    expected_self_payoff_uniform_opponent,
+    per_step_shaping,
+)
 from train.splits import get_train_eval_split
 from train.trajectory import TrajectoryCollector
 
@@ -18,6 +22,16 @@ from constant_definitions.game_constants import EVAL_ONE, EVAL_ZERO, EVAL_ZERO_F
 logger = logging.getLogger(__name__)
 
 _ONE = int(bool(True))
+
+
+def _infer_game_key(prompt: str) -> Optional[str]:
+    """Best-effort game-key recovery when TRL doesn't forward the dataset column."""
+    from common.games import GAMES
+
+    for key, cfg in GAMES.items():
+        if cfg.name and cfg.name in prompt:
+            return key
+    return None
 
 
 class KantGRPOTrainer:
@@ -65,19 +79,35 @@ class KantGRPOTrainer:
         self,
         completions: List[str],
         prompts: List[str],
+        game: Optional[List[str]] = None,
+        **_kwargs: Any,
     ) -> List[float]:
-        """Compute rewards by parsing actions and evaluating in environment.
+        """Per-completion reward = expected self-payoff vs. a uniform opponent.
 
-        This is the reward function passed to TRL's GRPOTrainer.
-        Each (prompt, completion) pair is treated as a single round action.
+        TRL's ``reward_funcs`` callback receives one completion per
+        (prompt, group sample). Each completion encodes a single round's
+        action. The reward attached to it is the agent's expected self-payoff
+        under a uniform-random opponent action distribution -- the only
+        opponent-agnostic, payoff-only signal expressible per completion.
+
+        ``game`` is forwarded by TRL from the dataset's ``game`` column
+        (see ``train.grpo.dataset``); when missing, the game is inferred
+        from the prompt by matching ``GameConfig.name``. Completions that
+        cannot be matched to a known game receive zero reward.
         """
+        from common.games import GAMES
+
         rewards: List[float] = []
-        for prompt, completion in zip(prompts, completions):
-            # We cannot run a full episode per completion in GRPO
-            # (completions are individual round actions), so we return
-            # per-step shaping reward based on action quality heuristic.
-            reward = EVAL_ZERO_FLOAT
-            rewards.append(reward)
+        for idx, (prompt, completion) in enumerate(zip(prompts, completions)):
+            game_key = game[idx] if game is not None else _infer_game_key(prompt)
+            cfg = GAMES.get(game_key) if game_key else None
+            if cfg is None:
+                rewards.append(EVAL_ZERO_FLOAT)
+                continue
+            action_str = parse_action(completion, cfg.actions)
+            rewards.append(
+                expected_self_payoff_uniform_opponent(action_str, cfg),
+            )
         return rewards
 
     def expand_curriculum(self) -> None:

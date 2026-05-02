@@ -245,3 +245,4 @@ from md.builders import (  # noqa: E402  -- re-export for app.py
     _build_matrix_md,
     _build_reference_md,
 )
+from md.tournament import run_metrics_tournament  # noqa: E402  -- re-export

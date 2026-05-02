@@ -32,6 +32,7 @@ from callbacks import (
     on_game_select, on_game_select_variant,
     on_strategy_change, on_provider_change,
     _build_reference_md, _build_all_matrices_md, _build_matrix_md,
+    run_metrics_tournament,
 )
 print("[APP] All imports done.", flush=True)
 
@@ -166,6 +167,43 @@ with gr.Blocks(title="Kant Demo") as demo:
             matrix_variant_cb.change(_update_matrix,
                                      inputs=[matrix_game_dd, matrix_variant_cb],
                                      outputs=[matrix_md])
+
+        with gr.TabItem("Tournament Results"):
+            gr.Markdown(
+                "Run a fixed agent strategy against every other base "
+                "strategy across the selected games. **Headline metric: "
+                "Nash distance** (TV distance to nearest declared equilibrium)."
+            )
+            from registry import _GAME_INFO as _GI_TR  # noqa: E402
+            _TR_GAMES = sorted(
+                g for g, info in _GI_TR.items()
+                if info.get("num_players", _TWO) <= _TWO
+            )
+            _TR_DEFAULT = [
+                g for g in _TR_GAMES
+                if g in {"Prisoner's Dilemma", "Stag Hunt", "Hawk-Dove",
+                         "Ultimatum Game", "Trust Game", "Public Goods Game"}
+            ]
+            _TR_AGENTS = sorted(__import__("registry").STRATEGIES_2P.keys())
+            with gr.Row():
+                tr_agent = gr.Dropdown(
+                    _TR_AGENTS,
+                    value="tit_for_tat" if "tit_for_tat" in _TR_AGENTS else _TR_AGENTS[_ZERO],
+                    label="Agent strategy",
+                )
+                tr_eps = gr.Slider(_ONE, _TEN, value=_ONE + _TWO, step=_ONE,
+                                   label="Episodes per opponent")
+                tr_run = gr.Button("Run Tournament", variant="primary")
+            tr_games = gr.CheckboxGroup(
+                _TR_GAMES, value=_TR_DEFAULT or _TR_GAMES[:_TWO + _TWO],
+                label="Games to evaluate",
+            )
+            tr_out = gr.Markdown("Click *Run Tournament* to evaluate.")
+            tr_run.click(
+                run_metrics_tournament,
+                inputs=[tr_agent, tr_eps, tr_games],
+                outputs=[tr_out],
+            )
 
         with gr.TabItem("Game Theory Reference"):
             gr.Markdown(value=_build_reference_md())

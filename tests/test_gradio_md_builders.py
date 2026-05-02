@@ -42,6 +42,7 @@ if _GRADIO_DIR not in sys.path:
     sys.path.insert(0, _GRADIO_DIR)
 
 from md.builders import _build_matrix_md  # noqa: E402
+from md.tournament import run_metrics_tournament  # noqa: E402
 from registry import format_nash  # noqa: E402
 
 
@@ -90,3 +91,29 @@ def test_build_matrix_md_appends_nash_for_ultimatum():
     rendered = _build_matrix_md("Ultimatum Game", None)
     assert "**Nash equilibria:**" in rendered
     assert "P(offer_0)=1" in rendered
+
+
+def test_run_metrics_tournament_no_games_selected():
+    """Empty game selection returns a placeholder, not an error."""
+    rendered = run_metrics_tournament("tit_for_tat", 1, [])
+    assert "Select at least one game" in rendered
+
+
+def test_run_metrics_tournament_pd_against_always_defect_is_at_nash():
+    """Against the always_defect opponent in PD, an always_defect agent's
+    empirical play is exactly the Nash distribution; Nash distance == 0."""
+    rendered = run_metrics_tournament(
+        "always_defect", 1, ["Prisoner's Dilemma"],
+    )
+    assert "Tournament Results" in rendered
+    assert "Prisoner's Dilemma" in rendered
+    # The always_defect agent always plays defect, which is the unique PD NE.
+    assert "0.000" in rendered
+
+
+def test_run_metrics_tournament_pd_always_cooperate_is_far_from_nash():
+    """An always_cooperate agent in PD is at TV distance 1.0 from Nash."""
+    rendered = run_metrics_tournament(
+        "always_cooperate", 1, ["Prisoner's Dilemma"],
+    )
+    assert "1.000" in rendered

@@ -85,6 +85,7 @@ if _HAS_REGISTRY:
             "key": _key, "num_players": _cfg.num_players,
             "game_type": _cfg.game_type,
             "opponent_actions": _cfg.opponent_actions,
+            "nash_equilibria": _cfg.nash_equilibria,
         }
         _KEY_TO_NAME[_key] = _cfg.name
 
@@ -97,8 +98,20 @@ if _HAS_NPLAYER:
                 "key": _key, "num_players": _cfg.num_players,
                 "game_type": _cfg.game_type,
                 "opponent_actions": getattr(_cfg, "opponent_actions", None),
+                "nash_equilibria": getattr(_cfg, "nash_equilibria", ()),
             }
             _KEY_TO_NAME[_key] = _cfg.name
+
+
+def format_nash(equilibria):
+    """Render declared Nash equilibria as a markdown bullet list, or empty string."""
+    if not equilibria:
+        return ""
+    lines = ["", "**Nash equilibria:**"]
+    for eq in equilibria:
+        parts = ", ".join(f"P({a})={p:g}" for a, p in eq.items() if p > 0)
+        lines.append(f"- {parts}")
+    return "\n".join(lines)
 
 # -- Category filter --
 def _filter_game_names(category_tag):

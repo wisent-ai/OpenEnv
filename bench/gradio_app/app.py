@@ -187,13 +187,24 @@ with gr.Blocks(title="Kant Demo") as demo:
             ]
             _TR_AGENTS = sorted(__import__("registry").STRATEGIES_2P.keys())
             with gr.Row():
+                tr_mode = gr.Radio(
+                    ["hardcoded", "llm_self"], value="hardcoded",
+                    label="Mode",
+                    info="hardcoded: scripted strategies. llm_self: LLM plays both sides.",
+                )
                 tr_agent = gr.Dropdown(
                     _TR_AGENTS,
                     value="tit_for_tat" if "tit_for_tat" in _TR_AGENTS else _TR_AGENTS[_ZERO],
-                    label="Agent strategy",
+                    label="Agent strategy (hardcoded mode)",
                 )
+                tr_model = gr.Dropdown(
+                    _ALL_LLM_MODELS,
+                    value=_ALL_LLM_MODELS[_ZERO] if _ALL_LLM_MODELS else "",
+                    label="Model (llm_self mode)",
+                )
+            with gr.Row():
                 tr_eps = gr.Slider(_ONE, _TEN, value=_ONE + _TWO, step=_ONE,
-                                   label="Episodes per opponent")
+                                   label="Episodes per opponent / game")
                 tr_run = gr.Button("Run Tournament", variant="primary")
             tr_games = gr.CheckboxGroup(
                 _TR_GAMES, value=_TR_DEFAULT or _TR_GAMES[:_TWO + _TWO],
@@ -202,7 +213,7 @@ with gr.Blocks(title="Kant Demo") as demo:
             tr_out = gr.Markdown("Click *Run Tournament* to evaluate.")
             tr_run.click(
                 run_metrics_tournament,
-                inputs=[tr_agent, tr_eps, tr_games],
+                inputs=[tr_agent, tr_eps, tr_games, tr_mode, tr_model],
                 outputs=[tr_out],
             )
 

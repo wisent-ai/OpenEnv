@@ -465,58 +465,12 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
                 rewards.append(-1.0)
                 continue
 
-            # --- All 5 metrics with real cross-strategy data ---
-            coop_rates = [ep["cooperation_rate"] for ep in episodes.values()]
-            cooperation = sum(coop_rates) / len(coop_rates)
-
-            pareto_scores = []
-            for ep in episodes.values():
-                joint = ep["player_score"] + ep["opponent_score"]
-                if ep["rounds"] > 0:
-                    pareto_scores.append(
-                        max(0.0, min(1.0, joint / ep["rounds"]))
-                    )
-            pareto = sum(pareto_scores) / len(pareto_scores) if pareto_scores else 0.0
-
-            fairness_scores = []
-            for ep in episodes.values():
-                denom = abs(ep["player_score"]) + abs(ep["opponent_score"])
-                if denom > 0:
-                    fairness_scores.append(
-                        1.0 - abs(ep["player_score"] - ep["opponent_score"]) / denom
-                    )
-                else:
-                    fairness_scores.append(1.0)
-            fairness = sum(fairness_scores) / len(fairness_scores)
-
-            scores_by_strat = {
-                s: ep["player_score"] for s, ep in episodes.items()
-            }
-            if "always_defect" in scores_by_strat and len(scores_by_strat) > 1:
-                best = max(scores_by_strat.values())
-                worst = min(scores_by_strat.values())
-                spread = best - worst
-                if spread > 0:
-                    exploit_resist = (scores_by_strat["always_defect"] - worst) / spread
-                else:
-                    exploit_resist = 0.5
-            else:
-                exploit_resist = 0.5
-
-            if len(coop_rates) > 1:
-                mean_c = sum(coop_rates) / len(coop_rates)
-                var_c = sum((c - mean_c) ** 2 for c in coop_rates) / len(coop_rates)
-                adaptability = min(var_c / 0.5, 1.0)
-            else:
-                adaptability = 0.0
-
-            reward = (
-                cooperation * 0.2
-                + pareto * 0.2
-                + fairness * 0.2
-                + exploit_resist * 0.2
-                + adaptability * 0.2
-            )
+            # Mean per-round self-payoff across the cross-strategy episodes.
+            # Same scalar train.rewards.episode_reward returns per episode --
+            # no cooperation / Pareto / fairness shaping.
+            total_score = sum(ep["player_score"] for ep in episodes.values())
+            total_rounds = sum(ep["rounds"] for ep in episodes.values())
+            reward = total_score / total_rounds if total_rounds > 0 else 0.0
             rewards.append(reward)
 
         return rewards

@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from typing import Callable
 
-from env.nplayer.coalition.models import CoalitionAction, CoalitionResponse
+from env.nplayer.coalition.models import (
+    CoalitionAction, CoalitionProposal, CoalitionResponse,
+)
 
 
 def _build_negotiate_prompt(obs):
@@ -66,16 +68,64 @@ def _parse_acceptance_indices(completion, num_proposals):
     return sorted(set(accepted))
 
 
+def _build_propose_prompt(obs):
+    base = obs.base
+    me = base.player_index
+    others = ", ".join(f"P{i}" for i in range(base.num_players) if i != me)
+    actions = ", ".join(base.available_actions)
+    return (
+        f"[Game] {base.game_name}\n"
+        f"[You are] P{me} of {base.num_players}\n"
+        f"[Round] {base.current_round} of {base.total_rounds}\n"
+        f"[Other players] {others}\n"
+        f"[Available actions] {actions}\n"
+        "[Instruction] Optionally propose a 2-player coalition. Reply "
+        "'P<index> <action>' to invite that player and agree on that action, "
+        "or 'none' to skip. Example: P2 cooperate"
+    )
+
+
+def _parse_proposal(completion, obs):
+    s = (completion or "").strip().lower()
+    if "none" in s and not any(c.isdigit() for c in s):
+        return None
+    me = obs.base.player_index
+    digits = ""
+    for ch in s:
+        if ch.isdigit():
+            digits += ch
+        elif digits:
+            break
+    if not digits:
+        return None
+    target = int(digits)
+    if target == me or not (0 <= target < obs.base.num_players):
+        return None
+    chosen = None
+    for a in obs.base.available_actions:
+        if a.lower() in s:
+            chosen = a
+            break
+    if chosen is None:
+        return None
+    return CoalitionProposal(
+        proposer=me, members=[me, target],
+        agreed_action=chosen, side_payment=0.0,
+    )
+
+
 def llm_negotiate(generate_fn: Callable[[str], str], obs) -> CoalitionAction:
-    """One LLM call -> CoalitionAction (responses to pending proposals only)."""
-    completion = generate_fn(_build_negotiate_prompt(obs))
-    accept = set(_parse_acceptance_indices(completion, len(obs.pending_proposals)))
+    """Two LLM calls per round: respond to pending proposals + optionally propose one."""
+    resp_completion = generate_fn(_build_negotiate_prompt(obs))
+    accept = set(_parse_acceptance_indices(resp_completion, len(obs.pending_proposals)))
     me = obs.base.player_index
     responses = [
         CoalitionResponse(responder=me, proposal_index=i, accepted=(i in accept))
         for i in range(len(obs.pending_proposals))
     ]
-    return CoalitionAction(responses=responses)
+    proposal = _parse_proposal(generate_fn(_build_propose_prompt(obs)), obs)
+    proposals = [proposal] if proposal is not None else []
+    return CoalitionAction(responses=responses, proposals=proposals)
 
 
 def make_coalition_strategy(generate_fn: Callable[[str], str], nplayer_agent_fn):

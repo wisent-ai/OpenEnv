@@ -127,60 +127,47 @@ def play_episode_nplayer(
     return score, obs.current_round
 
 
-def make_coalition_strategy(nplayer_agent_fn: Callable[[NPlayerObservation], NPlayerAction]):
-    """Wrap an N-player agent_fn into the CoalitionStrategy protocol.
-
-    Negotiate phase: return empty CoalitionAction (no LLM-driven proposals).
-    Respond: accept all incoming proposals (same as player zero's policy
-    in play_episode_coalition). Action phase: route obs.base through the
-    N-player agent and unwrap the resulting NPlayerAction.action string.
-    """
-    class _LLMCoalitionStrategy:
-        def negotiate(self, observation):
-            return CoalitionAction()
-        def respond_to_proposal(self, observation, proposal):
-            return True
-        def choose_action(self, observation):
-            return nplayer_agent_fn(observation.base).action
-    return _LLMCoalitionStrategy()
-
-
 _LLM_COALITION_OPPONENT_NAME = "_llm_opponent_for_coalition"
 
 
-def register_llm_coalition_strategy(agent_fn) -> str:
-    """Mutate the coalition strategy registry so the env can resolve our LLM by name."""
+def register_llm_coalition_strategy(generate_fn) -> str:
+    """Mutate the coalition strategy registry so the env can resolve our LLM by name.
+
+    generate_fn is the raw prompt -> completion callable; we build the
+    n-player agent here so the strategy reuses the same parse-action
+    miss counter.
+    """
     from env.nplayer.coalition.strategies import COALITION_STRATEGIES
-    COALITION_STRATEGIES[_LLM_COALITION_OPPONENT_NAME] = make_coalition_strategy(agent_fn)
+    from _coalition_negotiate import make_coalition_strategy  # type: ignore[import-not-found]
+    COALITION_STRATEGIES[_LLM_COALITION_OPPONENT_NAME] = make_coalition_strategy(
+        generate_fn, make_nplayer_agent(generate_fn),
+    )
     return _LLM_COALITION_OPPONENT_NAME
 
 
 def play_episode_coalition(
     env: CoalitionEnvironment,
     agent_fn: Callable[[NPlayerObservation], NPlayerAction],
+    generate_fn: Callable[[str], str],
     *,
     game: str,
     coalition_strategies: Optional[list[str]] = None,
 ):
     """Play one full episode of *game* on CoalitionEnvironment.
 
-    The negotiate phase auto-accepts every incoming opponent proposal
-    (no LLM-driven coalition formation yet); the action phase routes
-    the inner NPlayerObservation through *agent_fn*. Returns
-    ``(player_score, rounds_played)`` for player zero, with score taken
-    from the inner-env scores so coalition payoff adjustments apply.
+    Negotiate phase: prompt the LLM with pending proposals via
+    _coalition_negotiate.llm_negotiate and submit the parsed responses.
+    Action phase: route obs.base through *agent_fn*. Returns
+    (player_score, rounds_played) for player zero with coalition
+    payoff adjustments folded in via obs.base.scores.
     """
+    from _coalition_negotiate import llm_negotiate  # type: ignore[import-not-found]
     obs = env.reset(game=game, coalition_strategies=coalition_strategies)
     while not obs.base.done:
         if obs.phase == COALITION_PHASE_NEGOTIATE:
-            responses = [
-                CoalitionResponse(responder=0, proposal_index=i, accepted=True)
-                for i in range(len(obs.pending_proposals))
-            ]
-            obs = env.negotiate_step(CoalitionAction(responses=responses))
+            obs = env.negotiate_step(llm_negotiate(generate_fn, obs))
         if obs.phase == COALITION_PHASE_ACTION:
-            inner_action = agent_fn(obs.base)
-            obs = env.action_step(inner_action)
+            obs = env.action_step(agent_fn(obs.base))
     score = obs.base.scores[0] if obs.base.scores else 0.0
     return score, obs.base.current_round
 
@@ -194,8 +181,14 @@ def _accumulate(call_one, episodes):
     return ssum, rsum
 
 
-def play_rows(env_kind, env, key, strategies, episodes, mode, agent_fn, opp_fn, opp_label):
-    """Dispatch one (game, opponent-set) row collection to the right env helper."""
+def play_rows(env_kind, env, key, strategies, episodes, mode, agent_fn, opp_fn,
+              opp_label, generate_fn=None, opp_generate_fn=None):
+    """Dispatch one (game, opponent-set) row collection to the right env helper.
+
+    generate_fn / opp_generate_fn are required for env_kind == "coalition";
+    coalition negotiation prompts the LLM with the raw prompt->completion
+    callable, not the prebuilt agent_fn closure.
+    """
     rows = []
     if env_kind == "2p":
         if mode == "hardcoded":
@@ -234,16 +227,18 @@ def play_rows(env_kind, env, key, strategies, episodes, mode, agent_fn, opp_fn, 
             for s in strategies:
                 ssum, rsum = _accumulate(
                     lambda s=s: play_episode_coalition(
-                        env, agent_fn, game=key, coalition_strategies=[s],
+                        env, agent_fn, generate_fn,
+                        game=key, coalition_strategies=[s],
                     ),
                     episodes,
                 )
                 rows.append((key, s, ssum, rsum))
         else:
-            llm_name = register_llm_coalition_strategy(opp_fn)
+            llm_name = register_llm_coalition_strategy(opp_generate_fn or generate_fn)
             ssum, rsum = _accumulate(
                 lambda: play_episode_coalition(
-                    env, agent_fn, game=key, coalition_strategies=[llm_name],
+                    env, agent_fn, generate_fn,
+                    game=key, coalition_strategies=[llm_name],
                 ),
                 episodes,
             )

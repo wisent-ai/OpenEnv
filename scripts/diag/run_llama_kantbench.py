@@ -206,17 +206,19 @@ def main() -> None:
     agent_fn_n = _ep.make_nplayer_agent(p_gen)
 
     opp_fn_2p = opp_fn_n = None
+    opp_gen = None
     if args.mode == "self":
-        opp_fn_2p = _ep.make_2p_agent(_build_generate_fn(player_model, player_tok, device))
-        opp_fn_n = _ep.make_nplayer_agent(_build_generate_fn(player_model, player_tok, device))
+        opp_gen = _build_generate_fn(player_model, player_tok, device)
+        opp_fn_2p = _ep.make_2p_agent(opp_gen)
+        opp_fn_n = _ep.make_nplayer_agent(opp_gen)
         opp_label = "self"
     elif args.mode == "cross":
         t1 = time.time()
         opp_model, opp_tok, _dev = _load_model(args.opponent_model)
         print(f"[run] opponent model loaded in {time.time() - t1:.1f}s", flush=True)
-        o_gen = _build_generate_fn(opp_model, opp_tok, device)
-        opp_fn_2p = _ep.make_2p_agent(o_gen)
-        opp_fn_n = _ep.make_nplayer_agent(o_gen)
+        opp_gen = _build_generate_fn(opp_model, opp_tok, device)
+        opp_fn_2p = _ep.make_2p_agent(opp_gen)
+        opp_fn_n = _ep.make_nplayer_agent(opp_gen)
         opp_label = f"cross[{args.opponent_model.split('/')[-1]}]"
     else:
         opp_label = ""
@@ -241,6 +243,7 @@ def main() -> None:
         rows.extend(_ep.play_rows(
             env_kind, env_by_kind[env_kind], key, strategies, args.episodes,
             args.mode, agent_by_kind[env_kind], opp_by_kind[env_kind], opp_label,
+            generate_fn=p_gen, opp_generate_fn=opp_gen,
         ))
     print(f"[run] tournament finished in {time.time() - t2:.1f}s", flush=True)
     _print_rows(rows)

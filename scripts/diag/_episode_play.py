@@ -127,6 +127,34 @@ def play_episode_nplayer(
     return score, obs.current_round
 
 
+def make_coalition_strategy(nplayer_agent_fn: Callable[[NPlayerObservation], NPlayerAction]):
+    """Wrap an N-player agent_fn into the CoalitionStrategy protocol.
+
+    Negotiate phase: return empty CoalitionAction (no LLM-driven proposals).
+    Respond: accept all incoming proposals (same as player zero's policy
+    in play_episode_coalition). Action phase: route obs.base through the
+    N-player agent and unwrap the resulting NPlayerAction.action string.
+    """
+    class _LLMCoalitionStrategy:
+        def negotiate(self, observation):
+            return CoalitionAction()
+        def respond_to_proposal(self, observation, proposal):
+            return True
+        def choose_action(self, observation):
+            return nplayer_agent_fn(observation.base).action
+    return _LLMCoalitionStrategy()
+
+
+_LLM_COALITION_OPPONENT_NAME = "_llm_opponent_for_coalition"
+
+
+def register_llm_coalition_strategy(agent_fn) -> str:
+    """Mutate the coalition strategy registry so the env can resolve our LLM by name."""
+    from env.nplayer.coalition.strategies import COALITION_STRATEGIES
+    COALITION_STRATEGIES[_LLM_COALITION_OPPONENT_NAME] = make_coalition_strategy(agent_fn)
+    return _LLM_COALITION_OPPONENT_NAME
+
+
 def play_episode_coalition(
     env: CoalitionEnvironment,
     agent_fn: Callable[[NPlayerObservation], NPlayerAction],
@@ -202,12 +230,22 @@ def play_rows(env_kind, env, key, strategies, episodes, mode, agent_fn, opp_fn, 
             )
             rows.append((key, opp_label, ssum, rsum))
     elif env_kind == "coalition":
-        for s in strategies:
+        if mode == "hardcoded":
+            for s in strategies:
+                ssum, rsum = _accumulate(
+                    lambda s=s: play_episode_coalition(
+                        env, agent_fn, game=key, coalition_strategies=[s],
+                    ),
+                    episodes,
+                )
+                rows.append((key, s, ssum, rsum))
+        else:
+            llm_name = register_llm_coalition_strategy(opp_fn)
             ssum, rsum = _accumulate(
-                lambda s=s: play_episode_coalition(
-                    env, agent_fn, game=key, coalition_strategies=[s],
+                lambda: play_episode_coalition(
+                    env, agent_fn, game=key, coalition_strategies=[llm_name],
                 ),
                 episodes,
             )
-            rows.append((key, s, ssum, rsum))
+            rows.append((key, opp_label, ssum, rsum))
     return rows

@@ -234,7 +234,7 @@ def main() -> None:
         "coalition": CoalitionEnvironment(),
     }
     agent_by_kind = {"2p": agent_fn_2p, "nplayer": agent_fn_n, "coalition": agent_fn_n}
-    opp_by_kind = {"2p": opp_fn_2p, "nplayer": opp_fn_n, "coalition": None}
+    opp_by_kind = {"2p": opp_fn_2p, "nplayer": opp_fn_n, "coalition": opp_fn_n}
     t2 = time.time()
     rows = []
     for key, env_kind, strategies in selected:

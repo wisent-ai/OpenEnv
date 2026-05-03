@@ -43,6 +43,7 @@ RANDOM_STRATEGIES = ("random",)
 NPLAYER_DEFAULT_STRATEGIES = ("random",)
 COALITION_DEFAULT_STRATEGIES = (
     "coalition_random", "coalition_loyal", "coalition_betrayer",
+    "coalition_tit_for_tat", "coalition_grim_trigger",
 )
 DEFAULT_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
 TEMPERATURE_NUMERATOR = 7

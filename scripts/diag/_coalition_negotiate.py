@@ -90,10 +90,11 @@ def _build_propose_prompt(obs):
         f"[Other players] {others}\n"
         f"[Available actions] {actions}\n"
         f"[Side-payment range] 0 to {_SIDE_PAYMENT_MAX:g}\n"
-        "[Instruction] Optionally propose a 2-player coalition. Reply "
-        "'P<index> <action> pay <amount>' where amount is the side payment "
-        "you'll pay the partner if accepted, or 'none' to skip. "
-        "Example: P2 cooperate pay 1"
+        "[Instruction] Optionally propose a coalition. Reply "
+        "'P<i> [P<j> ...] <action> pay <amount>' to invite one or more "
+        "other players to agree on that action with that side payment, "
+        "or 'none' to skip. Examples: 'P2 cooperate pay 1', "
+        "'P2 P3 cooperate pay 1'."
     )
 
 
@@ -115,26 +116,34 @@ def _parse_proposal(completion, obs):
         return None
     me = obs.base.player_index
 
-    # First integer = target player index.
-    head = _scan_first_number(s)
-    if head is None or "." in head:
-        return None
-    target = int(head)
-    if target == me or not (0 <= target < obs.base.num_players):
-        return None
-
-    # First action substring after the index.
-    after_idx = s[s.find(head) + len(head):]
-    chosen = None
+    # Earliest available-action token in the completion -- everything
+    # before it is read as player indices, everything after as the
+    # optional side payment.
+    chosen_pos, chosen = -1, None
     for a in obs.base.available_actions:
-        if a.lower() in after_idx:
-            chosen = a
-            break
+        idx = s.find(a.lower())
+        if idx >= 0 and (chosen_pos == -1 or idx < chosen_pos):
+            chosen_pos, chosen = idx, a
     if chosen is None:
         return None
 
-    # First number AFTER the chosen action = side payment (defaults to 0).
-    after_act = after_idx[after_idx.find(chosen.lower()) + len(chosen):]
+    # All distinct, in-range, non-self integer targets BEFORE the action.
+    head = s[:chosen_pos]
+    targets: list[int] = []
+    cur = ""
+    for ch in head + " ":
+        if ch.isdigit():
+            cur += ch
+        elif cur:
+            t = int(cur)
+            if t != me and 0 <= t < obs.base.num_players and t not in targets:
+                targets.append(t)
+            cur = ""
+    if not targets:
+        return None
+
+    # First number AFTER the chosen action = side payment (default 0).
+    after_act = s[chosen_pos + len(chosen):]
     pay_str = _scan_first_number(after_act)
     payment = float(COALITION_DEFAULT_SIDE_PAYMENT)
     if pay_str is not None:
@@ -144,7 +153,7 @@ def _parse_proposal(completion, obs):
             pass
 
     return CoalitionProposal(
-        proposer=me, members=[me, target],
+        proposer=me, members=[me, *targets],
         agreed_action=chosen, side_payment=payment,
     )
 

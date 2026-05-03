@@ -133,11 +133,96 @@ class CoalitionConditionalStrategy:
 # Registry
 # ---------------------------------------------------------------------------
 
+class CoalitionTitForTatStrategy:
+    """Mirror the previous round: accept new proposals iff our last
+    coalition partner honoured the agreed action; honour our own
+    coalitions iff the same player honoured theirs.
+    """
+
+    def negotiate(self, observation: CoalitionObservation) -> CoalitionAction:
+        return CoalitionAction()
+
+    def _last_partner_defected(self, observation: CoalitionObservation) -> bool:
+        if not observation.coalition_history:
+            return False
+        last = observation.coalition_history[-_ONE]
+        my_idx = observation.base.player_index
+        return any(d != my_idx for d in last.defectors)
+
+    def respond_to_proposal(
+        self, observation: CoalitionObservation, proposal: CoalitionProposal,
+    ) -> bool:
+        return not self._last_partner_defected(observation)
+
+    def choose_action(self, observation: CoalitionObservation) -> str:
+        if self._last_partner_defected(observation):
+            my_idx = observation.base.player_index
+            for coalition in observation.active_coalitions:
+                if my_idx in coalition.members:
+                    alternatives = [
+                        a for a in observation.base.available_actions
+                        if a != coalition.agreed_action
+                    ]
+                    if alternatives:
+                        return alternatives[_ZERO]
+        for coalition in observation.active_coalitions:
+            if observation.base.player_index in coalition.members:
+                if coalition.agreed_action in observation.base.available_actions:
+                    return coalition.agreed_action
+        return observation.base.available_actions[_ZERO]
+
+
+class CoalitionGrimTriggerStrategy:
+    """Cooperate until ANY partner ever defects, then defect every round."""
+
+    def __init__(self) -> None:
+        self._triggered = False
+
+    def negotiate(self, observation: CoalitionObservation) -> CoalitionAction:
+        return CoalitionAction()
+
+    def _check_trigger(self, observation: CoalitionObservation) -> None:
+        if self._triggered or not observation.coalition_history:
+            return
+        my_idx = observation.base.player_index
+        for rnd in observation.coalition_history:
+            if any(d != my_idx for d in rnd.defectors):
+                self._triggered = True
+                return
+
+    def respond_to_proposal(
+        self, observation: CoalitionObservation, proposal: CoalitionProposal,
+    ) -> bool:
+        self._check_trigger(observation)
+        return not self._triggered
+
+    def choose_action(self, observation: CoalitionObservation) -> str:
+        self._check_trigger(observation)
+        my_idx = observation.base.player_index
+        if self._triggered:
+            for coalition in observation.active_coalitions:
+                if my_idx in coalition.members:
+                    alternatives = [
+                        a for a in observation.base.available_actions
+                        if a != coalition.agreed_action
+                    ]
+                    if alternatives:
+                        return alternatives[_ZERO]
+            return observation.base.available_actions[_ZERO]
+        for coalition in observation.active_coalitions:
+            if my_idx in coalition.members:
+                if coalition.agreed_action in observation.base.available_actions:
+                    return coalition.agreed_action
+        return observation.base.available_actions[_ZERO]
+
+
 COALITION_STRATEGIES: dict[str, CoalitionStrategy] = {
     "coalition_random": CoalitionRandomStrategy(),
     "coalition_loyal": CoalitionLoyalStrategy(),
     "coalition_betrayer": CoalitionBetrayerStrategy(),
     "coalition_conditional": CoalitionConditionalStrategy(),
+    "coalition_tit_for_tat": CoalitionTitForTatStrategy(),
+    "coalition_grim_trigger": CoalitionGrimTriggerStrategy(),
 }
 
 

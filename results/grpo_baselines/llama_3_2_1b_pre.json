@@ -1,0 +1,45 @@
+{
+  "model": "meta-llama/Llama-3.2-1B-Instruct",
+  "training": "none (pre-GRPO baseline)",
+  "evaluator": "scripts/diag/run_llama_kantbench.py",
+  "evaluator_flags": "--mode hardcoded --episodes 2 --games prisoners_dilemma,stag_hunt,hawk_dove",
+  "device": "mps",
+  "decode": {"do_sample": true, "temperature": 0.7, "max_new_tokens": 8},
+  "parse_miss_rate": 0.0222,
+  "parse_misses": 4,
+  "parse_total": 180,
+  "per_game_per_opponent": {
+    "prisoners_dilemma": {
+      "tit_for_tat": 2.150,
+      "always_defect": 0.500,
+      "always_cooperate": 4.600
+    },
+    "stag_hunt": {
+      "tit_for_tat": 2.850,
+      "always_defect": 0.100,
+      "always_cooperate": 3.500
+    },
+    "hawk_dove": {
+      "tit_for_tat": 1.200,
+      "always_defect": -0.100,
+      "always_cooperate": 2.600
+    }
+  },
+  "mean_self_payoff_per_game": {
+    "prisoners_dilemma": 2.417,
+    "stag_hunt": 2.150,
+    "hawk_dove": 1.233
+  },
+  "rounds_per_game": {
+    "prisoners_dilemma": 60,
+    "stag_hunt": 60,
+    "hawk_dove": 60
+  },
+  "context": {
+    "submitted_training_batch": "batch-1777840724",
+    "training_max_steps": 50,
+    "training_use_lora": true,
+    "training_quantize_4bit": true,
+    "expectation": "If r = u_i training delivers Nash-style convergence, the *_vs_always_defect rows should move toward the Nash floor (PD: 1.0 mutual-defect, SH: 2.0 hare-hare, HD: closer to 1.0 dove-vs-hawk) post-training."
+  }
+}

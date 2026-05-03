@@ -1,39 +1,38 @@
-"""End-to-end run: meta-llama/Llama-3.2-1B-Instruct vs the KantBench env.
+"""End-to-end Llama-vs-KantBench runner with three opponent modes.
 
-Loads Llama-3.2-1B-Instruct on Apple MPS, wraps it in the existing
-LLMAgent + PromptBuilder, runs a TournamentRunner across six base games
-(PD, Stag Hunt, Hawk-Dove, Ultimatum, Trust, Public Goods) against three
-baseline opponent strategies, and emits the agent's mean per-round
-self-payoff per (game, strategy) and aggregated per game.
+Three opponent modes selectable via --mode:
+  hardcoded  -- opponent is a scripted strategy from common/strategies.py
+                (per-game appropriate: matrix strategies for matrix games,
+                ultimatum_*/trust_*/public_goods_* for the asymmetric games)
+  self       -- opponent is the same model as the player (self-play)
+  cross      -- opponent is a different model loaded from --opponent-model
 
 Run:
 
-    PYTHONPATH=. HF_TOKEN=<token> python3 scripts/diag/run_llama_kantbench.py
+    PYTHONPATH=. HF_TOKEN=<token> python3 scripts/diag/run_llama_kantbench.py \\
+        --mode hardcoded
+    PYTHONPATH=. HF_TOKEN=<token> python3 scripts/diag/run_llama_kantbench.py \\
+        --mode self --model meta-llama/Llama-3.2-1B-Instruct
+    PYTHONPATH=. HF_TOKEN=<token> python3 scripts/diag/run_llama_kantbench.py \\
+        --mode cross --model meta-llama/Llama-3.2-1B-Instruct \\
+                     --opponent-model Qwen/Qwen2.5-1.5B-Instruct
 """
 
 from __future__ import annotations
 
-import os
-import sys
+import argparse
 import time
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# Project imports go via PYTHONPATH=.
-from bench.evaluation.tournament import TournamentRunner
+from constant_definitions.game_constants import EVAL_DEFAULT_EPISODES
+from constant_definitions.train.agent_constants import MAX_ACTION_TOKENS
 from env.environment import KantEnvironment
 from env.models import GameAction, GameObservation
-from train.agent import APIAgent, LLMAgent, PromptBuilder, parse_action  # noqa: F401
+from train.agent import LLMAgent, parse_action
 
 
-MODEL_ID = "meta-llama/Llama-3.2-1B-Instruct"
-
-# Game-appropriate opponents per game. Matrix games take generic
-# matrix strategies; the role-asymmetric games take the dedicated
-# ultimatum_*/trust_*/public_goods_* strategies registered in
-# common/strategies.py:140-194 because the matrix strategies pick from
-# the wrong action set otherwise.
 GAMES_AND_STRATEGIES = (
     ("prisoners_dilemma", ("tit_for_tat", "always_defect", "always_cooperate")),
     ("stag_hunt",         ("tit_for_tat", "always_defect", "always_cooperate")),
@@ -42,14 +41,27 @@ GAMES_AND_STRATEGIES = (
     ("trust",             ("trust_fair", "trust_generous")),
     ("public_goods",      ("public_goods_fair", "public_goods_free_rider")),
 )
-EPISODES_PER_PAIR = 5
-MAX_NEW_TOKENS = 8
-TEMPERATURE = 0.7
+GAMES_FOR_LLM_OPPONENT = tuple(g for g, _ in GAMES_AND_STRATEGIES)
+DEFAULT_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
+TEMPERATURE_NUMERATOR = 7
+TEMPERATURE_DENOMINATOR = 10
+TEMPERATURE = TEMPERATURE_NUMERATOR / TEMPERATURE_DENOMINATOR
 
-# Module-level counters: track how often parse_action could not match the
-# completion to any available action and resorted to random.choice.
 _PARSE_MISS_COUNT = 0
 _PARSE_TOTAL_COUNT = 0
+
+
+def _parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--mode", choices=("hardcoded", "self", "cross"),
+                   default="hardcoded")
+    p.add_argument("--model", default=DEFAULT_MODEL,
+                   help="HF id of the player's model")
+    p.add_argument("--opponent-model", default=None,
+                   help="HF id of the opponent's model; required for --mode cross")
+    p.add_argument("--episodes", type=int, default=EVAL_DEFAULT_EPISODES,
+                   help="episodes per (game, opponent) pair")
+    return p.parse_args()
 
 
 def _device() -> str:
@@ -60,8 +72,22 @@ def _device() -> str:
     return "cpu"
 
 
+def _load_model(model_id: str):
+    """Return (model, tokenizer, device) on the best available accelerator."""
+    device = _device()
+    tok = AutoTokenizer.from_pretrained(model_id)
+    if tok.pad_token is None:
+        tok.pad_token = tok.eos_token
+    mdl = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+        low_cpu_mem_usage=True,
+    ).to(device)
+    mdl.eval()
+    return mdl, tok, device
+
+
 def _build_generate_fn(model, tokenizer, device):
-    """Wrap (model, tokenizer) into the prompt -> completion callable LLMAgent expects."""
     def _generate(prompt: str) -> str:
         messages = [
             {"role": "system",
@@ -75,7 +101,7 @@ def _build_generate_fn(model, tokenizer, device):
         with torch.no_grad():
             out = model.generate(
                 **inputs,
-                max_new_tokens=MAX_NEW_TOKENS,
+                max_new_tokens=MAX_ACTION_TOKENS,
                 do_sample=True,
                 temperature=TEMPERATURE,
                 pad_token_id=tokenizer.eos_token_id,
@@ -89,14 +115,7 @@ def _build_generate_fn(model, tokenizer, device):
 
 
 def _wrap_parse_action_with_counters():
-    """Replace train.agent.parse_action with a wrapper that counts misses.
-
-    A "miss" is when the wrapper detects the original parse_action would
-    have returned random.choice(...) because no action token actually
-    appears in the completion. We don't change behavior; we only count.
-    """
     import train.agent as _agent_mod
-
     _original = _agent_mod.parse_action
 
     def _wrapped(response: str, available_actions):
@@ -116,89 +135,123 @@ def _wrap_parse_action_with_counters():
     _agent_mod.parse_action = _wrapped
 
 
+def _agent_fn_from_llm(agent: LLMAgent):
+    def _fn(obs: GameObservation) -> GameAction:
+        return agent(obs)
+    return _fn
+
+
+def _play_one_episode(env: KantEnvironment, agent_fn, *, game: str, **reset_kw):
+    """Loop env.step until done. Return (player_score, rounds_played)."""
+    obs = env.reset(game=game, **reset_kw)
+    while not obs.done:
+        action = agent_fn(obs)
+        obs = env.step(action)
+    return obs.player_score, obs.current_round
+
+
+def _run_hardcoded(env, agent_fn, episodes):
+    rows = []
+    for game, strategies in GAMES_AND_STRATEGIES:
+        for strat in strategies:
+            score_sum, round_sum = 0.0, 0
+            for _ in range(episodes):
+                ps, rounds = _play_one_episode(
+                    env, agent_fn, game=game, strategy=strat,
+                )
+                score_sum += ps
+                round_sum += rounds
+            rows.append((game, strat, score_sum, round_sum))
+    return rows
+
+
+def _run_llm_opponent(env, agent_fn, opponent_fn, label, episodes):
+    rows = []
+    for game in GAMES_FOR_LLM_OPPONENT:
+        score_sum, round_sum = 0.0, 0
+        for _ in range(episodes):
+            ps, rounds = _play_one_episode(
+                env, agent_fn, game=game, opponent_fn=opponent_fn,
+            )
+            score_sum += ps
+            round_sum += rounds
+        rows.append((game, label, score_sum, round_sum))
+    return rows
+
+
+def _print_rows(rows):
+    print("\n=== Per (game, opponent) mean self-payoff ===", flush=True)
+    for game, opp, score, rounds in rows:
+        per_round = score / rounds if rounds else float("nan")
+        print(f"  {game:20s}  vs {opp:24s}  "
+              f"player_score_total={score:7.2f}  rounds={rounds}  "
+              f"per_round={per_round:6.3f}", flush=True)
+    print("\n=== Per-game aggregate (sum across opponents) ===", flush=True)
+    by_game = {}
+    for game, _, score, rounds in rows:
+        s, r = by_game.get(game, (0.0, 0))
+        by_game[game] = (s + score, r + rounds)
+    for game, (score, rounds) in by_game.items():
+        per_round = score / rounds if rounds else float("nan")
+        print(f"  {game:20s}  mean_self_payoff_per_round={per_round:6.3f}  "
+              f"(rounds={rounds})", flush=True)
+
+
 def main() -> None:
-    print(f"[run] device={_device()}", flush=True)
+    args = _parse_args()
+    if args.mode == "cross" and not args.opponent_model:
+        raise SystemExit("--mode cross requires --opponent-model")
+
+    print(f"[run] mode={args.mode}  player_model={args.model}  device={_device()}",
+          flush=True)
+    if args.mode == "cross":
+        print(f"[run] opponent_model={args.opponent_model}", flush=True)
+
     t0 = time.time()
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID,
-        torch_dtype=torch.float16 if _device() != "cpu" else torch.float32,
-        low_cpu_mem_usage=True,
-    ).to(_device())
-    model.eval()
-    print(f"[run] model loaded in {time.time() - t0:.1f}s", flush=True)
+    player_model, player_tok, device = _load_model(args.model)
+    print(f"[run] player model loaded in {time.time() - t0:.1f}s", flush=True)
 
     _wrap_parse_action_with_counters()
-    generate_fn = _build_generate_fn(model, tokenizer, _device())
-    agent = LLMAgent(generate_fn=generate_fn)
+    player_agent = LLMAgent(
+        generate_fn=_build_generate_fn(player_model, player_tok, device),
+    )
+    agent_fn = _agent_fn_from_llm(player_agent)
 
-    def _agent_fn(obs: GameObservation) -> GameAction:
-        return agent(obs)
+    opponent_fn = None
+    if args.mode == "self":
+        opponent_agent = LLMAgent(
+            generate_fn=_build_generate_fn(player_model, player_tok, device),
+        )
+        opponent_fn = _agent_fn_from_llm(opponent_agent)
+    elif args.mode == "cross":
+        t1 = time.time()
+        opp_model, opp_tok, _ = _load_model(args.opponent_model)
+        print(f"[run] opponent model loaded in {time.time() - t1:.1f}s",
+              flush=True)
+        opponent_agent = LLMAgent(
+            generate_fn=_build_generate_fn(opp_model, opp_tok, device),
+        )
+        opponent_fn = _agent_fn_from_llm(opponent_agent)
 
     env = KantEnvironment()
-    runner = TournamentRunner(env=env, agent_fn=_agent_fn)
-
-    total_pairs = sum(len(s) for _, s in GAMES_AND_STRATEGIES)
-    print(
-        f"[run] starting tournament: {total_pairs} (game, strategy) pairs "
-        f"x {EPISODES_PER_PAIR} episode(s)",
-        flush=True,
-    )
-    t1 = time.time()
-    per_game_results = []
-    for game_key, strategy_tuple in GAMES_AND_STRATEGIES:
-        result = runner.run_tournament(
-            games=[game_key],
-            strategies=list(strategy_tuple),
-            num_episodes=EPISODES_PER_PAIR,
+    t2 = time.time()
+    if args.mode == "hardcoded":
+        rows = _run_hardcoded(env, agent_fn, args.episodes)
+    elif args.mode == "self":
+        rows = _run_llm_opponent(env, agent_fn, opponent_fn, "self",
+                                 args.episodes)
+    else:
+        rows = _run_llm_opponent(
+            env, agent_fn, opponent_fn,
+            f"cross[{args.opponent_model.split('/')[-1]}]",
+            args.episodes,
         )
-        per_game_results.append((game_key, result))
-    elapsed = time.time() - t1
-    total_episodes = sum(r.total_episodes for _, r in per_game_results)
-    print(f"[run] tournament finished in {elapsed:.1f}s "
-          f"(total episodes={total_episodes})", flush=True)
+    print(f"[run] tournament finished in {time.time() - t2:.1f}s", flush=True)
+    _print_rows(rows)
 
-    # Per-(game, strategy) mean self-payoff -- the headline metric.
-    print("\n=== Per (game, strategy) mean self-payoff ===", flush=True)
-    for game_key, result in per_game_results:
-        g_res = result.games.get(game_key)
-        if g_res is None:
-            continue
-        for s_key, s_res in g_res.strategy_results.items():
-            rounds = sum(e.rounds_played for e in s_res.episodes) or 1
-            print(
-                f"  {game_key:20s}  vs {s_key:22s}  "
-                f"player_score_total={s_res.total_player_score:7.2f}  "
-                f"rounds={rounds}  per_round={s_res.total_player_score / rounds:6.3f}",
-                flush=True,
-            )
-
-    # Aggregated mean self-payoff per game across all opponents.
-    print("\n=== Mean self-payoff per game (summed across opponents) ===",
-          flush=True)
-    for game_key, result in per_game_results:
-        g_res = result.games.get(game_key)
-        if g_res is None:
-            continue
-        score_sum = 0.0
-        rounds_sum = 0
-        for s_res in g_res.strategy_results.values():
-            score_sum += s_res.total_player_score
-            for ep in s_res.episodes:
-                rounds_sum += ep.rounds_played
-        mean = score_sum / rounds_sum if rounds_sum else float("nan")
-        print(f"  {game_key:20s}  mean_self_payoff_per_round={mean:6.3f}  "
-              f"(rounds={rounds_sum})", flush=True)
-
-    print(
-        f"\n[run] parse misses: {_PARSE_MISS_COUNT}/{_PARSE_TOTAL_COUNT} "
-        f"({(_PARSE_MISS_COUNT / max(1, _PARSE_TOTAL_COUNT)) * 100:.1f}% "
-        "of LLM completions did not contain any valid action token "
-        "and were resolved by random.choice in train.agent.parse_action)",
-        flush=True,
-    )
+    miss_pct = (_PARSE_MISS_COUNT / max(1, _PARSE_TOTAL_COUNT)) * 100
+    print(f"\n[run] parse misses: {_PARSE_MISS_COUNT}/{_PARSE_TOTAL_COUNT} "
+          f"({miss_pct:.1f}%)", flush=True)
     print(f"[run] total wallclock = {time.time() - t0:.1f}s", flush=True)
 
 

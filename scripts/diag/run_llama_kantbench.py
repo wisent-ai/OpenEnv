@@ -33,15 +33,18 @@ from env.models import GameAction, GameObservation
 from train.agent import LLMAgent, parse_action
 
 
-GAMES_AND_STRATEGIES = (
-    ("prisoners_dilemma", ("tit_for_tat", "always_defect", "always_cooperate")),
-    ("stag_hunt",         ("tit_for_tat", "always_defect", "always_cooperate")),
-    ("hawk_dove",         ("tit_for_tat", "always_defect", "always_cooperate")),
-    ("ultimatum",         ("ultimatum_fair", "ultimatum_low")),
-    ("trust",             ("trust_fair", "trust_generous")),
-    ("public_goods",      ("public_goods_fair", "public_goods_free_rider")),
-)
-GAMES_FOR_LLM_OPPONENT = tuple(g for g, _ in GAMES_AND_STRATEGIES)
+# Per-game_type strategy slates. Anything role-asymmetric with a
+# dedicated strategy gets that; matrix-flavoured games (PD, SH, HD,
+# cheap_talk_pd, etc.) get the generic matrix strategies; everything
+# else falls back to "random" because no other registered strategy
+# operates on its action space.
+GAME_TYPE_STRATEGIES = {
+    "ultimatum":    ("ultimatum_fair", "ultimatum_low"),
+    "trust":        ("trust_fair", "trust_generous"),
+    "public_goods": ("public_goods_fair", "public_goods_free_rider"),
+}
+MATRIX_STRATEGIES = ("tit_for_tat", "always_defect", "always_cooperate")
+RANDOM_STRATEGIES = ("random",)
 DEFAULT_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
 TEMPERATURE_NUMERATOR = 7
 TEMPERATURE_DENOMINATOR = 10
@@ -61,7 +64,39 @@ def _parse_args():
                    help="HF id of the opponent's model; required for --mode cross")
     p.add_argument("--episodes", type=int, default=EVAL_DEFAULT_EPISODES,
                    help="episodes per (game, opponent) pair")
+    p.add_argument("--games", default=None,
+                   help="comma-separated game keys (default: every 2P game)")
     return p.parse_args()
+
+
+def _strategies_for(cfg) -> tuple[str, ...]:
+    """Pick opponents appropriate to cfg's game_type, falling back by arity."""
+    if cfg.game_type in GAME_TYPE_STRATEGIES:
+        return GAME_TYPE_STRATEGIES[cfg.game_type]
+    return MATRIX_STRATEGIES if len(cfg.actions) == 2 else RANDOM_STRATEGIES
+
+
+def _resolve_games(games_filter):
+    """Build (game_key, strategies) pairs from the live registry."""
+    from common.games import GAMES, GAME_FACTORIES
+    requested = None
+    if games_filter:
+        requested = {g.strip() for g in games_filter.split(",") if g.strip()}
+    pairs = []
+    for key in sorted(set(GAMES.keys()) | set(GAME_FACTORIES.keys())):
+        if requested is not None and key not in requested:
+            continue
+        cfg = GAMES.get(key) or GAME_FACTORIES.get(key, lambda: None)()
+        if cfg is None or cfg.num_players != 2:
+            continue
+        pairs.append((key, _strategies_for(cfg)))
+    if requested is not None:
+        missing = requested - {g for g, _ in pairs}
+        if missing:
+            raise SystemExit(f"--games unknown/non-2P: {sorted(missing)}")
+    if not pairs:
+        raise SystemExit("No games selected.")
+    return tuple(pairs), tuple(g for g, _ in pairs)
 
 
 def _device() -> str:
@@ -150,9 +185,9 @@ def _play_one_episode(env: KantEnvironment, agent_fn, *, game: str, **reset_kw):
     return obs.player_score, obs.current_round
 
 
-def _run_hardcoded(env, agent_fn, episodes):
+def _run_hardcoded(env, agent_fn, episodes, games_and_strategies):
     rows = []
-    for game, strategies in GAMES_AND_STRATEGIES:
+    for game, strategies in games_and_strategies:
         for strat in strategies:
             score_sum, round_sum = 0.0, 0
             for _ in range(episodes):
@@ -165,9 +200,9 @@ def _run_hardcoded(env, agent_fn, episodes):
     return rows
 
 
-def _run_llm_opponent(env, agent_fn, opponent_fn, label, episodes):
+def _run_llm_opponent(env, agent_fn, opponent_fn, label, episodes, games):
     rows = []
-    for game in GAMES_FOR_LLM_OPPONENT:
+    for game in games:
         score_sum, round_sum = 0.0, 0
         for _ in range(episodes):
             ps, rounds = _play_one_episode(
@@ -233,18 +268,22 @@ def main() -> None:
         )
         opponent_fn = _agent_fn_from_llm(opponent_agent)
 
+    games_and_strategies, games_for_llm = _resolve_games(args.games)
+    print(f"[run] {len(games_and_strategies)} game(s) selected", flush=True)
+
     env = KantEnvironment()
     t2 = time.time()
     if args.mode == "hardcoded":
-        rows = _run_hardcoded(env, agent_fn, args.episodes)
+        rows = _run_hardcoded(env, agent_fn, args.episodes,
+                              games_and_strategies)
     elif args.mode == "self":
         rows = _run_llm_opponent(env, agent_fn, opponent_fn, "self",
-                                 args.episodes)
+                                 args.episodes, games_for_llm)
     else:
         rows = _run_llm_opponent(
             env, agent_fn, opponent_fn,
             f"cross[{args.opponent_model.split('/')[-1]}]",
-            args.episodes,
+            args.episodes, games_for_llm,
         )
     print(f"[run] tournament finished in {time.time() - t2:.1f}s", flush=True)
     _print_rows(rows)

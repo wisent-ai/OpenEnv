@@ -3,11 +3,16 @@
 Accepts the nested dict produced by ``TournamentRunner.run_tournament_as_dict``
 (or an equivalent structure) and returns a flat dict of aggregate metrics.
 
-The headline metric is ``mean_self_payoff``: the agent's mean per-round
-payoff aggregated across every (game, opponent_strategy) pair in the
-results. Cooperation rate, exploitation resistance, Pareto efficiency,
-fairness index, and adaptability are still reported as descriptive
-outcomes. ``strategic_reasoning`` is retained for backwards comparison.
+The headline metric is ``mean_self_payoff_per_game``: a dict mapping each
+game key to the agent's mean per-round payoff in that game (summed across
+opponents). It is deliberately a per-game dict rather than a single
+cross-game scalar because PD payoffs live in {0,1,3,5}, Ultimatum in
+[0,10], Public Goods in [0,~30] etc., so a cross-game average mixes
+incommensurable units. Within a single game the number is in the same
+units that ``train.rewards.episode_reward`` optimises during training.
+Cooperation rate, exploitation resistance, Pareto efficiency, fairness
+index, and adaptability are reported as descriptive secondary outcomes.
+``strategic_reasoning`` is retained for backwards comparison.
 """
 from __future__ import annotations
 
@@ -64,13 +69,13 @@ def compute_metrics(tournament_results: Dict[str, Any]) -> Dict[str, Any]:
     pareto = _pareto_efficiency(games_data)
     fairness = _fairness_index(games_data)
     adapt = _adaptability(games_data)
-    payoff = _mean_self_payoff(games_data)
+    payoff_per_game = _mean_self_payoff_per_game(games_data)
 
     component_count = _count_components()
     composite = (coop + exploit + pareto + fairness + adapt) / component_count
 
     return {
-        "mean_self_payoff": payoff,
+        "mean_self_payoff_per_game": payoff_per_game,
         "cooperation_rate": coop,
         "exploitation_resistance": exploit,
         "pareto_efficiency": pareto,
@@ -220,7 +225,7 @@ def _count_components() -> int:
 def _empty_metrics() -> Dict[str, Any]:
     """Return a zeroed-out metrics dict when no data is available."""
     return {
-        "mean_self_payoff": EVAL_ZERO_FLOAT,
+        "mean_self_payoff_per_game": {},
         "cooperation_rate": EVAL_ZERO_FLOAT,
         "exploitation_resistance": EVAL_ZERO_FLOAT,
         "pareto_efficiency": EVAL_ZERO_FLOAT,
@@ -230,21 +235,26 @@ def _empty_metrics() -> Dict[str, Any]:
     }
 
 
-def _mean_self_payoff(games: Dict[str, Any]) -> float:
-    """Mean per-round self-payoff across every (game, strategy) pair.
+def _mean_self_payoff_per_game(games: Dict[str, Any]) -> Dict[str, float]:
+    """Per-game mean per-round self-payoff, summed across opponents.
 
-    Sums ``total_player_score`` and ``rounds_played`` across all episodes
-    in the tournament, then divides. This is the headline metric: it is
-    exactly the quantity ``train.rewards.episode_reward`` optimises during
-    training, so eval reports the same units the policy was trained on.
+    For each game key, sums every episode's ``player_score`` across every
+    opponent strategy and every episode, sums every episode's
+    ``rounds_played``, then divides. Returns the dict of per-game scalars.
+    Within one game this number is in the same units that
+    ``train.rewards.episode_reward`` optimises. We do NOT aggregate across
+    games into one scalar because games have wildly different payoff scales
+    (PD payoffs in {0,1,3,5}, Public Goods in [0,~30], Ultimatum in [0,10],
+    etc.) and a cross-game average would mix incommensurable units.
     """
-    score_sum = EVAL_ZERO_FLOAT
-    rounds_sum = EVAL_ZERO
-    for strat_map in games.values():
+    out: Dict[str, float] = {}
+    for game_key, strat_map in games.items():
+        score_sum = EVAL_ZERO_FLOAT
+        rounds_sum = EVAL_ZERO
         for entry in strat_map.values():
             for ep in entry.get("episodes", []):
                 rounds_sum += ep.get("rounds_played", EVAL_ZERO)
                 score_sum += ep.get("player_score", EVAL_ZERO_FLOAT)
-    if rounds_sum <= EVAL_ZERO:
-        return EVAL_ZERO_FLOAT
-    return score_sum / rounds_sum
+        if rounds_sum > EVAL_ZERO:
+            out[game_key] = score_sum / rounds_sum
+    return out

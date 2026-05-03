@@ -7,11 +7,13 @@ This section describes the comprehensive evaluation protocol used to assess
 agent behavior across the full Kant game library, including strategies,
 tournament structure, formal metrics, and stratified game splitting.
 
-The headline metric is the agent's mean per-round self-payoff
-($M_U$, \S\ref{sec:formal-metrics}) --- the same quantity the training
-reward optimises, reported in the same units. Cooperation rate, fairness,
-Pareto efficiency, exploitation resistance, and adaptability are reported
-as descriptive secondary outcomes so that the shape of payoff acquisition
+The headline metric is the agent's mean per-round self-payoff per game
+($M_U^{(g)}$, \S\ref{sec:formal-metrics}) --- the same quantity the
+training reward optimises, reported in the same units, on a per-game
+basis. We do not aggregate across games into a single scalar because
+games have different payoff scales. Cooperation rate, fairness, Pareto
+efficiency, exploitation resistance, and adaptability are reported as
+descriptive secondary outcomes so that the shape of payoff acquisition
 can be characterised along the dimensions that matter for alignment
 transfer.
 
@@ -80,12 +82,17 @@ total payoff the agent received summed over all $k$ tournament episodes
 and $R_{g,s}$ the total number of rounds played in those episodes. Then
 \[
 M_U^{(g,s)} = S_{g,s} / R_{g,s}
+\qquad\text{and}\qquad
+M_U^{(g)} = \frac{\sum_s S_{g,s}}{\sum_s R_{g,s}}
 \]
-is the agent's mean per-round self-payoff against $s$ in $g$. Aggregated
-across all $(g, s)$ pairs by summing $S$ and $R$ first and then dividing,
-this is identical to the quantity ``$r = u_i$'' that
-\S\ref{sec:reward-shaping} optimises during training, so eval and train
-report the same units.
+is the agent's mean per-round self-payoff against $s$ in $g$, and the
+per-game aggregate over all evaluation opponents in $g$. Within one
+game $M_U^{(g)}$ is in the same units the training reward
+``$r = u_i$'' optimises (\S\ref{sec:reward-shaping}). We deliberately do
+\emph{not} aggregate $M_U^{(g)}$ across games into a single scalar:
+PD payoffs lie in $\{0,1,3,5\}$, Ultimatum in $[0,10]$, Public Goods
+in $[0,\sim 30]$, etc., so a cross-game average mixes incommensurable
+units. The headline is the per-game vector $\{M_U^{(g)}\}_g$.
 
 \paragraph{Cooperation Rate ($M_C$).}
 Mean fraction of cooperative actions across all $(g, s)$ pairs:

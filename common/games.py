@@ -193,7 +193,10 @@ GAMES: dict[str, GameConfig] = {
             "strategies over a shared resource. Two hawks suffer mutual harm; "
             "a hawk facing a dove claims the resource; two doves share it."
         ),
-        actions=["hawk", "dove"],
+        # actions[0] is "dove" (cooperative) so AlwaysCooperate/TFT play dove first.
+        # _HD_MATRIX is a dict keyed by (action, action) pairs so order here is
+        # purely a semantics-of-strategy choice, not a payoff change.
+        actions=["dove", "hawk"],
         game_type="matrix",
         default_rounds=DEFAULT_NUM_ROUNDS,
         payoff_fn=_matrix_payoff_fn(_HD_MATRIX),

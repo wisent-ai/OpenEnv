@@ -28,15 +28,20 @@ from train.agent import APIAgent, LLMAgent, PromptBuilder, parse_action  # noqa:
 
 
 MODEL_ID = "meta-llama/Llama-3.2-1B-Instruct"
-GAMES_TO_RUN = (
-    "prisoners_dilemma",
-    "stag_hunt",
-    "hawk_dove",
-    "ultimatum",
-    "trust",
-    "public_goods",
+
+# Game-appropriate opponents per game. Matrix games take generic
+# matrix strategies; the role-asymmetric games take the dedicated
+# ultimatum_*/trust_*/public_goods_* strategies registered in
+# common/strategies.py:140-194 because the matrix strategies pick from
+# the wrong action set otherwise.
+GAMES_AND_STRATEGIES = (
+    ("prisoners_dilemma", ("tit_for_tat", "always_defect", "always_cooperate")),
+    ("stag_hunt",         ("tit_for_tat", "always_defect", "always_cooperate")),
+    ("hawk_dove",         ("tit_for_tat", "always_defect", "always_cooperate")),
+    ("ultimatum",         ("ultimatum_fair", "ultimatum_low")),
+    ("trust",             ("trust_fair", "trust_generous")),
+    ("public_goods",      ("public_goods_fair", "public_goods_free_rider")),
 )
-STRATEGIES_TO_RUN = ("tit_for_tat", "always_defect", "always_cooperate")
 EPISODES_PER_PAIR = 5
 MAX_NEW_TOKENS = 8
 TEMPERATURE = 0.7
@@ -135,37 +140,48 @@ def main() -> None:
     env = KantEnvironment()
     runner = TournamentRunner(env=env, agent_fn=_agent_fn)
 
+    total_pairs = sum(len(s) for _, s in GAMES_AND_STRATEGIES)
     print(
-        f"[run] starting tournament on {len(GAMES_TO_RUN)} games "
-        f"x {len(STRATEGIES_TO_RUN)} strategies x {EPISODES_PER_PAIR} episode(s)",
+        f"[run] starting tournament: {total_pairs} (game, strategy) pairs "
+        f"x {EPISODES_PER_PAIR} episode(s)",
         flush=True,
     )
     t1 = time.time()
-    results = runner.run_tournament(
-        games=list(GAMES_TO_RUN),
-        strategies=list(STRATEGIES_TO_RUN),
-        num_episodes=EPISODES_PER_PAIR,
-    )
+    per_game_results = []
+    for game_key, strategy_tuple in GAMES_AND_STRATEGIES:
+        result = runner.run_tournament(
+            games=[game_key],
+            strategies=list(strategy_tuple),
+            num_episodes=EPISODES_PER_PAIR,
+        )
+        per_game_results.append((game_key, result))
     elapsed = time.time() - t1
+    total_episodes = sum(r.total_episodes for _, r in per_game_results)
     print(f"[run] tournament finished in {elapsed:.1f}s "
-          f"(total episodes={results.total_episodes})", flush=True)
+          f"(total episodes={total_episodes})", flush=True)
 
     # Per-(game, strategy) mean self-payoff -- the headline metric.
     print("\n=== Per (game, strategy) mean self-payoff ===", flush=True)
-    for g_key, g_res in results.games.items():
+    for game_key, result in per_game_results:
+        g_res = result.games.get(game_key)
+        if g_res is None:
+            continue
         for s_key, s_res in g_res.strategy_results.items():
             rounds = sum(e.rounds_played for e in s_res.episodes) or 1
             print(
-                f"  {g_key:20s}  vs {s_key:18s}  "
+                f"  {game_key:20s}  vs {s_key:22s}  "
                 f"player_score_total={s_res.total_player_score:7.2f}  "
                 f"rounds={rounds}  per_round={s_res.total_player_score / rounds:6.3f}",
                 flush=True,
             )
 
     # Aggregated mean self-payoff per game across all opponents.
-    print("\n=== Mean self-payoff per game (averaged across opponents) ===",
+    print("\n=== Mean self-payoff per game (summed across opponents) ===",
           flush=True)
-    for g_key, g_res in results.games.items():
+    for game_key, result in per_game_results:
+        g_res = result.games.get(game_key)
+        if g_res is None:
+            continue
         score_sum = 0.0
         rounds_sum = 0
         for s_res in g_res.strategy_results.values():
@@ -173,7 +189,7 @@ def main() -> None:
             for ep in s_res.episodes:
                 rounds_sum += ep.rounds_played
         mean = score_sum / rounds_sum if rounds_sum else float("nan")
-        print(f"  {g_key:20s}  mean_self_payoff_per_round={mean:6.3f}  "
+        print(f"  {game_key:20s}  mean_self_payoff_per_round={mean:6.3f}  "
               f"(rounds={rounds_sum})", flush=True)
 
     print(

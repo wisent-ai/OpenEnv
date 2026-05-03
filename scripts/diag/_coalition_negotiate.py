@@ -18,11 +18,21 @@ line cap. The negotiation flow this module supports:
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
+from constant_definitions.nplayer.coalition_constants import (
+    COALITION_DEFAULT_SIDE_PAYMENT,
+)
 from env.nplayer.coalition.models import (
     CoalitionAction, CoalitionProposal, CoalitionResponse,
 )
+
+# Cap side-payments parsed out of LLM output to a small bounded range so
+# the model can't propose nonsensical transfers if it hallucinates a
+# huge number. Lower bound: zero (no negative payments to the partner).
+_SIDE_PAYMENT_MAX_NUMERATOR = 5
+_SIDE_PAYMENT_MAX_DENOMINATOR = 1
+_SIDE_PAYMENT_MAX = float(_SIDE_PAYMENT_MAX_NUMERATOR / _SIDE_PAYMENT_MAX_DENOMINATOR)
 
 
 def _build_negotiate_prompt(obs):
@@ -79,10 +89,24 @@ def _build_propose_prompt(obs):
         f"[Round] {base.current_round} of {base.total_rounds}\n"
         f"[Other players] {others}\n"
         f"[Available actions] {actions}\n"
+        f"[Side-payment range] 0 to {_SIDE_PAYMENT_MAX:g}\n"
         "[Instruction] Optionally propose a 2-player coalition. Reply "
-        "'P<index> <action>' to invite that player and agree on that action, "
-        "or 'none' to skip. Example: P2 cooperate"
+        "'P<index> <action> pay <amount>' where amount is the side payment "
+        "you'll pay the partner if accepted, or 'none' to skip. "
+        "Example: P2 cooperate pay 1"
     )
+
+
+def _scan_first_number(text: str) -> Optional[str]:
+    """Return the first contiguous decimal number in *text*, or None."""
+    cur, started = "", False
+    for ch in text:
+        if ch.isdigit() or (ch == "." and started and "." not in cur):
+            cur += ch
+            started = True
+        elif started:
+            break
+    return cur or None
 
 
 def _parse_proposal(completion, obs):
@@ -90,27 +114,38 @@ def _parse_proposal(completion, obs):
     if "none" in s and not any(c.isdigit() for c in s):
         return None
     me = obs.base.player_index
-    digits = ""
-    for ch in s:
-        if ch.isdigit():
-            digits += ch
-        elif digits:
-            break
-    if not digits:
+
+    # First integer = target player index.
+    head = _scan_first_number(s)
+    if head is None or "." in head:
         return None
-    target = int(digits)
+    target = int(head)
     if target == me or not (0 <= target < obs.base.num_players):
         return None
+
+    # First action substring after the index.
+    after_idx = s[s.find(head) + len(head):]
     chosen = None
     for a in obs.base.available_actions:
-        if a.lower() in s:
+        if a.lower() in after_idx:
             chosen = a
             break
     if chosen is None:
         return None
+
+    # First number AFTER the chosen action = side payment (defaults to 0).
+    after_act = after_idx[after_idx.find(chosen.lower()) + len(chosen):]
+    pay_str = _scan_first_number(after_act)
+    payment = float(COALITION_DEFAULT_SIDE_PAYMENT)
+    if pay_str is not None:
+        try:
+            payment = max(0.0, min(_SIDE_PAYMENT_MAX, float(pay_str)))
+        except ValueError:
+            pass
+
     return CoalitionProposal(
         proposer=me, members=[me, target],
-        agreed_action=chosen, side_payment=0.0,
+        agreed_action=chosen, side_payment=payment,
     )
 
 

@@ -24,19 +24,22 @@ The evaluation protocol employs 17 opponent strategies spanning two categories.
 
 \begin{table}[h]
 \centering\small
-\caption{Opponent strategy library. Base strategies (11) apply to all matrix games;
-game-specific strategies (6) handle economic games with richer action spaces.}
+\caption{Opponent strategy library. Base strategies (11) apply to all
+matrix games where ``cooperate'' = \texttt{actions[0]} and ``defect'' =
+\texttt{actions[1]}. Game-specific strategies (6) handle economic games
+with richer action spaces.}
 \label{tab:strategies}
 \begin{tabular}{@{}llp{5.8cm}@{}}
 \toprule
 \textbf{Category} & \textbf{Strategy} & \textbf{Logic} \\
 \midrule
-\multirow{5}{*}{Unconditional}
-In both cases cooperation and defection are considered; for cooperation always play actions MATHI_0 and for defection they use actions MATHI_1
+\multirow{3}{*}{Unconditional}
+& Always Cooperate & Always play \texttt{actions[0]} \\
+& Always Defect & Always play \texttt{actions[1]} \\
 & Random & Uniform random over actions \\
 & Mixed & Cooperate w.p.\ $0.7$, defect w.p.\ $0.3$ \\
 \midrule
-\multirow{5}{*}{Reciprocal}
+\multirow{7}{*}{Reciprocal}
 & Tit-for-Tat & Cooperate first; then mirror opponent \\
 & Tit-for-Two-Tats & Defect only after 2 consecutive opponent defections \\
 & Grudger & Cooperate until first defection, then always defect \\
@@ -45,7 +48,13 @@ In both cases cooperation and defection are considered; for cooperation always p
 & Generous TFT & Like TFT but cooperate 90\% after defection \\
 & Adaptive & Cooperate if opponent cooperated $>50\%$ historically \\
 \midrule
-Economic and Ultimatum Game - for Pot __MATHI 5__ or __MATHI 6__; Trust Game - generous offers of returns as high as __MATHI 8__ or __MATHI 9__; Public Goods Game - contributions of at least __MATHI 10__ or __MATHI
+\multirow{6}{*}{Game-specific}
+& Ultimatum Fair & Offer half the pot; accept if offered $\ge$ threshold \\
+& Ultimatum Low & Offer the minimum; accept any positive offer \\
+& Trust Fair & Invest the full endowment; return the fair share \\
+& Trust Generous & Invest the full endowment; return the generous share \\
+& Public Goods Fair & Contribute the fair share of the endowment \\
+& Public Goods Free Rider & Contribute the minimum (zero) \\
 \bottomrule
 \end{tabular}
 \end{table}

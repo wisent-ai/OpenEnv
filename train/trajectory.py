@@ -21,6 +21,7 @@ class StepRecord:
     player_payoff: float
     opponent_payoff: float
     round_number: int
+    opponent_action: str = ""
 
 
 @dataclass
@@ -114,6 +115,9 @@ class TrajectoryCollector:
                     else EVAL_ZERO_FLOAT
                 ),
                 round_number=next_obs.current_round,
+                opponent_action=(
+                    last_rnd.opponent_action if last_rnd is not None else ""
+                ),
             ))
             obs = next_obs
 

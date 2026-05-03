@@ -71,18 +71,21 @@ def play_episode_2p(env: KantEnvironment, agent_fn, *, game: str, **reset_kw):
 
 
 def _build_nplayer_prompt(obs: NPlayerObservation) -> str:
-    """Compact prompt for NPlayerObservation. Mirrors the 2P PromptBuilder
-    schema (game name, description, scores, history, available actions,
-    instruction) but exposes the full scores list and the player's index."""
+    """Tight prompt for NPlayerObservation. Lists allowed action tokens
+    inline so the model sees them in the instruction sentence as well as
+    the action menu, and asks for one-word output."""
+    actions_inline = " | ".join(obs.available_actions)
+    actions_list = "\n".join(f"- {a}" for a in obs.available_actions)
     sections = [
         f"[Game]\n{obs.game_name}\n{obs.game_description}",
-        f"[Players] {obs.num_players}, you are P{obs.player_index}",
+        f"[Players] {obs.num_players}; you are P{obs.player_index}",
         "[Scores] " + ", ".join(
             f"P{i}={s:g}" for i, s in enumerate(obs.scores)
         ),
         f"[Round] {obs.current_round} of {obs.total_rounds}",
-        "[Available Actions]\n" + "\n".join(f"- {a}" for a in obs.available_actions),
-        "[Instruction] Reply with exactly one of the listed actions.",
+        f"[Available Actions]\n{actions_list}",
+        f"[Instruction] Reply with exactly one token from this list and "
+        f"nothing else: {actions_inline}",
     ]
     return "\n\n".join(sections)
 

@@ -31,22 +31,29 @@ Actions, opponent strategies, round number, historical data and total scores are
 \subsection{DPO via Trajectory Preference Pairs}
 \label{sec:dpo}
 
-Direct Preference Optimization (DPO), CMD 16 learns preferences based on episodes extracted from gameplay trajectories; for every game episode.
-we generate trajectory pairs where:
+Direct Preference Optimization (DPO) learns preferences from pairs of
+gameplay trajectories. For every (game, opponent strategy) bucket we
+rank trajectories by their scalar episode reward (\S\ref{sec:reward-shaping},
+``$r = u_i$'' divided by total rounds, computed in
+\texttt{train.rewards.episode\_reward}), then take the top quartile as
+\emph{chosen} and the bottom quartile as \emph{rejected}, filtering by a
+minimum reward margin:
 
 \begin{itemize}[nosep]
-    \item \textbf{Preferred} ($y_w$): cooperative, fair, strategically sound
-          moves (e.g., cooperate in PD against TFT, fair offers in Ultimatum)
-    \item \textbf{Rejected} ($y_l$): exploitative, unfair, or naive moves
-          (e.g., always defect, lowball offers, free-riding)
+    \item \textbf{Preferred} ($y_w$): trajectories with higher mean
+          per-round self-payoff against the same opponent in the same game.
+    \item \textbf{Rejected} ($y_l$): trajectories with lower mean
+          per-round self-payoff in the same bucket.
 \end{itemize}
 
 \noindent The DPO loss $\mathcal{L}_{\text{DPO}} = -\log\sigma\bigl(
 \beta \log \frac{\pi_\theta(y_w|x)}{\pi_{\text{ref}}(y_w|x)} -
 \beta \log \frac{\pi_\theta(y_l|x)}{\pi_{\text{ref}}(y_l|x)}\bigr)$
-directly optimizes the policy to prefer aligned trajectories without an
-explicit reward model. The preference ordering
-``cooperative $\succ$ exploitative'' encodes the alignment objective.
+directly optimises the policy to prefer high-self-payoff trajectories
+without an explicit reward model. The preference ordering reduces to
+``higher self-payoff $\succ$ lower self-payoff''; any cooperative or
+exploitative interpretation only applies in games where those
+interpretations correlate with the agent's payoff.
 
 \subsection{Self-Play Training}
 \label{sec:self-play}

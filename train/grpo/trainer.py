@@ -80,20 +80,26 @@ class KantGRPOTrainer:
         completions: List[str],
         prompts: List[str],
         game: Optional[List[str]] = None,
+        opponent_action: Optional[List[str]] = None,
         **_kwargs: Any,
     ) -> List[float]:
-        """Per-completion reward = expected self-payoff vs. a uniform opponent.
+        """Per-completion reward = real self-payoff at the prompt's game state.
 
-        TRL's ``reward_funcs`` callback receives one completion per
-        (prompt, group sample). Each completion encodes a single round's
-        action. The reward attached to it is the agent's expected self-payoff
-        under a uniform-random opponent action distribution -- the only
-        opponent-agnostic, payoff-only signal expressible per completion.
+        TRL forwards every dataset column as a kwargs list. Each (prompt,
+        completion) pair was generated at a specific (game, round) where
+        the opponent had already been observed to play
+        ``opponent_action[idx]`` (recorded by TrajectoryCollector and
+        carried through ``train.grpo.dataset``). We parse the completion
+        into an action string and compute
+        ``cfg.payoff_fn(action_str, opponent_action[idx])[0]`` -- the
+        actual game payoff player zero would have received for that
+        specific action against that specific opponent move. No proxy,
+        no expectation.
 
-        ``game`` is forwarded by TRL from the dataset's ``game`` column
-        (see ``train.grpo.dataset``); when missing, the game is inferred
-        from the prompt by matching ``GameConfig.name``. Completions that
-        cannot be matched to a known game receive zero reward.
+        Falls back to expected-payoff-vs-uniform-opponent only when the
+        opponent_action column is absent (legacy datasets) or when the
+        listed opponent action isn't a valid action for the resolved
+        game (treated as a missing label).
         """
         from common.games import GAMES
 
@@ -105,9 +111,19 @@ class KantGRPOTrainer:
                 rewards.append(EVAL_ZERO_FLOAT)
                 continue
             action_str = parse_action(completion, cfg.actions)
-            rewards.append(
-                expected_self_payoff_uniform_opponent(action_str, cfg),
+            opp = opponent_action[idx] if opponent_action is not None else ""
+            opp_actions = (
+                list(cfg.opponent_actions)
+                if cfg.opponent_actions is not None
+                else list(cfg.actions)
             )
+            if opp and opp in opp_actions:
+                p_pay, _ = cfg.payoff_fn(action_str, opp)
+                rewards.append(float(p_pay))
+            else:
+                rewards.append(
+                    expected_self_payoff_uniform_opponent(action_str, cfg),
+                )
         return rewards
 
     def expand_curriculum(self) -> None:

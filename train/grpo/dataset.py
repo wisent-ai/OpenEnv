@@ -46,6 +46,7 @@ def trajectories_to_dataset(
                 "strategy": traj.strategy,
                 "round_number": step.round_number,
                 "is_terminal": idx == last_idx,
+                "opponent_action": step.opponent_action,
             })
     return records
 
@@ -63,6 +64,7 @@ def records_to_hf_dict(
             "strategy": [],
             "round_number": [],
             "is_terminal": [],
+            "opponent_action": [],
         }
     keys = list(records[EVAL_ONE - EVAL_ONE].keys())
     return {k: [r[k] for r in records] for k in keys}

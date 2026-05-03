@@ -68,6 +68,7 @@ def apply_rule_proposal(
         payoff_fn=_payoff,
         applied_variants=base.applied_variants + (VARIANT_RULE_PROPOSAL,),
         base_game_key=base_key or base.base_game_key,
+        nash_equilibria=(),
     )
 
 
@@ -96,6 +97,7 @@ def apply_rule_signal(
         payoff_fn=_payoff,
         applied_variants=base.applied_variants + (VARIANT_RULE_SIGNAL,),
         base_game_key=base_key or base.base_game_key,
+        nash_equilibria=(),
     )
 
 
@@ -138,6 +140,7 @@ def apply_constitutional(
         payoff_fn=_payoff,
         applied_variants=base.applied_variants + (VARIANT_CONSTITUTIONAL,),
         base_game_key=base_key or base.base_game_key,
+        nash_equilibria=(),
     )
 
 
@@ -182,6 +185,7 @@ def apply_proposer_responder(
         applied_variants=base.applied_variants + (VARIANT_PROPOSER_RESPONDER,),
         base_game_key=base_key or base.base_game_key,
         opponent_actions=tuple(opp_actions),
+        nash_equilibria=(),
     )
 
 

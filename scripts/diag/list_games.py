@@ -61,12 +61,10 @@ def main() -> None:
         cfg = GAMES.get(key)
         if cfg is None and key in GAME_FACTORIES:
             cfg = GAME_FACTORIES[key]()
-        nash = cfg.nash_equilibria if cfg is not None else ()
-        nash_marker = "  [Nash]" if nash else ""
         rounds = cfg.default_rounds if cfg is not None else "?"
         n_actions = len(cfg.actions) if cfg is not None else "?"
         np = cfg.num_players if cfg is not None else "?"
-        print(f"  {key:40s}  players={np}  rounds={rounds}  actions={n_actions}{nash_marker}")
+        print(f"  {key:40s}  players={np}  rounds={rounds}  actions={n_actions}")
 
 
 if __name__ == "__main__":

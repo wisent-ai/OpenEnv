@@ -1,10 +1,10 @@
 """End-to-end run: meta-llama/Llama-3.2-1B-Instruct vs the KantBench env.
 
 Loads Llama-3.2-1B-Instruct on Apple MPS, wraps it in the existing
-LLMAgent + PromptBuilder, runs a TournamentRunner across the six
-hand-annotated games (PD, Stag Hunt, Hawk-Dove, Ultimatum, Trust,
-Public Goods) against three baseline opponent strategies, and emits
-per-game Nash distance plus per-(game, strategy) self-payoff.
+LLMAgent + PromptBuilder, runs a TournamentRunner across six base games
+(PD, Stag Hunt, Hawk-Dove, Ultimatum, Trust, Public Goods) against three
+baseline opponent strategies, and emits the agent's mean per-round
+self-payoff per (game, strategy) and aggregated per game.
 
 Run:
 
@@ -22,8 +22,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Project imports go via PYTHONPATH=.
 from bench.evaluation.tournament import TournamentRunner
-from bench.nash import compute_nash_distances
-from common.games import GAMES
 from env.environment import KantEnvironment
 from env.models import GameAction, GameObservation
 from train.agent import APIAgent, LLMAgent, PromptBuilder, parse_action  # noqa: F401
@@ -152,11 +150,10 @@ def main() -> None:
     print(f"[run] tournament finished in {elapsed:.1f}s "
           f"(total episodes={results.total_episodes})", flush=True)
 
-    # Per-game per-strategy self-payoff (mean per round)
+    # Per-(game, strategy) mean self-payoff -- the headline metric.
     print("\n=== Per (game, strategy) mean self-payoff ===", flush=True)
     for g_key, g_res in results.games.items():
         for s_key, s_res in g_res.strategy_results.items():
-            ep_count = max(1, len(s_res.episodes))
             rounds = sum(e.rounds_played for e in s_res.episodes) or 1
             print(
                 f"  {g_key:20s}  vs {s_key:18s}  "
@@ -165,22 +162,19 @@ def main() -> None:
                 flush=True,
             )
 
-    # Headline: Nash distance per game (averaged over strategies inside compute_nash_distances)
-    print("\n=== Nash distance (TV to nearest declared equilibrium) ===", flush=True)
-    distances = compute_nash_distances(results)
-    if not distances:
-        print("  (no games with declared Nash equilibria appeared in results)",
-              flush=True)
-    for game_key in sorted(distances.keys()):
-        per_strat = distances[game_key]
-        mean_d = sum(per_strat.values()) / len(per_strat)
-        nash_decl = GAMES[game_key].nash_equilibria
-        print(
-            f"  {game_key:20s}  mean={mean_d:.3f}  "
-            f"per_strategy={ {k: round(v, 3) for k, v in per_strat.items()} }  "
-            f"declared={nash_decl}",
-            flush=True,
-        )
+    # Aggregated mean self-payoff per game across all opponents.
+    print("\n=== Mean self-payoff per game (averaged across opponents) ===",
+          flush=True)
+    for g_key, g_res in results.games.items():
+        score_sum = 0.0
+        rounds_sum = 0
+        for s_res in g_res.strategy_results.values():
+            score_sum += s_res.total_player_score
+            for ep in s_res.episodes:
+                rounds_sum += ep.rounds_played
+        mean = score_sum / rounds_sum if rounds_sum else float("nan")
+        print(f"  {g_key:20s}  mean_self_payoff_per_round={mean:6.3f}  "
+              f"(rounds={rounds_sum})", flush=True)
 
     print(
         f"\n[run] parse misses: {_PARSE_MISS_COUNT}/{_PARSE_TOTAL_COUNT} "

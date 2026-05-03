@@ -1,9 +1,8 @@
 """Markdown rendering for gradio's Payoff Matrices and Game Theory Reference tabs.
 
 Pure string assembly. Reads from the registry's flat dicts (``_GAME_INFO``,
-``_KEY_TO_NAME``, etc.) and from the per-game ``nash_equilibria`` field
-populated in ``registry.py``. Extracted from ``callbacks.py`` to keep that
-module under the per-file line cap once Nash-equilibrium display landed.
+``_KEY_TO_NAME``, etc.). Extracted from ``callbacks.py`` to keep that
+module under the per-file line cap.
 """
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ from registry import (
     _NPLAYER_STRAT_NAMES, _HUMAN_VARIANTS,
     _GENERIC_STRATEGIES, _GAME_TYPE_STRATEGIES,
     _LLM_OPPONENT_LABEL,
-    format_nash,
 )
 
 
@@ -31,14 +29,13 @@ def _info_for(gname, variants):
             "payoff_fn": cfg.payoff_fn, "default_rounds": cfg.default_rounds,
             "key": base["key"], "num_players": cfg.num_players,
             "game_type": cfg.game_type, "opponent_actions": cfg.opponent_actions,
-            "nash_equilibria": (),
         }
     except (KeyError, ValueError):
         return base
 
 
 def _build_matrix_md(game_name, variant_list):
-    """Payoff-matrix markdown table for *game_name*, plus Nash equilibria when declared."""
+    """Payoff-matrix markdown table for *game_name* with optional variants applied."""
     info = _info_for(game_name, variant_list if variant_list else None)
     if not info:
         return "Game not found."
@@ -69,11 +66,11 @@ def _build_matrix_md(game_name, variant_list):
         f"\n\n*Showing {len(row_acts)}×{len(col_acts)} of "
         f"{len(actions)}×{len(opp_actions)} actions.*"
     ) if (row_trunc or col_trunc) else ""
-    return "\n".join(rows) + note + format_nash(info.get("nash_equilibria", ()))
+    return "\n".join(rows) + note
 
 
 def _build_all_matrices_md():
-    """Payoff matrices for every two-player base game, with Nash equilibria when declared."""
+    """Payoff matrices for every two-player base game."""
     if not _HAS_REGISTRY:
         return "# Payoff Matrices\n\nFull registry not available."
     sections = ["# Payoff Matrices\n"]
@@ -137,31 +134,9 @@ def _build_reference_md():
         "and play against Claude or GPT using built-in OAuth tokens."
     )
     sections.append("\n\n".join(slines))
-    nash_section = _build_nash_reference()
-    if nash_section:
-        sections.append(nash_section)
     total, np_count = len(_GAME_INFO), len(np_games)
     return (
         f"# Game Theory Reference\n\n**{total} games** "
         f"({total - np_count} two-player, {np_count} multiplayer)\n\n"
         + "\n\n---\n\n".join(sections)
     )
-
-
-def _build_nash_reference():
-    """One-line summary of declared Nash equilibria, sorted by game name."""
-    annotated = sorted(
-        (gname, gi.get("nash_equilibria", ())) for gname, gi in _GAME_INFO.items()
-    )
-    rows = []
-    for gname, eqs in annotated:
-        if not eqs:
-            continue
-        eq_strs = []
-        for eq in eqs:
-            parts = ", ".join(f"P({a})={p:g}" for a, p in eq.items() if p > 0)
-            eq_strs.append(parts)
-        rows.append(f"- **{gname}**: " + "  ;  ".join(eq_strs))
-    if not rows:
-        return ""
-    return "## Nash Equilibria (analytical)\n" + "\n".join(rows)

@@ -95,26 +95,19 @@ r = u_i,
 where $u_i$ is the payoff the agent receives from the game environment in
 the episode. The opponent's payoff $u_{-i}$, the agent's cooperation rate,
 the joint payoff $u_i + u_{-i}$, the payoff gap $|u_i - u_{-i}|$, and any
-exploitation indicator are deliberately excluded from the training signal.
+exploitation indicator are deliberately excluded from the training signal,
+because adding any of them confounds payoff acquisition with whatever
+shaping term was added.
 
-This is a methodological commitment, not an oversight. The benchmark's
-research question is whether language-model agents converge to the Nash
-equilibrium of each game, and which non-payoff factors --- game framing,
-opponent identity, communication channels, reputation visibility, and
-Kantian-style system prompts --- systematically deflect them from it. If
-the training reward bakes in cooperation, fairness, or Pareto efficiency,
-any such outcome at evaluation time is just the shaping signal being read
-back out, and the experiment is question-begging.
-
+The headline evaluation metric is the same quantity --- mean per-round
+self-payoff across the tournament --- so that what is reported at eval
+time is exactly what was optimised during training, in the same units.
 Cooperation rate, Pareto efficiency, fairness index, exploitation
-resistance, and adaptability remain central to the analysis, but as
-\emph{measured outcomes} (dependent variables) computed from tournament
-trajectories at evaluation time --- never as components of the training
-reward. See \S\ref{sec:eval-protocol} for the evaluation pipeline. The
-DPO preference order (\S\ref{sec:dpo}) inherits from this same scalar
-reward, so chosen $\succ$ rejected reduces to higher self-payoff
-$\succ$ lower self-payoff; the cooperative/exploitative interpretation
-applies only insofar as it correlates with payoff in a given game.
+resistance, and adaptability are still computed from tournament
+trajectories as descriptive secondary outcomes, never as components of
+the training reward or of the headline. The DPO preference order
+(\S\ref{sec:dpo}) inherits from the same scalar reward, so chosen
+$\succ$ rejected reduces to higher self-payoff $\succ$ lower self-payoff.
 
 For GRPO, an optional per-step shaping bonus
 $\alpha \cdot (u_i^{(t)} - u_{\min}) / (u_{\max} - u_{\min})$ is available

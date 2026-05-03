@@ -56,7 +56,6 @@ def apply_gossip(
         payoff_fn=_payoff,
         applied_variants=base.applied_variants + (VARIANT_GOSSIP,),
         base_game_key=base_key or base.base_game_key,
-        nash_equilibria=(),
     )
 
 

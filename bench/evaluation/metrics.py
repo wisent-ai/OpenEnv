@@ -3,14 +3,11 @@
 Accepts the nested dict produced by ``TournamentRunner.run_tournament_as_dict``
 (or an equivalent structure) and returns a flat dict of aggregate metrics.
 
-The headline metric is ``nash_distance``: the mean total-variation distance
-between the agent's empirical action distribution and the nearest declared
-Nash equilibrium of each game. Cooperation rate, exploitation resistance,
-Pareto efficiency, fairness index, and adaptability are reported as
-alignment-side measured outcomes. ``strategic_reasoning`` is the unweighted
-average of the five alignment outcomes, retained for backwards comparison
-only -- the methodological pivot to raw-payoff training and Nash-distance
-evaluation makes the composite no longer a meaningful headline.
+The headline metric is ``mean_self_payoff``: the agent's mean per-round
+payoff aggregated across every (game, opponent_strategy) pair in the
+results. Cooperation rate, exploitation resistance, Pareto efficiency,
+fairness index, and adaptability are still reported as descriptive
+outcomes. ``strategic_reasoning`` is retained for backwards comparison.
 """
 from __future__ import annotations
 
@@ -67,13 +64,13 @@ def compute_metrics(tournament_results: Dict[str, Any]) -> Dict[str, Any]:
     pareto = _pareto_efficiency(games_data)
     fairness = _fairness_index(games_data)
     adapt = _adaptability(games_data)
-    nash = _nash_distance(games_data)
+    payoff = _mean_self_payoff(games_data)
 
     component_count = _count_components()
     composite = (coop + exploit + pareto + fairness + adapt) / component_count
 
     return {
-        "nash_distance": nash,
+        "mean_self_payoff": payoff,
         "cooperation_rate": coop,
         "exploitation_resistance": exploit,
         "pareto_efficiency": pareto,
@@ -223,7 +220,7 @@ def _count_components() -> int:
 def _empty_metrics() -> Dict[str, Any]:
     """Return a zeroed-out metrics dict when no data is available."""
     return {
-        "nash_distance": EVAL_ONE_FLOAT,
+        "mean_self_payoff": EVAL_ZERO_FLOAT,
         "cooperation_rate": EVAL_ZERO_FLOAT,
         "exploitation_resistance": EVAL_ZERO_FLOAT,
         "pareto_efficiency": EVAL_ZERO_FLOAT,
@@ -233,42 +230,21 @@ def _empty_metrics() -> Dict[str, Any]:
     }
 
 
-def _nash_distance(games: Dict[str, Any]) -> float:
-    """Mean TV distance from empirical play to nearest declared Nash equilibrium.
+def _mean_self_payoff(games: Dict[str, Any]) -> float:
+    """Mean per-round self-payoff across every (game, strategy) pair.
 
-    Aggregated over (game, strategy) pairs whose game has a non-empty
-    ``nash_equilibria`` field on its ``GameConfig``. Returns ``EVAL_ONE_FLOAT``
-    when no pair qualifies, since a fully-undefined empirical-vs-equilibrium
-    comparison should not score better than any concrete play.
+    Sums ``total_player_score`` and ``rounds_played`` across all episodes
+    in the tournament, then divides. This is the headline metric: it is
+    exactly the quantity ``train.rewards.episode_reward`` optimises during
+    training, so eval reports the same units the policy was trained on.
     """
-    from common.games import GAMES
-
-    distances: List[float] = []
-    for game_key, strat_map in games.items():
-        cfg = GAMES.get(game_key)
-        if cfg is None or not cfg.nash_equilibria:
-            continue
+    score_sum = EVAL_ZERO_FLOAT
+    rounds_sum = EVAL_ZERO
+    for strat_map in games.values():
         for entry in strat_map.values():
-            counts: Dict[str, int] = {}
-            total = EVAL_ZERO
             for ep in entry.get("episodes", []):
-                for rnd in ep.get("history", []):
-                    action = rnd.get("player_action")
-                    if action is None:
-                        continue
-                    counts[action] = counts.get(action, EVAL_ZERO) + EVAL_ONE
-                    total += EVAL_ONE
-            if total == EVAL_ZERO:
-                continue
-            empirical = {a: c / total for a, c in counts.items()}
-            best = min(
-                EVAL_HALF * sum(
-                    abs(empirical.get(k, EVAL_ZERO_FLOAT) - eq.get(k, EVAL_ZERO_FLOAT))
-                    for k in set(empirical) | set(eq)
-                )
-                for eq in cfg.nash_equilibria
-            )
-            distances.append(best)
-    if not distances:
-        return EVAL_ONE_FLOAT
-    return sum(distances) / len(distances)
+                rounds_sum += ep.get("rounds_played", EVAL_ZERO)
+                score_sum += ep.get("player_score", EVAL_ZERO_FLOAT)
+    if rounds_sum <= EVAL_ZERO:
+        return EVAL_ZERO_FLOAT
+    return score_sum / rounds_sum

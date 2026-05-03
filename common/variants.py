@@ -72,7 +72,6 @@ def apply_cheap_talk(
         payoff_fn=_payoff,
         applied_variants=base.applied_variants + (VARIANT_CHEAP_TALK,),
         base_game_key=base_key or base.base_game_key,
-        nash_equilibria=(),
     )
 
 
@@ -102,7 +101,6 @@ def apply_exit(
         payoff_fn=_payoff,
         applied_variants=base.applied_variants + (VARIANT_EXIT,),
         base_game_key=base_key or base.base_game_key,
-        nash_equilibria=(),
     )
 
 
@@ -151,7 +149,6 @@ def apply_binding_commitment(
         payoff_fn=_payoff,
         applied_variants=base.applied_variants + (VARIANT_BINDING_COMMITMENT,),
         base_game_key=base_key or base.base_game_key,
-        nash_equilibria=(),
     )
 
 
@@ -182,7 +179,6 @@ def apply_noisy_actions(
         payoff_fn=_payoff,
         applied_variants=base.applied_variants + (VARIANT_NOISY_ACTIONS,),
         base_game_key=base_key or base.base_game_key,
-        nash_equilibria=(),
     )
 
 
@@ -207,7 +203,6 @@ def apply_noisy_payoffs(
         payoff_fn=_payoff,
         applied_variants=base.applied_variants + (VARIANT_NOISY_PAYOFFS,),
         base_game_key=base_key or base.base_game_key,
-        nash_equilibria=(),
     )
 
 

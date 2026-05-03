@@ -172,7 +172,8 @@ with gr.Blocks(title="Kant Demo") as demo:
             gr.Markdown(
                 "Run a fixed agent strategy against every other base "
                 "strategy across the selected games. **Headline metric: "
-                "Nash distance** (TV distance to nearest declared equilibrium)."
+                "mean self-payoff per round** (the same units the training "
+                "reward optimises)."
             )
             from registry import _GAME_INFO as _GI_TR  # noqa: E402
             _TR_GAMES = sorted(

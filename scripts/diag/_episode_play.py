@@ -17,6 +17,11 @@ from env.environment import KantEnvironment
 from env.models import GameAction, GameObservation, RoundResult
 from env.nplayer.environment import NPlayerEnvironment
 from env.nplayer.models import NPlayerAction, NPlayerObservation
+from env.nplayer.coalition.environment import CoalitionEnvironment
+from env.nplayer.coalition.models import CoalitionAction, CoalitionResponse
+from constant_definitions.nplayer.coalition_constants import (
+    COALITION_PHASE_NEGOTIATE, COALITION_PHASE_ACTION,
+)
 from train.agent import LLMAgent, PromptBuilder
 
 PARSE_MISS_COUNT = 0
@@ -120,3 +125,89 @@ def play_episode_nplayer(
         obs = env.step(action)
     score = obs.scores[0] if obs.scores else 0.0
     return score, obs.current_round
+
+
+def play_episode_coalition(
+    env: CoalitionEnvironment,
+    agent_fn: Callable[[NPlayerObservation], NPlayerAction],
+    *,
+    game: str,
+    coalition_strategies: Optional[list[str]] = None,
+):
+    """Play one full episode of *game* on CoalitionEnvironment.
+
+    The negotiate phase auto-accepts every incoming opponent proposal
+    (no LLM-driven coalition formation yet); the action phase routes
+    the inner NPlayerObservation through *agent_fn*. Returns
+    ``(player_score, rounds_played)`` for player zero, with score taken
+    from the inner-env scores so coalition payoff adjustments apply.
+    """
+    obs = env.reset(game=game, coalition_strategies=coalition_strategies)
+    while not obs.base.done:
+        if obs.phase == COALITION_PHASE_NEGOTIATE:
+            responses = [
+                CoalitionResponse(responder=0, proposal_index=i, accepted=True)
+                for i in range(len(obs.pending_proposals))
+            ]
+            obs = env.negotiate_step(CoalitionAction(responses=responses))
+        if obs.phase == COALITION_PHASE_ACTION:
+            inner_action = agent_fn(obs.base)
+            obs = env.action_step(inner_action)
+    score = obs.base.scores[0] if obs.base.scores else 0.0
+    return score, obs.base.current_round
+
+
+def _accumulate(call_one, episodes):
+    ssum, rsum = 0.0, 0
+    for _ in range(episodes):
+        ps, rounds = call_one()
+        ssum += ps
+        rsum += rounds
+    return ssum, rsum
+
+
+def play_rows(env_kind, env, key, strategies, episodes, mode, agent_fn, opp_fn, opp_label):
+    """Dispatch one (game, opponent-set) row collection to the right env helper."""
+    rows = []
+    if env_kind == "2p":
+        if mode == "hardcoded":
+            for s in strategies:
+                ssum, rsum = _accumulate(
+                    lambda s=s: play_episode_2p(env, agent_fn, game=key, strategy=s),
+                    episodes,
+                )
+                rows.append((key, s, ssum, rsum))
+        else:
+            ssum, rsum = _accumulate(
+                lambda: play_episode_2p(env, agent_fn, game=key, opponent_fn=opp_fn),
+                episodes,
+            )
+            rows.append((key, opp_label, ssum, rsum))
+    elif env_kind == "nplayer":
+        if mode == "hardcoded":
+            for s in strategies:
+                ssum, rsum = _accumulate(
+                    lambda s=s: play_episode_nplayer(
+                        env, agent_fn, game=key, opponent_strategies=[s],
+                    ),
+                    episodes,
+                )
+                rows.append((key, s, ssum, rsum))
+        else:
+            ssum, rsum = _accumulate(
+                lambda: play_episode_nplayer(
+                    env, agent_fn, game=key, opponent_fns=[opp_fn],
+                ),
+                episodes,
+            )
+            rows.append((key, opp_label, ssum, rsum))
+    elif env_kind == "coalition":
+        for s in strategies:
+            ssum, rsum = _accumulate(
+                lambda s=s: play_episode_coalition(
+                    env, agent_fn, game=key, coalition_strategies=[s],
+                ),
+                episodes,
+            )
+            rows.append((key, s, ssum, rsum))
+    return rows

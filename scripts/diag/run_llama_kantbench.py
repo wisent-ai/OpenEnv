@@ -28,6 +28,7 @@ from constant_definitions.game_constants import EVAL_DEFAULT_EPISODES
 from constant_definitions.train.agent_constants import MAX_ACTION_TOKENS
 from env.environment import KantEnvironment
 from env.nplayer.environment import NPlayerEnvironment
+from env.nplayer.coalition.environment import CoalitionEnvironment
 
 import _episode_play as _ep  # type: ignore[import-not-found]
 
@@ -40,6 +41,9 @@ GAME_TYPE_STRATEGIES = {
 MATRIX_STRATEGIES = ("tit_for_tat", "always_defect", "always_cooperate")
 RANDOM_STRATEGIES = ("random",)
 NPLAYER_DEFAULT_STRATEGIES = ("random",)
+COALITION_DEFAULT_STRATEGIES = (
+    "coalition_random", "coalition_loyal", "coalition_betrayer",
+)
 DEFAULT_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
 TEMPERATURE_NUMERATOR = 7
 TEMPERATURE_DENOMINATOR = 10
@@ -90,8 +94,18 @@ def _resolve_games(games_filter):
             continue
         rows.append((key, "2p", _strategies_for(cfg)))
 
+    # Coalition games are also written into NPLAYER_GAMES by coalition_config:208;
+    # claim them for the coalition env first so they don't double-count.
+    from common.games_meta.coalition_config import COALITION_GAMES
+    for key in sorted(COALITION_GAMES.keys()):
+        if requested is not None and key not in requested:
+            continue
+        rows.append((key, "coalition", COALITION_DEFAULT_STRATEGIES))
+
     for key in sorted(NPLAYER_GAMES.keys()):
         if requested is not None and key not in requested:
+            continue
+        if key in COALITION_GAMES:
             continue
         rows.append((key, "nplayer", NPLAYER_DEFAULT_STRATEGIES))
 
@@ -154,57 +168,6 @@ def _build_generate_fn(model, tokenizer, device):
     return _generate
 
 
-def _play_2p(env, key, strategies, episodes, mode, agent_fn, opponent_fn, opp_label):
-    """Run *episodes* of a 2P game; returns list of (game, opp_label, score, rounds)."""
-    rows = []
-    if mode == "hardcoded":
-        for strat in strategies:
-            ssum, rsum = 0.0, 0
-            for _ in range(episodes):
-                ps, rounds = _ep.play_episode_2p(
-                    env, agent_fn, game=key, strategy=strat,
-                )
-                ssum += ps
-                rsum += rounds
-            rows.append((key, strat, ssum, rsum))
-    else:
-        ssum, rsum = 0.0, 0
-        for _ in range(episodes):
-            ps, rounds = _ep.play_episode_2p(
-                env, agent_fn, game=key, opponent_fn=opponent_fn,
-            )
-            ssum += ps
-            rsum += rounds
-        rows.append((key, opp_label, ssum, rsum))
-    return rows
-
-
-def _play_nplayer(env, key, strategies, episodes, mode, nplayer_agent_fn, nplayer_opp_fn, opp_label):
-    rows = []
-    if mode == "hardcoded":
-        for strat in strategies:
-            ssum, rsum = 0.0, 0
-            for _ in range(episodes):
-                ps, rounds = _ep.play_episode_nplayer(
-                    env, nplayer_agent_fn, game=key,
-                    opponent_strategies=[strat],
-                )
-                ssum += ps
-                rsum += rounds
-            rows.append((key, strat, ssum, rsum))
-    else:
-        ssum, rsum = 0.0, 0
-        for _ in range(episodes):
-            ps, rounds = _ep.play_episode_nplayer(
-                env, nplayer_agent_fn, game=key,
-                opponent_fns=[nplayer_opp_fn],
-            )
-            ssum += ps
-            rsum += rounds
-        rows.append((key, opp_label, ssum, rsum))
-    return rows
-
-
 def _print_rows(rows):
     print("\n=== Per (game, opponent) mean self-payoff ===", flush=True)
     for game, opp, score, rounds in rows:
@@ -261,24 +224,24 @@ def main() -> None:
     selected = _resolve_games(args.games)
     print(f"[run] {len(selected)} game(s) selected "
           f"({sum(1 for _, k, _ in selected if k == '2p')} 2P, "
-          f"{sum(1 for _, k, _ in selected if k == 'nplayer')} N-player)",
+          f"{sum(1 for _, k, _ in selected if k == 'nplayer')} N-player, "
+          f"{sum(1 for _, k, _ in selected if k == 'coalition')} coalition)",
           flush=True)
 
-    env_2p = KantEnvironment()
-    env_n = NPlayerEnvironment()
+    env_by_kind = {
+        "2p": KantEnvironment(),
+        "nplayer": NPlayerEnvironment(),
+        "coalition": CoalitionEnvironment(),
+    }
+    agent_by_kind = {"2p": agent_fn_2p, "nplayer": agent_fn_n, "coalition": agent_fn_n}
+    opp_by_kind = {"2p": opp_fn_2p, "nplayer": opp_fn_n, "coalition": None}
     t2 = time.time()
     rows = []
     for key, env_kind, strategies in selected:
-        if env_kind == "2p":
-            rows.extend(_play_2p(
-                env_2p, key, strategies, args.episodes, args.mode,
-                agent_fn_2p, opp_fn_2p, opp_label,
-            ))
-        else:
-            rows.extend(_play_nplayer(
-                env_n, key, strategies, args.episodes, args.mode,
-                agent_fn_n, opp_fn_n, opp_label,
-            ))
+        rows.extend(_ep.play_rows(
+            env_kind, env_by_kind[env_kind], key, strategies, args.episodes,
+            args.mode, agent_by_kind[env_kind], opp_by_kind[env_kind], opp_label,
+        ))
     print(f"[run] tournament finished in {time.time() - t2:.1f}s", flush=True)
     _print_rows(rows)
 

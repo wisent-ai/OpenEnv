@@ -1,27 +1,25 @@
 """End-to-end Llama-vs-KantBench runner with three opponent modes.
 
-Three opponent modes selectable via --mode:
-  hardcoded  -- opponent is a scripted strategy from common/strategies.py
-                (per-game appropriate: matrix strategies for matrix games,
-                ultimatum_*/trust_*/public_goods_* for the asymmetric games)
-  self       -- opponent is the same model as the player (self-play)
-  cross      -- opponent is a different model loaded from --opponent-model
+Modes selectable via --mode:
+  hardcoded  -- scripted strategies from common/strategies.py
+  self       -- opponent is the same model as the player
+  cross      -- opponent is a different model (--opponent-model)
+
+Default game set: every game in the live registry, routed through the
+matching env class (KantEnvironment for 2-player, NPlayerEnvironment for
+N-player). Filter with --games <comma-separated-keys>.
 
 Run:
 
     PYTHONPATH=. HF_TOKEN=<token> python3 scripts/diag/run_llama_kantbench.py \\
-        --mode hardcoded
-    PYTHONPATH=. HF_TOKEN=<token> python3 scripts/diag/run_llama_kantbench.py \\
         --mode self --model meta-llama/Llama-3.2-1B-Instruct
-    PYTHONPATH=. HF_TOKEN=<token> python3 scripts/diag/run_llama_kantbench.py \\
-        --mode cross --model meta-llama/Llama-3.2-1B-Instruct \\
-                     --opponent-model Qwen/Qwen2.5-1.5B-Instruct
 """
 
 from __future__ import annotations
 
 import argparse
 import time
+from typing import Optional
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -29,15 +27,11 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from constant_definitions.game_constants import EVAL_DEFAULT_EPISODES
 from constant_definitions.train.agent_constants import MAX_ACTION_TOKENS
 from env.environment import KantEnvironment
-from env.models import GameAction, GameObservation
-from train.agent import LLMAgent, parse_action
+from env.nplayer.environment import NPlayerEnvironment
+
+import _episode_play as _ep  # type: ignore[import-not-found]
 
 
-# Per-game_type strategy slates. Anything role-asymmetric with a
-# dedicated strategy gets that; matrix-flavoured games (PD, SH, HD,
-# cheap_talk_pd, etc.) get the generic matrix strategies; everything
-# else falls back to "random" because no other registered strategy
-# operates on its action space.
 GAME_TYPE_STRATEGIES = {
     "ultimatum":    ("ultimatum_fair", "ultimatum_low"),
     "trust":        ("trust_fair", "trust_generous"),
@@ -45,13 +39,11 @@ GAME_TYPE_STRATEGIES = {
 }
 MATRIX_STRATEGIES = ("tit_for_tat", "always_defect", "always_cooperate")
 RANDOM_STRATEGIES = ("random",)
+NPLAYER_DEFAULT_STRATEGIES = ("random",)
 DEFAULT_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
 TEMPERATURE_NUMERATOR = 7
 TEMPERATURE_DENOMINATOR = 10
 TEMPERATURE = TEMPERATURE_NUMERATOR / TEMPERATURE_DENOMINATOR
-
-_PARSE_MISS_COUNT = 0
-_PARSE_TOTAL_COUNT = 0
 
 
 def _parse_args():
@@ -61,11 +53,11 @@ def _parse_args():
     p.add_argument("--model", default=DEFAULT_MODEL,
                    help="HF id of the player's model")
     p.add_argument("--opponent-model", default=None,
-                   help="HF id of the opponent's model; required for --mode cross")
+                   help="HF id of the opponent model; required for --mode cross")
     p.add_argument("--episodes", type=int, default=EVAL_DEFAULT_EPISODES,
                    help="episodes per (game, opponent) pair")
     p.add_argument("--games", default=None,
-                   help="comma-separated game keys (default: every 2P game)")
+                   help="comma-separated game keys (default: every game)")
     return p.parse_args()
 
 
@@ -77,26 +69,40 @@ def _strategies_for(cfg) -> tuple[str, ...]:
 
 
 def _resolve_games(games_filter):
-    """Build (game_key, strategies) pairs from the live registry."""
+    """Return list of (game_key, env_kind, strategies) from every registry."""
     from common.games import GAMES, GAME_FACTORIES
+    # Importing nplayer_games.py runs NPLAYER_GAMES.update(_BUILTIN_NPLAYER_GAMES)
+    # at module load; without this side effect NPLAYER_GAMES is empty.
+    import common.games_meta.nplayer_games  # noqa: F401
+    from common.games_meta.nplayer_config import NPLAYER_GAMES
+
     requested = None
     if games_filter:
         requested = {g.strip() for g in games_filter.split(",") if g.strip()}
-    pairs = []
-    for key in sorted(set(GAMES.keys()) | set(GAME_FACTORIES.keys())):
+
+    rows: list[tuple[str, str, tuple[str, ...]]] = []
+    keys_2p = sorted(set(GAMES.keys()) | set(GAME_FACTORIES.keys()))
+    for key in keys_2p:
         if requested is not None and key not in requested:
             continue
         cfg = GAMES.get(key) or GAME_FACTORIES.get(key, lambda: None)()
-        if cfg is None or cfg.num_players != 2:
+        if cfg is None:
             continue
-        pairs.append((key, _strategies_for(cfg)))
+        rows.append((key, "2p", _strategies_for(cfg)))
+
+    for key in sorted(NPLAYER_GAMES.keys()):
+        if requested is not None and key not in requested:
+            continue
+        rows.append((key, "nplayer", NPLAYER_DEFAULT_STRATEGIES))
+
     if requested is not None:
-        missing = requested - {g for g, _ in pairs}
+        seen = {k for k, _, _ in rows}
+        missing = requested - seen
         if missing:
-            raise SystemExit(f"--games unknown/non-2P: {sorted(missing)}")
-    if not pairs:
+            raise SystemExit(f"--games unknown: {sorted(missing)}")
+    if not rows:
         raise SystemExit("No games selected.")
-    return tuple(pairs), tuple(g for g, _ in pairs)
+    return rows
 
 
 def _device() -> str:
@@ -108,7 +114,6 @@ def _device() -> str:
 
 
 def _load_model(model_id: str):
-    """Return (model, tokenizer, device) on the best available accelerator."""
     device = _device()
     tok = AutoTokenizer.from_pretrained(model_id)
     if tok.pad_token is None:
@@ -149,68 +154,54 @@ def _build_generate_fn(model, tokenizer, device):
     return _generate
 
 
-def _wrap_parse_action_with_counters():
-    import train.agent as _agent_mod
-    _original = _agent_mod.parse_action
-
-    def _wrapped(response: str, available_actions):
-        global _PARSE_MISS_COUNT, _PARSE_TOTAL_COUNT
-        _PARSE_TOTAL_COUNT += 1
-        stripped = response.strip()
-        lower = stripped.lower()
-        matched = (
-            stripped in available_actions
-            or any(a.lower() == lower for a in available_actions)
-            or any(a.lower() in lower for a in available_actions)
-        )
-        if not matched:
-            _PARSE_MISS_COUNT += 1
-        return _original(response, available_actions)
-
-    _agent_mod.parse_action = _wrapped
-
-
-def _agent_fn_from_llm(agent: LLMAgent):
-    def _fn(obs: GameObservation) -> GameAction:
-        return agent(obs)
-    return _fn
-
-
-def _play_one_episode(env: KantEnvironment, agent_fn, *, game: str, **reset_kw):
-    """Loop env.step until done. Return (player_score, rounds_played)."""
-    obs = env.reset(game=game, **reset_kw)
-    while not obs.done:
-        action = agent_fn(obs)
-        obs = env.step(action)
-    return obs.player_score, obs.current_round
-
-
-def _run_hardcoded(env, agent_fn, episodes, games_and_strategies):
+def _play_2p(env, key, strategies, episodes, mode, agent_fn, opponent_fn, opp_label):
+    """Run *episodes* of a 2P game; returns list of (game, opp_label, score, rounds)."""
     rows = []
-    for game, strategies in games_and_strategies:
+    if mode == "hardcoded":
         for strat in strategies:
-            score_sum, round_sum = 0.0, 0
+            ssum, rsum = 0.0, 0
             for _ in range(episodes):
-                ps, rounds = _play_one_episode(
-                    env, agent_fn, game=game, strategy=strat,
+                ps, rounds = _ep.play_episode_2p(
+                    env, agent_fn, game=key, strategy=strat,
                 )
-                score_sum += ps
-                round_sum += rounds
-            rows.append((game, strat, score_sum, round_sum))
+                ssum += ps
+                rsum += rounds
+            rows.append((key, strat, ssum, rsum))
+    else:
+        ssum, rsum = 0.0, 0
+        for _ in range(episodes):
+            ps, rounds = _ep.play_episode_2p(
+                env, agent_fn, game=key, opponent_fn=opponent_fn,
+            )
+            ssum += ps
+            rsum += rounds
+        rows.append((key, opp_label, ssum, rsum))
     return rows
 
 
-def _run_llm_opponent(env, agent_fn, opponent_fn, label, episodes, games):
+def _play_nplayer(env, key, strategies, episodes, mode, nplayer_agent_fn, nplayer_opp_fn, opp_label):
     rows = []
-    for game in games:
-        score_sum, round_sum = 0.0, 0
+    if mode == "hardcoded":
+        for strat in strategies:
+            ssum, rsum = 0.0, 0
+            for _ in range(episodes):
+                ps, rounds = _ep.play_episode_nplayer(
+                    env, nplayer_agent_fn, game=key,
+                    opponent_strategies=[strat],
+                )
+                ssum += ps
+                rsum += rounds
+            rows.append((key, strat, ssum, rsum))
+    else:
+        ssum, rsum = 0.0, 0
         for _ in range(episodes):
-            ps, rounds = _play_one_episode(
-                env, agent_fn, game=game, opponent_fn=opponent_fn,
+            ps, rounds = _ep.play_episode_nplayer(
+                env, nplayer_agent_fn, game=key,
+                opponent_fns=[nplayer_opp_fn],
             )
-            score_sum += ps
-            round_sum += rounds
-        rows.append((game, label, score_sum, round_sum))
+            ssum += ps
+            rsum += rounds
+        rows.append((key, opp_label, ssum, rsum))
     return rows
 
 
@@ -218,7 +209,7 @@ def _print_rows(rows):
     print("\n=== Per (game, opponent) mean self-payoff ===", flush=True)
     for game, opp, score, rounds in rows:
         per_round = score / rounds if rounds else float("nan")
-        print(f"  {game:20s}  vs {opp:24s}  "
+        print(f"  {game:28s}  vs {opp:24s}  "
               f"player_score_total={score:7.2f}  rounds={rounds}  "
               f"per_round={per_round:6.3f}", flush=True)
     print("\n=== Per-game aggregate (sum across opponents) ===", flush=True)
@@ -228,7 +219,7 @@ def _print_rows(rows):
         by_game[game] = (s + score, r + rounds)
     for game, (score, rounds) in by_game.items():
         per_round = score / rounds if rounds else float("nan")
-        print(f"  {game:20s}  mean_self_payoff_per_round={per_round:6.3f}  "
+        print(f"  {game:28s}  mean_self_payoff_per_round={per_round:6.3f}  "
               f"(rounds={rounds})", flush=True)
 
 
@@ -246,51 +237,55 @@ def main() -> None:
     player_model, player_tok, device = _load_model(args.model)
     print(f"[run] player model loaded in {time.time() - t0:.1f}s", flush=True)
 
-    _wrap_parse_action_with_counters()
-    player_agent = LLMAgent(
-        generate_fn=_build_generate_fn(player_model, player_tok, device),
-    )
-    agent_fn = _agent_fn_from_llm(player_agent)
+    _ep.install_parse_action_counter()
+    p_gen = _build_generate_fn(player_model, player_tok, device)
+    agent_fn_2p = _ep.make_2p_agent(p_gen)
+    agent_fn_n = _ep.make_nplayer_agent(p_gen)
 
-    opponent_fn = None
+    opp_fn_2p = opp_fn_n = None
     if args.mode == "self":
-        opponent_agent = LLMAgent(
-            generate_fn=_build_generate_fn(player_model, player_tok, device),
-        )
-        opponent_fn = _agent_fn_from_llm(opponent_agent)
+        opp_fn_2p = _ep.make_2p_agent(_build_generate_fn(player_model, player_tok, device))
+        opp_fn_n = _ep.make_nplayer_agent(_build_generate_fn(player_model, player_tok, device))
+        opp_label = "self"
     elif args.mode == "cross":
         t1 = time.time()
-        opp_model, opp_tok, _ = _load_model(args.opponent_model)
-        print(f"[run] opponent model loaded in {time.time() - t1:.1f}s",
-              flush=True)
-        opponent_agent = LLMAgent(
-            generate_fn=_build_generate_fn(opp_model, opp_tok, device),
-        )
-        opponent_fn = _agent_fn_from_llm(opponent_agent)
-
-    games_and_strategies, games_for_llm = _resolve_games(args.games)
-    print(f"[run] {len(games_and_strategies)} game(s) selected", flush=True)
-
-    env = KantEnvironment()
-    t2 = time.time()
-    if args.mode == "hardcoded":
-        rows = _run_hardcoded(env, agent_fn, args.episodes,
-                              games_and_strategies)
-    elif args.mode == "self":
-        rows = _run_llm_opponent(env, agent_fn, opponent_fn, "self",
-                                 args.episodes, games_for_llm)
+        opp_model, opp_tok, _dev = _load_model(args.opponent_model)
+        print(f"[run] opponent model loaded in {time.time() - t1:.1f}s", flush=True)
+        o_gen = _build_generate_fn(opp_model, opp_tok, device)
+        opp_fn_2p = _ep.make_2p_agent(o_gen)
+        opp_fn_n = _ep.make_nplayer_agent(o_gen)
+        opp_label = f"cross[{args.opponent_model.split('/')[-1]}]"
     else:
-        rows = _run_llm_opponent(
-            env, agent_fn, opponent_fn,
-            f"cross[{args.opponent_model.split('/')[-1]}]",
-            args.episodes, games_for_llm,
-        )
+        opp_label = ""
+
+    selected = _resolve_games(args.games)
+    print(f"[run] {len(selected)} game(s) selected "
+          f"({sum(1 for _, k, _ in selected if k == '2p')} 2P, "
+          f"{sum(1 for _, k, _ in selected if k == 'nplayer')} N-player)",
+          flush=True)
+
+    env_2p = KantEnvironment()
+    env_n = NPlayerEnvironment()
+    t2 = time.time()
+    rows = []
+    for key, env_kind, strategies in selected:
+        if env_kind == "2p":
+            rows.extend(_play_2p(
+                env_2p, key, strategies, args.episodes, args.mode,
+                agent_fn_2p, opp_fn_2p, opp_label,
+            ))
+        else:
+            rows.extend(_play_nplayer(
+                env_n, key, strategies, args.episodes, args.mode,
+                agent_fn_n, opp_fn_n, opp_label,
+            ))
     print(f"[run] tournament finished in {time.time() - t2:.1f}s", flush=True)
     _print_rows(rows)
 
-    miss_pct = (_PARSE_MISS_COUNT / max(1, _PARSE_TOTAL_COUNT)) * 100
-    print(f"\n[run] parse misses: {_PARSE_MISS_COUNT}/{_PARSE_TOTAL_COUNT} "
-          f"({miss_pct:.1f}%)", flush=True)
+    miss = _ep.PARSE_MISS_COUNT
+    total = _ep.PARSE_TOTAL_COUNT
+    pct = (miss / max(1, total)) * 100
+    print(f"\n[run] parse misses: {miss}/{total} ({pct:.1f}%)", flush=True)
     print(f"[run] total wallclock = {time.time() - t0:.1f}s", flush=True)
 
 

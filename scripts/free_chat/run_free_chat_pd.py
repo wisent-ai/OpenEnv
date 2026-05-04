@@ -181,17 +181,18 @@ def _play_round(cfg: GameConfig, action_re: re.Pattern,
     o_raw = _generate(o_model, o_tok, o_dev, o_prompt)
     o_msg, o_action = _parse_response(o_raw, action_re, cfg)
     if p_action is None or o_action is None:
-        raise SystemExit(
-            f"parse miss at round {round_num}: "
-            f"p0_action={p_action!r} p1_action={o_action!r} "
-            f"p0_raw={p_raw!r} p1_raw={o_raw!r}"
-        )
+        return {
+            "round": round_num,
+            "p0_raw": p_raw, "p0_msg": p_msg, "p0_action": p_action,
+            "p1_raw": o_raw, "p1_msg": o_msg, "p1_action": o_action,
+            "parse_miss": True, "p0_payoff": None, "p1_payoff": None,
+        }
     p_pay, o_pay = cfg.payoff_fn(p_action, o_action)
     return {
         "round": round_num,
         "p0_raw": p_raw, "p0_msg": p_msg, "p0_action": p_action,
         "p1_raw": o_raw, "p1_msg": o_msg, "p1_action": o_action,
-        "p0_payoff": p_pay, "p1_payoff": o_pay,
+        "parse_miss": False, "p0_payoff": p_pay, "p1_payoff": o_pay,
     }
 
 
@@ -238,15 +239,17 @@ def main() -> None:
             history.append(row)
             p_last_msg = row["p0_msg"]
             o_last_msg = row["p1_msg"]
-            p_total += row["p0_payoff"]
-            o_total += row["p1_payoff"]
+            if not row["parse_miss"]:
+                p_total += row["p0_payoff"]
+                o_total += row["p1_payoff"]
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
             fh.flush()
             preview_p = row["p0_msg"].replace("\n", " ")[:_MSG_PREVIEW_CHARS]
             preview_o = row["p1_msg"].replace("\n", " ")[:_MSG_PREVIEW_CHARS]
-            print(f"[r{r:02d}] P0 {row['p0_action']:9s} :: {preview_p!r}",
+            tag = "MISS" if row["parse_miss"] else "    "
+            print(f"[r{r:02d}] {tag} P0 {str(row['p0_action']):9s} :: {preview_p!r}",
                   flush=True)
-            print(f"        P1 {row['p1_action']:9s} :: {preview_o!r}",
+            print(f"        {tag} P1 {str(row['p1_action']):9s} :: {preview_o!r}",
                   flush=True)
     print(f"[run] totals  P0={p_total:.1f}  P1={o_total:.1f}  "
           f"rounds={args.rounds}  wallclock={time.time() - t0:.1f}s",

@@ -18,6 +18,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import logging
 import time
 from typing import Optional
 
@@ -66,7 +67,10 @@ def _parse_args():
     p.add_argument("--games", default=None,
                    help="comma-separated game keys (default: every game)")
     p.add_argument("--log-completions", action="store_true",
-                   help="print every per-round completion (raw + parsed)")
+                   help="log every per-round completion via stdlib logging")
+    p.add_argument("--log-jsonl", default=None,
+                   help="append one JSON row per round to this path "
+                        "(ts, move, game, opponent, raw, parsed, parse_miss)")
     return p.parse_args()
 
 
@@ -209,7 +213,12 @@ def main() -> None:
         print(f"[run] LoRA adapter loaded from {args.lora_path}", flush=True)
     print(f"[run] player model loaded in {time.time() - t0:.1f}s", flush=True)
 
+    if args.log_completions:
+        logging.basicConfig(level=logging.INFO,
+                            format="%(asctime)s %(name)s %(levelname)s %(message)s")
     _ep.install_parse_action_counter(log_completions=args.log_completions)
+    if args.log_jsonl:
+        _ep.open_jsonl_log(args.log_jsonl)
     p_gen = _build_generate_fn(player_model, player_tok, device)
     agent_fn_2p = _ep.make_2p_agent(p_gen)
     agent_fn_n = _ep.make_nplayer_agent(p_gen)
@@ -255,6 +264,8 @@ def main() -> None:
             generate_fn=p_gen, opp_generate_fn=opp_gen,
         ))
     print(f"[run] tournament finished in {time.time() - t2:.1f}s", flush=True)
+    if args.log_jsonl:
+        _ep.close_jsonl_log()
     _print_rows(rows)
 
     miss = _ep.PARSE_MISS_COUNT

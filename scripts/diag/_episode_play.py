@@ -10,6 +10,9 @@ Extracted from the runner because the runner sits at the per-file
 
 from __future__ import annotations
 
+import json
+import logging
+import time
 from typing import Callable, Optional
 
 import train.agent as _train_agent
@@ -27,6 +30,32 @@ from train.agent import LLMAgent, PromptBuilder
 PARSE_MISS_COUNT = 0
 PARSE_TOTAL_COUNT = 0
 LOG_COMPLETIONS = False
+_JSONL_FH = None
+_CTX: dict = {"game": None, "opponent": None}
+_LOG = logging.getLogger(__name__)
+
+
+def set_logging_context(*, game: Optional[str] = None,
+                        opponent: Optional[str] = None) -> None:
+    """Stamp game / opponent on subsequent parse_action wrapper rows."""
+    if game is not None:
+        _CTX["game"] = game
+    if opponent is not None:
+        _CTX["opponent"] = opponent
+
+
+def open_jsonl_log(path: str) -> None:
+    """Open a per-round JSONL sink. Each parse_action call appends one row."""
+    global _JSONL_FH
+    _JSONL_FH = open(path, "a", encoding="utf-8")
+
+
+def close_jsonl_log() -> None:
+    global _JSONL_FH
+    if _JSONL_FH is not None:
+        _JSONL_FH.flush()
+        _JSONL_FH.close()
+        _JSONL_FH = None
 
 
 def install_parse_action_counter(log_completions: bool = False):
@@ -50,8 +79,18 @@ def install_parse_action_counter(log_completions: bool = False):
             PARSE_MISS_COUNT += 1
         parsed = _original(response, available_actions)
         if LOG_COMPLETIONS:
-            print(f"[move {PARSE_TOTAL_COUNT}] parsed={parsed} | raw={response!r}",
-                  flush=True)
+            _LOG.info("move=%d game=%s opp=%s parsed=%s raw=%r",
+                      PARSE_TOTAL_COUNT, _CTX.get("game"), _CTX.get("opponent"),
+                      parsed, response)
+        if _JSONL_FH is not None:
+            _JSONL_FH.write(json.dumps({
+                "ts": time.time(), "move": PARSE_TOTAL_COUNT,
+                "game": _CTX.get("game"), "opponent": _CTX.get("opponent"),
+                "raw": response, "parsed": parsed,
+                "available_actions": list(available_actions),
+                "parse_miss": not matched,
+            }, ensure_ascii=False) + "\n")
+            _JSONL_FH.flush()
         return parsed
 
     _agent_mod.parse_action = _wrapped

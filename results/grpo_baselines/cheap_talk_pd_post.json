@@ -1,0 +1,29 @@
+{
+  "model": "meta-llama/Llama-3.2-1B-Instruct",
+  "training": "50-step GRPO LoRA, r = u_i, --quantize-4bit, --games cheap_talk_pd",
+  "training_command": "python -m train.train --model meta-llama/Llama-3.2-1B-Instruct --output-dir /workspace/grpo-llama1b-pivot/out_ct --games cheap_talk_pd --max-steps 50 --num-generations 4 --batch-size 2 --grad-accum 4 --episodes 100 --report-to none --use-lora --quantize-4bit",
+  "training_repo_head": "e80396f",
+  "training_wallclock_seconds": 269,
+  "training_final_loss": -0.0038,
+  "training_mean_reward_step50": 2.310,
+  "lora_path": "/workspace/grpo-llama1b-pivot/out_ct",
+  "evaluator": "scripts/diag/run_llama_kantbench.py",
+  "evaluator_flags": "--mode hardcoded --episodes 5 --games cheap_talk_pd --lora-path /workspace/grpo-llama1b-pivot/out_ct",
+  "device": "cuda",
+  "host": "ubuntu-server (RTX PRO 6000 Blackwell)",
+  "decode": {"do_sample": true, "temperature": 0.7, "max_new_tokens": 8},
+  "parse_miss_rate": 0.0,
+  "parse_misses": 0,
+  "parse_total": 50,
+  "per_game_per_opponent": {
+    "cheap_talk_pd": {
+      "random": 3.220
+    }
+  },
+  "mean_self_payoff_per_game": {
+    "cheap_talk_pd": 3.220
+  },
+  "rounds_per_game": {
+    "cheap_talk_pd": 50
+  }
+}

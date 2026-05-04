@@ -1,12 +1,13 @@
-"""Free-form natural-language Prisoner's Dilemma between two LLM seats.
+"""Free-form natural-language self-play for any 2-player registered game.
 
 Bypasses the env loop because no registered game supports passing a
-free-form text string from one agent into another agent's next prompt;
-cheap_talk_pd's "messages" are bit-encoded into a 4-token action
-vocabulary (msg_<say>_<do>). This driver instead runs both seats from
-the same generate_fn (or two), prompts each per round to emit a free
-text message followed by an ACTION line, and renders the verbatim
-message into the opponent's next prompt.
+free-form text string from one agent into another agent's next prompt
+(cheap_talk_pd's messages are bit-encoded into a 4-token action vocab,
+all matrix games have fixed action lists). This driver loads any 2P
+GameConfig from common.games.GAMES, prompts each seat per round to emit
+a free message + an ACTION line, parses the action against the game's
+own action vocabulary, and renders the verbatim message into the
+opponent's next prompt. Payoff comes from the GameConfig.payoff_fn.
 
 Writes a JSONL transcript with every (round, seat, raw, message,
 action, payoff). Loads optional LoRA adapter for the player model.
@@ -14,8 +15,7 @@ action, payoff). Loads optional LoRA adapter for the player model.
 Run:
     PYTHONPATH=. HF_TOKEN=... python3 \\
         scripts/free_chat/run_free_chat_pd.py \\
-        --model meta-llama/Llama-3.2-1B-Instruct \\
-        --rounds 10 --opponent self \\
+        --game prisoners_dilemma --rounds 10 --opponent self \\
         --lora-path /workspace/grpo-llama1b-pivot/out_ct \\
         --transcript /tmp/transcript.jsonl
 """
@@ -31,19 +31,33 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from constant_definitions.game_constants import DEFAULT_NUM_ROUNDS
+from common.games import GAMES, GAME_FACTORIES, GameConfig
+import common.games_info.communication  # noqa: F401  (registers cheap_talk_pd, etc.)
 
-_PD_PAYOFF: dict[tuple[str, str], tuple[float, float]] = {
-    ("cooperate", "cooperate"): (3.0, 3.0),
-    ("cooperate", "defect"):    (0.0, 5.0),
-    ("defect",    "cooperate"): (5.0, 0.0),
-    ("defect",    "defect"):    (1.0, 1.0),
-}
-_ACTION_RE = re.compile(r"ACTION\s*[:\-]\s*(cooperate|defect)", re.IGNORECASE)
+_DEFAULT_GAME = "prisoners_dilemma"
 _HISTORY_TAIL = 3
 _MSG_PREVIEW_CHARS = 80
 _MAX_NEW_TOKENS = 96
 _TEMPERATURE = 0.7
 _DEFAULT_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
+
+
+def _resolve_game(key: str) -> GameConfig:
+    cfg = GAMES.get(key)
+    if cfg is None and key in GAME_FACTORIES:
+        cfg = GAME_FACTORIES[key]()
+    if cfg is None:
+        raise SystemExit(f"--game {key!r} not in registry")
+    if cfg.num_players != 2:
+        raise SystemExit(f"--game {key!r} is {cfg.num_players}-player; "
+                         f"only 2-player games supported by this driver")
+    return cfg
+
+
+def _build_action_re(actions: list[str]) -> re.Pattern:
+    """Compile a regex that matches 'ACTION: <action>' for this game's vocab."""
+    alt = "|".join(re.escape(a) for a in sorted(actions, key=len, reverse=True))
+    return re.compile(rf"ACTION\s*[:\-]\s*({alt})", re.IGNORECASE)
 
 
 def _device() -> str:
@@ -71,21 +85,33 @@ def _load(model_id: str, lora_path: Optional[str]):
     return mdl, tok, device
 
 
-def _build_prompt(my_idx: int, round_num: int, total_rounds: int,
-                  history: list[dict], opp_last_msg: Optional[str]) -> str:
+def _payoff_table_text(cfg: GameConfig) -> str:
+    """Render the payoff_fn as a table over all (action, action) pairs."""
+    rows = []
+    for pa in cfg.actions:
+        for oa in cfg.actions:
+            pp, op = cfg.payoff_fn(pa, oa)
+            rows.append(f"({pa}, {oa})=({pp:g},{op:g})")
+    return "; ".join(rows)
+
+
+def _build_prompt(cfg: GameConfig, my_idx: int, round_num: int,
+                  total_rounds: int, history: list[dict],
+                  opp_last_msg: Optional[str]) -> str:
     me = f"P{my_idx}"
     opp = f"P{1 - my_idx}"
     me_key = me.lower()
     opp_key = opp.lower()
+    actions_inline = " | ".join(cfg.actions)
     lines = [
-        "[Game] Repeated Prisoner's Dilemma.",
+        f"[Game] Repeated {cfg.name}.",
+        cfg.description,
         f"You are {me}. Your opponent is {opp}.",
         f"Round {round_num} of {total_rounds}.",
-        "[Payoffs] (cooperate, cooperate)=(3,3); (cooperate, defect)=(0,5);",
-        "          (defect, cooperate)=(5,0); (defect, defect)=(1,1).",
+        f"[Payoffs] {_payoff_table_text(cfg)}.",
         "[Format] Write ONE short message to your opponent (1-2 sentences).",
-        "         Then on a new line write exactly: ACTION: cooperate",
-        "         or:                              ACTION: defect",
+        f"         Then on a new line write exactly: ACTION: <action>",
+        f"         where <action> is one of: {actions_inline}",
     ]
     if history:
         lines.append("[Last few rounds]")
@@ -126,36 +152,45 @@ def _generate(model, tok, device: str, prompt: str) -> str:
     ).strip()
 
 
-def _parse_response(text: str) -> tuple[str, Optional[str]]:
+def _parse_response(text: str, action_re: re.Pattern,
+                    cfg: GameConfig) -> tuple[str, Optional[str]]:
     """Return (message_text, action_or_None). Action is taken from the
-    first 'ACTION: <cooperate|defect>' match; the message is everything
-    before that match."""
-    m = _ACTION_RE.search(text)
-    if not m:
-        return text, None
-    action = m.group(1).lower()
-    msg = text[: m.start()].strip()
-    return msg, action
+    first 'ACTION: <action>' match against this game's vocabulary; if
+    none match, scan the last line for a bare action token. Message is
+    everything before the action segment."""
+    m = action_re.search(text)
+    if m:
+        action = m.group(1).lower()
+        canonical = next((a for a in cfg.actions if a.lower() == action), action)
+        return text[: m.start()].strip(), canonical
+    last = text.rstrip().splitlines()[-1].strip().lower() if text.strip() else ""
+    for a in sorted(cfg.actions, key=len, reverse=True):
+        if a.lower() == last or a.lower() in last.split():
+            return text, a
+    return text, None
 
 
-def _play_round(p_model, p_tok, p_dev, o_model, o_tok, o_dev, *,
+def _play_round(cfg: GameConfig, action_re: re.Pattern,
+                p_model, p_tok, p_dev, o_model, o_tok, o_dev, *,
                 round_num: int, total_rounds: int, history: list[dict],
                 p_last_msg: Optional[str], o_last_msg: Optional[str]) -> dict:
-    p_prompt = _build_prompt(0, round_num, total_rounds, history, o_last_msg)
+    p_prompt = _build_prompt(cfg, 0, round_num, total_rounds, history, o_last_msg)
     p_raw = _generate(p_model, p_tok, p_dev, p_prompt)
-    p_msg, p_action = _parse_response(p_raw)
-    o_prompt = _build_prompt(1, round_num, total_rounds, history, p_last_msg)
+    p_msg, p_action = _parse_response(p_raw, action_re, cfg)
+    o_prompt = _build_prompt(cfg, 1, round_num, total_rounds, history, p_last_msg)
     o_raw = _generate(o_model, o_tok, o_dev, o_prompt)
-    o_msg, o_action = _parse_response(o_raw)
-    p_a = p_action or "defect"
-    o_a = o_action or "defect"
-    p_pay, o_pay = _PD_PAYOFF[(p_a, o_a)]
+    o_msg, o_action = _parse_response(o_raw, action_re, cfg)
+    if p_action is None or o_action is None:
+        raise SystemExit(
+            f"parse miss at round {round_num}: "
+            f"p0_action={p_action!r} p1_action={o_action!r} "
+            f"p0_raw={p_raw!r} p1_raw={o_raw!r}"
+        )
+    p_pay, o_pay = cfg.payoff_fn(p_action, o_action)
     return {
         "round": round_num,
-        "p0_raw": p_raw, "p0_msg": p_msg, "p0_action": p_a,
-        "p0_parsed": p_action is not None,
-        "p1_raw": o_raw, "p1_msg": o_msg, "p1_action": o_a,
-        "p1_parsed": o_action is not None,
+        "p0_raw": p_raw, "p0_msg": p_msg, "p0_action": p_action,
+        "p1_raw": o_raw, "p1_msg": o_msg, "p1_action": o_action,
         "p0_payoff": p_pay, "p1_payoff": o_pay,
     }
 
@@ -165,6 +200,8 @@ def _parse_args():
     p.add_argument("--model", default=_DEFAULT_MODEL)
     p.add_argument("--lora-path", default=None,
                    help="Optional PEFT/LoRA adapter dir merged into player+opponent")
+    p.add_argument("--game", default=_DEFAULT_GAME,
+                   help=f"registered 2P game key (default: {_DEFAULT_GAME})")
     p.add_argument("--rounds", type=int, default=DEFAULT_NUM_ROUNDS)
     p.add_argument("--opponent", choices=("self",), default="self",
                    help="self = both seats share weights")
@@ -175,9 +212,11 @@ def _parse_args():
 
 def main() -> None:
     args = _parse_args()
-    print(f"[run] device={_device()} model={args.model} "
-          f"lora={args.lora_path or '(none)'} rounds={args.rounds}",
-          flush=True)
+    cfg = _resolve_game(args.game)
+    action_re = _build_action_re(cfg.actions)
+    print(f"[run] device={_device()} model={args.model} game={args.game} "
+          f"actions={cfg.actions} rounds={args.rounds} "
+          f"lora={args.lora_path or '(none)'}", flush=True)
     t0 = time.time()
     p_model, p_tok, p_dev = _load(args.model, args.lora_path)
     print(f"[run] player loaded in {time.time() - t0:.1f}s", flush=True)
@@ -191,6 +230,7 @@ def main() -> None:
     with open(args.transcript, "w", encoding="utf-8") as fh:
         for r in range(1, args.rounds + 1):
             row = _play_round(
+                cfg, action_re,
                 p_model, p_tok, p_dev, o_model, o_tok, o_dev,
                 round_num=r, total_rounds=args.rounds, history=history,
                 p_last_msg=p_last_msg, o_last_msg=o_last_msg,

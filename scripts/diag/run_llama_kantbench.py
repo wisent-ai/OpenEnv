@@ -59,6 +59,8 @@ def _parse_args():
                    help="HF id of the player's model")
     p.add_argument("--opponent-model", default=None,
                    help="HF id of the opponent model; required for --mode cross")
+    p.add_argument("--lora-path", default=None,
+                   help="Path to a PEFT/LoRA adapter dir; merged into the player model")
     p.add_argument("--episodes", type=int, default=EVAL_DEFAULT_EPISODES,
                    help="episodes per (game, opponent) pair")
     p.add_argument("--games", default=None,
@@ -199,6 +201,10 @@ def main() -> None:
 
     t0 = time.time()
     player_model, player_tok, device = _load_model(args.model)
+    if args.lora_path:
+        from peft import PeftModel
+        player_model = PeftModel.from_pretrained(player_model, args.lora_path)
+        print(f"[run] LoRA adapter loaded from {args.lora_path}", flush=True)
     print(f"[run] player model loaded in {time.time() - t0:.1f}s", flush=True)
 
     _ep.install_parse_action_counter()

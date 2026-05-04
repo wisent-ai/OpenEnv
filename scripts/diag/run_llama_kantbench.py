@@ -65,6 +65,8 @@ def _parse_args():
                    help="episodes per (game, opponent) pair")
     p.add_argument("--games", default=None,
                    help="comma-separated game keys (default: every game)")
+    p.add_argument("--log-completions", action="store_true",
+                   help="print every per-round completion (raw + parsed)")
     return p.parse_args()
 
 
@@ -207,7 +209,7 @@ def main() -> None:
         print(f"[run] LoRA adapter loaded from {args.lora_path}", flush=True)
     print(f"[run] player model loaded in {time.time() - t0:.1f}s", flush=True)
 
-    _ep.install_parse_action_counter()
+    _ep.install_parse_action_counter(log_completions=args.log_completions)
     p_gen = _build_generate_fn(player_model, player_tok, device)
     agent_fn_2p = _ep.make_2p_agent(p_gen)
     agent_fn_n = _ep.make_nplayer_agent(p_gen)

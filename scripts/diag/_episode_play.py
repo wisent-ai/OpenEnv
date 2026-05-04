@@ -26,11 +26,14 @@ from train.agent import LLMAgent, PromptBuilder
 
 PARSE_MISS_COUNT = 0
 PARSE_TOTAL_COUNT = 0
+LOG_COMPLETIONS = False
 
 
-def install_parse_action_counter():
+def install_parse_action_counter(log_completions: bool = False):
     """Wrap train.agent.parse_action so the runner can report the miss rate."""
     import train.agent as _agent_mod
+    global LOG_COMPLETIONS
+    LOG_COMPLETIONS = log_completions
     _original = _agent_mod.parse_action
 
     def _wrapped(response: str, available_actions):
@@ -45,7 +48,11 @@ def install_parse_action_counter():
         )
         if not matched:
             PARSE_MISS_COUNT += 1
-        return _original(response, available_actions)
+        parsed = _original(response, available_actions)
+        if LOG_COMPLETIONS:
+            print(f"[move {PARSE_TOTAL_COUNT}] parsed={parsed} | raw={response!r}",
+                  flush=True)
+        return parsed
 
     _agent_mod.parse_action = _wrapped
 

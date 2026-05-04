@@ -563,6 +563,8 @@ def parse_args():
     p.add_argument("--hub-model-id", default="jtowarek/kantbench-qwen2.5-7b")
     p.add_argument("--use-train-split", action="store_true",
                     help="Use stratified train/eval split (eval games held out)")
+    p.add_argument("--games", default=None,
+                    help="Comma-separated game keys to restrict the training dataset to (overrides --use-train-split).")
     p.add_argument("--variant-fraction", type=float, default=VARIANT_FRACTION,
                     help="Fraction of samples using dynamic variant composition")
     p.add_argument("--resume-from-checkpoint", type=str, default=None,
@@ -633,6 +635,12 @@ def main():
 
     # Optionally use stratified train/eval split
     train_games = None
+    if args.games:
+        train_games = [g.strip() for g in args.games.split(",") if g.strip()]
+        unknown = [g for g in train_games if g not in GAMES]
+        if unknown:
+            raise SystemExit(f"--games unknown keys: {unknown}")
+        print(f"Restricting training to {len(train_games)} game(s): {train_games}")
     if args.use_train_split:
         train_set, eval_set = get_train_eval_split()
         train_games = sorted(train_set)

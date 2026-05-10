@@ -677,15 +677,26 @@ def main():
     # Always pre-load so the reward function can use the model for
     # interactive episode play (generating actions round-by-round).
     peft_config = None
+    # Pick dtype to match the GRPOConfig precision flags below.
+    # bf16 needs compute capability >= 8 (A100/H100); T4/V100 are fp16 only.
+    # Loading bf16 weights on a T4 then using fp16 GradScaler causes
+    # "_amp_foreach_non_finite_check_and_unscale_cuda not implemented for
+    # BFloat16" because the scaler unscales bf16 grads it cannot handle.
+    if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8:
+        _train_dtype = torch.bfloat16
+    elif torch.cuda.is_available():
+        _train_dtype = torch.float16
+    else:
+        _train_dtype = torch.float32
     load_kwargs = {
-        "torch_dtype": torch.bfloat16,
+        "torch_dtype": _train_dtype,
         "device_map": "auto",
     }
 
     if args.quantize_4bit:
         load_kwargs["quantization_config"] = BitsAndBytesConfig(
             load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_compute_dtype=_train_dtype,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True,
         )

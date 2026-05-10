@@ -40,6 +40,78 @@ def _local_coop_rate(history) -> float:
     return n / len(history)
 
 
+def _constrained_action_generate(model, tokenizer, obs_list, device):
+    """Force the first generated token to match an action-word prefix.
+
+    Small models (Llama-3.2-1B) emit unparseable prose during the action
+    phase even with sharp prompts. We restrict the step-0 logits to the
+    first-token IDs of each available action word so a valid action
+    prefix is guaranteed. Subsequent tokens are unrestricted so the
+    model completes the word naturally. parse_action's substring match
+    then picks up the full action word from the completion.
+
+    The constraint is format-only; the policy still chooses WHICH action
+    to take, so the emergent strategic dynamics the study aims to observe
+    (lying, lie-detection, cooperation patterns) are preserved.
+    """
+    import torch
+
+    completions: list[str] = []
+    for obs in obs_list:
+        actions = obs.available_actions
+        history_lines = []
+        for r in (obs.history or [])[-3:]:
+            history_lines.append(
+                f"R{r.round_number}: you={r.player_action} opp={r.opponent_action}"
+                f" payoff={r.player_payoff}"
+            )
+        history_block = ("\n[Recent rounds]\n" + "\n".join(history_lines)) if history_lines else ""
+        prompt = (
+            f"You are playing {obs.game_name}.{history_block}\n"
+            f"\n[Round]\n{obs.current_round} of {obs.total_rounds}"
+            f"\n\n[Instruction]\nReply with EXACTLY ONE word: "
+            f"{' or '.join(actions)}. Just the single word."
+        )
+        messages = [{"role": "user", "content": prompt}]
+        text = tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+
+        allowed_first: set[int] = set()
+        for a in actions:
+            for variant in (" " + a, a, a.capitalize(), " " + a.capitalize()):
+                ids = tokenizer.encode(variant, add_special_tokens=False)
+                if ids:
+                    allowed_first.add(ids[0])
+        if not allowed_first:
+            raise RuntimeError(
+                f"_constrained_action_generate: empty first-token set for "
+                f"actions {actions!r}. Tokenizer rejected every surface form; "
+                f"surface the failure rather than synthesize an action."
+            )
+        allowed_first_list = sorted(allowed_first)
+
+        inputs = tokenizer(text, return_tensors="pt").to(device)
+        prompt_len = inputs["input_ids"].shape[1]
+
+        def _prefix_fn(batch_id, input_ids, _plen=prompt_len, _allowed=allowed_first_list):
+            if input_ids.shape[-1] == _plen:
+                return _allowed
+            return list(range(tokenizer.vocab_size or 32000))
+
+        with torch.no_grad():
+            out = model.generate(
+                **inputs,
+                max_new_tokens=8,
+                do_sample=False,
+                pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+                prefix_allowed_tokens_fn=_prefix_fn,
+            )
+        completion = tokenizer.decode(out[0][prompt_len:], skip_special_tokens=True)
+        completions.append(completion.strip())
+    return completions
+
+
 def _build_result_from_obs(obs, strategy: str, partial: bool) -> dict:
     """Build the result dict for an episode from its current obs.history.
 
@@ -143,7 +215,12 @@ def play_batch_free_chat_episodes(
         if not active_indices:
             break
         action_obs = [obs_list[i] for i in active_indices]
-        act_completions = batch_generate_fn(model, tokenizer, action_obs, device)
+        # Use constrained generation for the action phase to guarantee a
+        # parseable action prefix even for small models. parse_action's
+        # substring match downstream then resolves it to a valid action.
+        act_completions = _constrained_action_generate(
+            model, tokenizer, action_obs, device,
+        )
         for j, i in enumerate(active_indices):
             try:
                 # action phase: parse a bare action token

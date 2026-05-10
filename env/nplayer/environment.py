@@ -114,12 +114,17 @@ class NPlayerEnvironment:
                 f"Choose from: {self._game.actions}"
             )
 
-        # Collect all actions: player zero first, then opponents
+        # Collect all actions: player zero first, then opponents.
+        # In free_chat games each player also surfaces a free-form message
+        # via metadata['message']; we collect messages parallel to actions.
+        player_msg = (action.metadata or {}).get("message", "") or ""
         all_actions: list[str] = [action.action]
+        all_messages: list[str] = [player_msg]
         for idx in range(len(self._strategies)):
             player_idx = idx + _ONE
-            opp_action = self._get_opponent_action(idx, player_idx)
+            opp_action, opp_msg = self._get_opponent_action(idx, player_idx)
             all_actions.append(opp_action)
+            all_messages.append(opp_msg)
 
         actions_tuple = tuple(all_actions)
         payoffs_tuple = self._game.payoff_fn(actions_tuple)
@@ -129,6 +134,7 @@ class NPlayerEnvironment:
             round_number=new_round,
             actions=list(all_actions),
             payoffs=list(payoffs_tuple),
+            messages=list(all_messages),
         )
 
         history = list(self._state.history) + [result]
@@ -164,8 +170,10 @@ class NPlayerEnvironment:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _get_opponent_action(self, opp_idx: int, player_idx: int) -> str:
-        """Get the action for opponent at opp_idx (player player_idx)."""
+    def _get_opponent_action(self, opp_idx: int, player_idx: int) -> tuple[str, str]:
+        """Return (action, message) for opponent at opp_idx (player player_idx).
+        Message is "" for scripted strategies and for any opponent that
+        doesn't surface a message via NPlayerAction.metadata['message']."""
         assert self._game is not None
         fn = self._opponent_fns[opp_idx]
         if fn is not None:
@@ -176,12 +184,13 @@ class NPlayerEnvironment:
                     f"Opponent {player_idx} returned invalid action "
                     f"'{opp_action.action}'. Choose from: {self._game.actions}"
                 )
-            return opp_action.action
+            opp_msg = (opp_action.metadata or {}).get("message", "") or ""
+            return opp_action.action, opp_msg
 
         strategy = self._strategies[opp_idx]
         assert strategy is not None
         obs = self._build_observation(player_idx)
-        return strategy.choose_action(obs)
+        return strategy.choose_action(obs), ""
 
     def _build_observation(
         self,
@@ -191,6 +200,24 @@ class NPlayerEnvironment:
         done: bool = False,
     ) -> NPlayerObservation:
         assert self._game is not None
+        # free_chat metadata: same shape as 2P env. Surface OTHER players'
+        # last-round messages so the prompt can render them. We also
+        # provide last_opp_message (single string) populated with the
+        # NEXT player's message for back-compat with the 2P prompt path —
+        # the n-player prompt builder can read last_opp_messages (list)
+        # for the full multi-party view.
+        meta: dict = {}
+        if "free_chat" in (self._game.applied_variants or ()):
+            meta["free_chat"] = True
+        if last_round is not None and last_round.messages:
+            others = [
+                m for i, m in enumerate(last_round.messages) if i != player_index
+            ]
+            if any(others):
+                meta["last_opp_messages"] = others
+                meta["last_opp_message"] = next((m for m in others if m), "")
+            if last_round.messages[player_index] if player_index < len(last_round.messages) else "":
+                meta["last_player_message"] = last_round.messages[player_index]
         return NPlayerObservation(
             done=done,
             reward=reward,
@@ -204,4 +231,5 @@ class NPlayerEnvironment:
             num_players=self._state.num_players,
             player_index=player_index,
             last_round=last_round,
+            metadata=meta,
         )

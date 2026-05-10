@@ -19,6 +19,10 @@ class NPlayerRoundResult(BaseModel):
     round_number: int = Field(..., description="Round number (one-indexed)")
     actions: list[str] = Field(..., description="Actions taken by all players")
     payoffs: list[float] = Field(..., description="Payoffs received by all players")
+    # Free-form natural-language messages, populated only by free_chat games.
+    # Default empty list so existing N-player games stay back-compat. The
+    # per-player message at index i corresponds to actions[i] / payoffs[i].
+    messages: list[str] = Field(default_factory=list, description="Free-form messages from each player (free_chat games only)")
 
 
 class NPlayerAction(BaseModel):

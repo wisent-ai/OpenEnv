@@ -132,3 +132,30 @@ _BUILTIN_NPLAYER_GAMES: dict[str, GameConfig] = {
 }
 
 NPLAYER_GAMES.update(_BUILTIN_NPLAYER_GAMES)
+
+
+# -- Free-chat variants for every N-player game --
+# Mirrors the 2P registration in common/games_info/communication.py:
+# apply_free_chat keeps the action vocab unchanged and turns on the
+# free-form message channel via NPlayerAction.metadata['message'] /
+# NPlayerObservation.metadata['last_opp_messages'] threading in
+# env/nplayer/environment.py. Description gets a free-chat addendum so
+# the prompt builder can explain the format to the model.
+from common.variants import apply_free_chat as _apply_free_chat
+from dataclasses import replace as _replace
+_FREE_CHAT_NPLAYER: dict[str, GameConfig] = {}
+for _k, _cfg in list(NPLAYER_GAMES.items()):
+    if _k.startswith("free_chat_") or "free_chat" in (_cfg.applied_variants or ()):
+        continue
+    _FREE_CHAT_NPLAYER["free_chat_" + _k] = _replace(
+        _apply_free_chat(_cfg, base_key=_k),
+        name="Free-chat " + _cfg.name,
+        description=(
+            _cfg.description
+            + " Each player additionally sends a free-form natural-language "
+            "message every round; messages from all other players appear in "
+            "your next-round prompt verbatim. Messages are non-binding and "
+            "do not affect payoff."
+        ),
+    )
+NPLAYER_GAMES.update(_FREE_CHAT_NPLAYER)

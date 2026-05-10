@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import json
 import os
 import random
 import time
@@ -446,6 +447,16 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
     from env.environment import KantEnvironment as _KantEnv
     env_pool = [_KantEnv() for _ in range(len(REWARD_STRATEGIES) * 32)]
 
+    # Per-rollout trajectory persistence for the dynamics study. When
+    # WISENT_TRAJECTORY_LOG is set in the environment, each reward_fn
+    # call appends one JSONL row per (completion, strategy) episode
+    # that carries a trajectory list (free_chat games only — single-
+    # phase games have no messages so there's nothing emergent to log
+    # at this level). Step counter is closure-captured so plotting
+    # over training step works without TRL exposing the trainer state.
+    _trajectory_log_path = os.environ.get("WISENT_TRAJECTORY_LOG", "")
+    _step_counter = [0]
+
     def reward_fn(
         completions: list[str],
         prompts: list[str],
@@ -480,6 +491,27 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
         episode_results = _play_batch_interactive_episodes(
             env_pool, episode_configs, model, tokenizer, device,
         )
+
+        # Persist per-step trajectory data when WISENT_TRAJECTORY_LOG is
+        # set. Only writes free_chat episodes (those that carry the full
+        # message+action sequence) — non-free_chat results have no
+        # messages to study. One JSONL row per episode, keyed by step.
+        if _trajectory_log_path:
+            _step_counter[0] += 1
+            step = _step_counter[0]
+            with open(_trajectory_log_path, "a", encoding="utf-8") as fh:
+                for ep_idx, ep in enumerate(episode_results):
+                    if ep is None or "trajectory" not in ep:
+                        continue
+                    fh.write(json.dumps({
+                        "step": step,
+                        "completion_idx": completion_map[ep_idx],
+                        "game": episode_configs[ep_idx][0],
+                        "strategy": episode_configs[ep_idx][1],
+                        "rounds": ep["rounds"],
+                        "player_score": ep["player_score"],
+                        "trajectory": ep["trajectory"],
+                    }, ensure_ascii=False) + "\n")
 
         # Group results by completion and compute 5 metrics
         rewards = []

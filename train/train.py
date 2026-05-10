@@ -136,7 +136,24 @@ def _build_prompt(obs: KantBenchObservation) -> str:
     sections.append("[Available Actions]\n" + "\n".join(action_lines))
 
     # Instruction
-    sections.append(f"[Instruction]\n{SYSTEM_PROMPT}")
+    # Phase-aware instruction. The 2-phase free_chat rollout passes
+    # obs.metadata["phase"] in ("message", "action"); use this to give
+    # the model a sharp instruction per phase. Legacy single-phase obs
+    # has no phase set -> falls back to the generic SYSTEM_PROMPT.
+    _phase = (obs.metadata or {}).get("phase")
+    if _phase == "message":
+        sections.append(
+            "[Instruction]\nSay one short sentence to your opponent before "
+            "the next move. Keep it under 20 words."
+        )
+    elif _phase == "action":
+        _act_options = " or ".join(obs.available_actions)
+        sections.append(
+            f"[Instruction]\nReply with EXACTLY ONE word: {_act_options}. "
+            "No prose, no punctuation, no quotes — just the single word."
+        )
+    else:
+        sections.append(f"[Instruction]\n{SYSTEM_PROMPT}")
 
     return "\n\n".join(sections)
 
@@ -229,7 +246,24 @@ def _build_local_prompt(obs) -> str:
         "[Available Actions]\n"
         + "\n".join(f"- {a}" for a in obs.available_actions)
     )
-    sections.append(f"[Instruction]\n{SYSTEM_PROMPT}")
+    # Phase-aware instruction. The 2-phase free_chat rollout passes
+    # obs.metadata["phase"] in ("message", "action"); use this to give
+    # the model a sharp instruction per phase. Legacy single-phase obs
+    # has no phase set -> falls back to the generic SYSTEM_PROMPT.
+    _phase = (obs.metadata or {}).get("phase")
+    if _phase == "message":
+        sections.append(
+            "[Instruction]\nSay one short sentence to your opponent before "
+            "the next move. Keep it under 20 words."
+        )
+    elif _phase == "action":
+        _act_options = " or ".join(obs.available_actions)
+        sections.append(
+            f"[Instruction]\nReply with EXACTLY ONE word: {_act_options}. "
+            "No prose, no punctuation, no quotes — just the single word."
+        )
+    else:
+        sections.append(f"[Instruction]\n{SYSTEM_PROMPT}")
     return "\n\n".join(sections)
 
 

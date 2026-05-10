@@ -272,7 +272,10 @@ def _batch_generate_actions(model, tokenizer, obs_list, device):
             input_len = inputs["attention_mask"][idx].sum().item()
             completion_ids = outputs[idx][input_len:]
             completion = tokenizer.decode(completion_ids, skip_special_tokens=True)
-            actions.append(parse_action(completion.strip(), obs.available_actions))
+            if (obs.metadata or {}).get("phase") == "message":
+                actions.append(completion.strip())
+            else:
+                actions.append(parse_action(completion.strip(), obs.available_actions))
         return actions
     except RuntimeError as exc:
         # Narrowly handle the documented quantization-shape error and re-raise
@@ -299,7 +302,10 @@ def _batch_generate_actions(model, tokenizer, obs_list, device):
             outputs[0][len(inputs["input_ids"][0]):],
             skip_special_tokens=True,
         )
-        actions.append(parse_action(completion.strip(), obs.available_actions))
+        if (obs.metadata or {}).get("phase") == "message":
+            actions.append(completion.strip())
+        else:
+            actions.append(parse_action(completion.strip(), obs.available_actions))
     return actions
 
 

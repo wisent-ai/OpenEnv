@@ -40,6 +40,47 @@ def _local_coop_rate(history) -> float:
     return n / len(history)
 
 
+def _build_result_from_obs(obs, strategy: str, partial: bool) -> dict:
+    """Build the result dict for an episode from its current obs.history.
+
+    Called from both the normal terminal path (obs.done) and the error
+    path (parse miss / env.step exception). When `partial=True` the
+    episode was cut short — record whatever rounds did complete so the
+    trajectory analyzer can still see honest/lie/coop behaviour from the
+    completed prefix. Without this, partial rollouts produced result=None
+    and the trainer's WISENT_TRAJECTORY_LOG persistence wrote nothing,
+    leaving the dynamics-over-training CSV empty.
+    """
+    coop = {"cooperate", "stag", "dove", "contribute"}
+    history = obs.history or []
+    opp_coop = (
+        sum(1 for r in history if any(c in r.opponent_action for c in coop))
+        / len(history)
+        if history else 0.0
+    )
+    trajectory = [
+        {
+            "round": r.round_number,
+            "player_message": r.player_message,
+            "opponent_message": r.opponent_message,
+            "player_action": r.player_action,
+            "opponent_action": r.opponent_action,
+            "player_payoff": r.player_payoff,
+        }
+        for r in history
+    ]
+    return {
+        "player_score": obs.player_score,
+        "opponent_score": obs.opponent_score,
+        "cooperation_rate": _local_coop_rate(history),
+        "opponent_cooperation_rate": opp_coop,
+        "rounds": obs.current_round,
+        "strategy": strategy,
+        "trajectory": trajectory,
+        "partial": partial,
+    }
+
+
 def play_batch_free_chat_episodes(
     envs: list[KantEnvironment],
     episode_configs: list[tuple[str, str, str]],
@@ -113,37 +154,15 @@ def play_batch_free_chat_episodes(
                 obs_list[i] = envs[i].step(GameAction(action=act_str))
                 if obs_list[i].done:
                     active[i] = False
-                    obs = obs_list[i]
-                    coop = {"cooperate", "stag", "dove", "contribute"}
-                    opp_coop = (
-                        sum(1 for r in obs.history
-                            if any(c in r.opponent_action for c in coop))
-                        / len(obs.history)
-                        if obs.history else 0.0
+                    results[i] = _build_result_from_obs(
+                        obs_list[i], episode_configs[i][1], partial=False,
                     )
-                    trajectory = [
-                        {
-                            "round": r.round_number,
-                            "player_message": r.player_message,
-                            "opponent_message": r.opponent_message,
-                            "player_action": r.player_action,
-                            "opponent_action": r.opponent_action,
-                            "player_payoff": r.player_payoff,
-                        }
-                        for r in obs.history
-                    ]
-                    results[i] = {
-                        "player_score": obs.player_score,
-                        "opponent_score": obs.opponent_score,
-                        "cooperation_rate": _local_coop_rate(obs.history),
-                        "opponent_cooperation_rate": opp_coop,
-                        "rounds": obs.current_round,
-                        "strategy": episode_configs[i][1],
-                        "trajectory": trajectory,
-                    }
             except Exception as exc:
                 logger.debug("free_chat act step err episode %d: %s", i, exc)
                 active[i] = False
+                results[i] = _build_result_from_obs(
+                    obs_list[i], episode_configs[i][1], partial=True,
+                )
 
     return results
 

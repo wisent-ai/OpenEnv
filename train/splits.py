@@ -1,9 +1,81 @@
-"""Deterministic stratified train/eval game split."""
+"""Deterministic stratified train/eval game split.
+
+Side-effect: importing this module monkey-patches huggingface_hub.HfApi
+and the module-level hf_hub_download / snapshot_download with the
+wisent-compute fleet-wide GCS token bucket so they wait on a shared 1000
+tokens / 5min budget before issuing the HTTP call. Required because the
+wisent-compute agent fleet shares an outbound IP and saturates HF's
+1000-req/5min API quota during concurrent extraction + training runs,
+killing every AutoTokenizer.from_pretrained call inside
+transformers' `_patch_mistral_regex` -> `hf_api.model_info` chain
+with HTTP 429.
+
+train.train imports this module before any AutoTokenizer.from_pretrained
+call, so the patch is in place by the time the HF API call goes out.
+On a host where `wisent_compute` is not installed (local dev outside
+the agent fleet), the patch is silently skipped — no 429 problem to
+solve there anyway.
+"""
 
 from __future__ import annotations
 
 import random
 from typing import Dict, FrozenSet, List, Set, Tuple
+
+
+def _install_hf_rate_limit_token_bucket() -> None:
+    """Wrap HfApi.{model_info,hf_hub_download,...} and module-level
+    huggingface_hub.{hf_hub_download,snapshot_download} with
+    wisent_compute's wait_for_hf_token so every HF API call goes
+    through the shared GCS token bucket. Skips silently when
+    wisent_compute is not installed (local dev)."""
+    try:
+        from huggingface_hub import HfApi
+        from wisent_compute.providers.local.hf_rate import wait_for_hf_token
+    except Exception:
+        return
+    if getattr(HfApi, "_wisent_rate_limit_installed", False):
+        return
+    methods_to_wrap = (
+        "upload_file", "upload_folder", "list_repo_tree",
+        "preupload_lfs_files", "create_commit",
+        "model_info", "dataset_info", "repo_info",
+        "list_repo_files", "hf_hub_download",
+    )
+    for _m in methods_to_wrap:
+        _orig = getattr(HfApi, _m, None)
+        if _orig is None:
+            continue
+
+        def _make(_o):
+            def _w(self, *a, **k):
+                wait_for_hf_token()
+                return _o(self, *a, **k)
+            return _w
+
+        setattr(HfApi, _m, _make(_orig))
+    HfApi._wisent_rate_limit_installed = True
+    try:
+        import huggingface_hub as _hh
+        for _fn in ("hf_hub_download", "snapshot_download"):
+            _orig = getattr(_hh, _fn, None)
+            if _orig is None or getattr(_orig, "_wisent_rate_limit_installed", False):
+                continue
+
+            def _make_mod(_o):
+                def _w(*a, **k):
+                    wait_for_hf_token()
+                    return _o(*a, **k)
+                _w._wisent_rate_limit_installed = True
+                return _w
+
+            setattr(_hh, _fn, _make_mod(_orig))
+    except Exception:
+        pass
+
+
+_install_hf_rate_limit_token_bucket()
+
 
 from common.games_meta.game_tags import GAME_TAGS
 from constant_definitions.batch4.tag_constants import CATEGORIES

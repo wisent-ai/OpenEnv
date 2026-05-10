@@ -272,10 +272,12 @@ def _batch_generate_actions(model, tokenizer, obs_list, device):
             input_len = inputs["attention_mask"][idx].sum().item()
             completion_ids = outputs[idx][input_len:]
             completion = tokenizer.decode(completion_ids, skip_special_tokens=True)
-            if (obs.metadata or {}).get("phase") == "message":
-                actions.append(completion.strip())
-            else:
-                actions.append(parse_action(completion.strip(), obs.available_actions))
+            # Always return RAW completion. Downstream callers
+            # (play_batch_free_chat_episodes and the legacy single-phase loop
+            # in _play_batch_interactive_episodes) each have their own
+            # parse_action + per-episode try/except, so a parse miss on one
+            # completion no longer kills the whole batch.
+            actions.append(completion.strip())
         return actions
     except RuntimeError as exc:
         # Narrowly handle the documented quantization-shape error and re-raise
@@ -302,10 +304,7 @@ def _batch_generate_actions(model, tokenizer, obs_list, device):
             outputs[0][len(inputs["input_ids"][0]):],
             skip_special_tokens=True,
         )
-        if (obs.metadata or {}).get("phase") == "message":
-            actions.append(completion.strip())
-        else:
-            actions.append(parse_action(completion.strip(), obs.available_actions))
+        actions.append(completion.strip())
     return actions
 
 

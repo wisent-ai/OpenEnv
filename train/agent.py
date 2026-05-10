@@ -97,21 +97,34 @@ class PromptBuilder:
             + _NEWLINE + _NEWLINE.join(action_lines)
         )
 
-        # Instruction. For free-chat games (signaled by metadata flag the
-        # env sets, OR by presence of last_opp_message earlier in this
-        # episode) ask for MESSAGE + ACTION two-line format instead of
-        # the bare-action SYSTEM_PROMPT.
-        is_free_chat = bool(
-            (obs.metadata or {}).get("last_opp_message")
-            or (obs.metadata or {}).get("free_chat")
-        )
-        if is_free_chat:
+        # Instruction. Two-phase free-chat games have phase-specific
+        # instructions: phase='message' asks for prose only, phase='action'
+        # asks for a single action token (and surfaces the opponent's
+        # just-revealed message earlier in the prompt). Single-phase
+        # legacy free_chat (no phase set) still gets the combined format.
+        meta = obs.metadata or {}
+        is_free_chat = bool(meta.get("free_chat") or meta.get("last_opp_message"))
+        phase = meta.get("phase", "")
+        if is_free_chat and phase == "message":
+            instruction = (
+                "Write ONE short message (1-2 sentences) to your opponent. "
+                "Reply with the message text only, no action and no labels. "
+                "After both players' messages are revealed you will be asked "
+                "to choose your action. The message is non-binding cheap talk."
+            )
+        elif is_free_chat and phase == "action":
+            instruction = (
+                "Choose your action. Reply with EXACTLY ONE of the available "
+                "actions listed above and nothing else. Your opponent's "
+                "message is shown above; you may use it to inform your "
+                "choice."
+            )
+        elif is_free_chat:
             instruction = (
                 "Write ONE short message to your opponent on the first line, "
                 "starting with 'MESSAGE:'. Then on a new line write exactly "
                 "'ACTION: <action>' where <action> is one of the available "
-                "actions listed above. The message is non-binding cheap talk; "
-                "only the action affects payoff."
+                "actions listed above. Message is non-binding cheap talk."
             )
         else:
             instruction = SYSTEM_PROMPT
@@ -209,16 +222,35 @@ class LLMAgent:
         self._last_completion: str = ""
 
     def __call__(self, obs: GameObservation) -> GameAction:
-        """Select an action given a game observation."""
+        """Select an action given a game observation.
+
+        Three modes, selected via obs.metadata['phase']:
+          - phase='message': free-chat 2-phase round, message phase. The
+            model emits prose; we package it as
+            GameAction(action=available_actions[0] sentinel,
+            metadata={'message': prose}). The action field is a required
+            string but the env in phase=message ignores it.
+          - phase='action': free-chat 2-phase round, action phase. Model
+            emits a bare action token; we parse and return
+            GameAction(action=parsed).
+          - no phase / legacy: existing single-phase parser.
+        """
+        meta = obs.metadata or {}
+        phase = meta.get("phase", "")
         prompt = self._prompt_builder.build(obs)
         self._last_prompt = prompt
         completion = self._generate_fn(prompt)
         self._last_completion = completion
-        # Detect free-chat games via the prompt's instruction shape.
-        # PromptBuilder injects a 'MESSAGE / ACTION' instruction when the
-        # variant is active (it can read obs.metadata flags or the game's
-        # applied_variants). The cheap test: if the prompt asks for a
-        # MESSAGE line, parse the response with the free-chat path.
+        if phase == "message":
+            sentinel = (obs.available_actions or [""])[0]
+            return GameAction(
+                action=sentinel,
+                metadata={"message": completion.strip()},
+            )
+        if phase == "action":
+            action_str = parse_action(completion, obs.available_actions)
+            return GameAction(action=action_str)
+        # Legacy single-phase free-chat (combined MESSAGE/ACTION line).
         if "MESSAGE:" in prompt and "ACTION:" in prompt:
             action_str, msg = parse_free_chat(completion, obs.available_actions)
             return GameAction(action=action_str, metadata={"message": msg})

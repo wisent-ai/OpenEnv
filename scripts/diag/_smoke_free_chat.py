@@ -44,38 +44,44 @@ def main() -> None:
     obs = env.reset(game=_FREE_CHAT_PD, opponent_fn=_scripted_opponent_fn)
 
     assert obs.metadata.get("free_chat") is True, f"obs metadata missing free_chat flag: {obs.metadata}"
+    assert obs.metadata.get("phase") == "message", f"first obs should be message phase: {obs.metadata}"
 
     rounds_to_play = min(3, obs.total_rounds)
     for r in range(rounds_to_play):
+        # Phase 1: message
         my_msg = f"Round {r + 1}: I'd like us to both cooperate but I'm wary."
-        action = GameAction(
-            action="cooperate" if r % 2 == 0 else "defect",
-            metadata={"message": my_msg},
+        obs = env.step(GameAction(action="cooperate", metadata={"message": my_msg}))
+        assert obs.metadata.get("phase") == "action", f"after message step, phase should be action: {obs.metadata}"
+        assert obs.metadata.get("last_opp_message") == "I will defect, no matter what you say.", (
+            f"opponent's message should be visible WITHIN this round before action: {obs.metadata.get('last_opp_message')!r}"
         )
-        obs = env.step(action)
+        assert obs.metadata.get("last_player_message") == my_msg, (
+            f"my own message echoed back in metadata: {obs.metadata.get('last_player_message')!r}"
+        )
 
+        # Phase 2: action (now able to react to opponent's just-revealed message)
+        my_action = "cooperate" if r % 2 == 0 else "defect"
+        obs = env.step(GameAction(action=my_action))
         last = obs.last_round
         assert last is not None
-        assert last.player_message == my_msg, f"player_message lost: {last.player_message!r}"
-        assert last.opponent_message == "I will defect, no matter what you say.", (
-            f"opponent_message lost: {last.opponent_message!r}"
-        )
-        # Payoff should be base PD against an always-defect opponent.
-        # cooperate vs defect = 0 (sucker); defect vs defect = 1 (mutual).
-        expected = 0.0 if action.action == "cooperate" else 1.0
+        assert last.player_message == my_msg
+        assert last.opponent_message == "I will defect, no matter what you say."
+        expected = 0.0 if my_action == "cooperate" else 1.0
         assert last.player_payoff == expected, (
             f"round {r + 1}: payoff {last.player_payoff} != base PD {expected}"
         )
-        assert obs.metadata.get("last_opp_message") == last.opponent_message
+        assert obs.metadata.get("phase") == "message", (
+            f"after action step, phase should reset to message for next round: {obs.metadata}"
+        )
         print(
-            f"R{r + 1}  me=({action.action}) {my_msg!r} -> "
-            f"opp=({last.opponent_action}) {last.opponent_message!r}  "
-            f"my_payoff={last.player_payoff}"
+            f"R{r + 1}  me_msg={my_msg!r} opp_msg={last.opponent_message!r} -> "
+            f"me_act={my_action} opp_act={last.opponent_action} my_payoff={last.player_payoff}"
         )
 
     print()
-    print(f"OK: free-chat variant produced {rounds_to_play} rounds with verbatim "
-          f"messaging, action vocab unchanged, payoff equals base PD.")
+    print(f"OK: 2-phase free-chat ran {rounds_to_play} rounds. Each round: "
+          f"both messages submitted (phase=message), opponent's message visible "
+          f"in next obs, then action chosen (phase=action). Payoff equals base PD.")
 
 
 if __name__ == "__main__":

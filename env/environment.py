@@ -31,6 +31,14 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
         self._strategy_name: str = ""
         self._opponent_fn: Optional[Callable[[GameObservation], GameAction]] = None
         self._state: GameState = GameState()
+        # Free-chat 2-phase per-round state. _phase tracks where in the
+        # message->action cycle we are within the current round; pending
+        # messages are buffered between phase=message and phase=action so
+        # phase=action can include them in the prompt + record on
+        # RoundResult. Reset on reset().
+        self._phase: str = "message"
+        self._pending_player_message: str = ""
+        self._pending_opp_message: str = ""
 
     # ------------------------------------------------------------------
     # OpenEnv interface
@@ -66,6 +74,13 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
             opponent_strategy=strategy_name,
             total_rounds=rounds,
         )
+        # Free-chat: reset 2-phase per-round state. Episodes always start
+        # in the message phase (so the very first call to step() consumes
+        # only messages, and action selection comes after both messages
+        # are revealed).
+        self._phase = "message"
+        self._pending_player_message = ""
+        self._pending_opp_message = ""
 
         return self._build_observation()
 
@@ -78,6 +93,15 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
             raise RuntimeError("Call reset() before step().")
         if self._state.is_done:
             raise RuntimeError("Episode already finished. Call reset().")
+
+        # Two-phase free-chat round: phase 'message' consumes only
+        # action.metadata['message'] from each player and stores it; phase
+        # 'action' consumes action.action and computes payoff. The opponent
+        # is auto-played twice (once per phase) so its message is visible
+        # WITHIN the same round, not the next one — canonical cheap-talk.
+        if "free_chat" in (self._game.applied_variants or ()):
+            return self._step_free_chat(action)
+
         if action.action not in self._game.actions:
             raise ValueError(
                 f"Invalid action '{action.action}'. "
@@ -120,6 +144,12 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
         )
 
         return self._build_observation(reward=p_pay, last_round=result, done=done)
+
+    def _step_free_chat(self, action: GameAction) -> GameObservation:
+        """Delegate the 2-phase free-chat round to env.free_chat.step_free_chat
+        (helpers split out to keep this file under the per-file cap)."""
+        from env.free_chat import step_free_chat
+        return step_free_chat(self, action)
 
     @property
     def state(self) -> GameState:
@@ -231,6 +261,10 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
         meta: dict = {}
         if "free_chat" in (self._game.applied_variants or ()):
             meta["free_chat"] = True
+            # The 2-phase loop always re-enters at phase=message after a
+            # completed round, so when we build an observation the env
+            # has already reset _phase. Reflect that to the caller.
+            meta["phase"] = self._phase
         if last_round is not None and last_round.opponent_message:
             meta["last_opp_message"] = last_round.opponent_message
         if last_round is not None and last_round.player_message:

@@ -28,8 +28,13 @@ SA_EMAIL = f"kantbench-training@{GCP_PROJECT}.iam.gserviceaccount.com"
 ZONES = ["us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f", "us-west1-b"]
 
 
-def run_cmd(cmd: str, timeout: int = 300) -> str:
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+def run_cmd(cmd: str, **_unused) -> str:
+    """Run a shell command and return stdout. No timeout — long-running
+    GCP/gsutil commands routinely take longer than any fixed deadline,
+    and CLAUDE.md is explicit ('No timeouts'). Callers that previously
+    passed a timeout=N kwarg are accepted via **_unused for back-compat
+    but the value is ignored."""
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     return result.stdout.strip()
 
 
@@ -144,8 +149,7 @@ def cleanup_trial(trial_id: str):
     for zone in ZONES:
         run_cmd(
             f"gcloud compute instances delete {instance_name} "
-            f"--zone={zone} --project={GCP_PROJECT} --quiet 2>/dev/null",
-            timeout=60,
+            f"--zone={zone} --project={GCP_PROJECT} --quiet 2>/dev/null"
         )
 
 

@@ -273,8 +273,16 @@ def _batch_generate_actions(model, tokenizer, obs_list, device):
             completion = tokenizer.decode(completion_ids, skip_special_tokens=True)
             actions.append(parse_action(completion.strip(), obs.available_actions))
         return actions
-    except RuntimeError:
-        pass
+    except RuntimeError as exc:
+        # Narrowly handle the documented quantization-shape error and re-raise
+        # everything else (OOM, kernel-launch failures, real bugs) so they
+        # surface instead of being silently re-tried in sequential mode.
+        msg = str(exc).lower()
+        if not ("quantiz" in msg or "4-bit" in msg or "shape" in msg or "padding" in msg):
+            raise
+        # Recognised batched-vs-quantized incompatibility — log and continue
+        # to the sequential path.
+        logger.warning("batched generate failed (quantization-related): %s; falling back to sequential", exc)
 
     # Sequential fallback for quantized models
     actions = []
@@ -384,9 +392,16 @@ def _play_batch_interactive_episodes(
             for j, i in enumerate(active_indices):
                 actions[i] = batch_actions[j]
         else:
-            # Fallback: random action
+            # No silent random fallback — when model+tokenizer aren't
+            # available the reward function MUST surface the failure rather than
+            # contaminate the training distribution with coin-flipped actions.
             for i in active_indices:
-                actions[i] = random.choice(obs_list[i].available_actions)
+                raise RuntimeError(
+                    f"_play_batch_interactive_episodes called without model+tokenizer; "
+                    f"refusing to substitute random actions (active env={i}). "
+                    f"Pass model and tokenizer to the reward function or fix "
+                    f"the calling code path."
+                )
 
     return results
 
@@ -516,7 +531,10 @@ def format_reward_fn(
     """Reward function that encourages concise, exact-match action output.
 
     Returns 1.0 for exact match, 0.5 for case-insensitive, 0.1 for substring,
-    -0.5 for random fallback (action not found in output).
+    -0.5 when no action token appears in the completion. The -0.5 is an
+    explicit penalty for unparseable output, not a fallback that
+    substitutes a random action; parse_action now raises ParseActionError
+    for unmatched responses (no random.choice fallback).
     """
     rewards = []
     available_moves_batch = kwargs.get(

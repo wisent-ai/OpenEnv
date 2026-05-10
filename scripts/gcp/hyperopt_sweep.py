@@ -50,14 +50,16 @@ SPACE = {
 }
 
 
-def run_cmd(cmd: str, timeout: int = 300) -> str:
-    try:
-        result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=timeout
-        )
-        return result.stdout.strip()
-    except subprocess.TimeoutExpired:
-        return ""
+def run_cmd(cmd: str, **_unused) -> str:
+    """Run a shell command and return stdout. No timeout per project
+    convention (CLAUDE.md: 'No timeouts'); the previous code wrapped a
+    fixed 300s deadline plus 'except TimeoutExpired: return ""' which
+    silently turned slow gcloud calls into empty strings, masking real
+    failures. Callers that pass timeout=N still work via **_unused."""
+    result = subprocess.run(
+        cmd, shell=True, capture_output=True, text=True
+    )
+    return result.stdout.strip()
 
 
 def create_instance(trial_id: str, params: dict) -> str | None:
@@ -172,8 +174,7 @@ def cleanup_instance(trial_id: str):
     for zone in ZONES:
         run_cmd(
             f"gcloud compute instances delete {instance_name} "
-            f"--zone={zone} --project={GCP_PROJECT} --quiet 2>/dev/null",
-            timeout=60,
+            f"--zone={zone} --project={GCP_PROJECT} --quiet 2>/dev/null"
         )
 
 

@@ -206,3 +206,31 @@ COALITION_GAMES.update(_BUILTIN_COALITION_GAMES)
 # Register coalition games as N-player games too (same GameConfig instances)
 for _key, _c in _BUILTIN_COALITION_GAMES.items():
     NPLAYER_GAMES[_key] = _c
+
+# Free-chat variants for every coalition game. apply_free_chat keeps the
+# action vocabulary unchanged and adds the free-form message channel via
+# action.metadata['message']; the inner NPlayerEnvironment.step (which
+# CoalitionEnvironment.action_step delegates to) already threads messages
+# onto NPlayerRoundResult.messages. Surfacing them in the coalition-
+# wrapper observation is on the coalition env itself; this registration
+# at least makes the variant available in the registry so callers can
+# pick free_chat_<coalition_key> alongside free_chat_<nplayer_key>.
+from common.variants import apply_free_chat as _apply_free_chat
+from dataclasses import replace as _replace
+_FREE_CHAT_COALITION: dict[str, GameConfig] = {}
+for _k, _c in list(COALITION_GAMES.items()):
+    if _k.startswith("free_chat_") or "free_chat" in (_c.applied_variants or ()):
+        continue
+    _FREE_CHAT_COALITION["free_chat_" + _k] = _replace(
+        _apply_free_chat(_c, base_key=_k),
+        name="Free-chat " + _c.name,
+        description=(
+            _c.description
+            + " Each player additionally sends a free-form natural-language "
+            "message every round; messages from all other players appear in "
+            "the next-round prompt verbatim. Messages are non-binding."
+        ),
+    )
+COALITION_GAMES.update(_FREE_CHAT_COALITION)
+for _key, _c in _FREE_CHAT_COALITION.items():
+    NPLAYER_GAMES[_key] = _c

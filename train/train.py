@@ -319,15 +319,32 @@ def _play_batch_interactive_episodes(
     this does ~9 batched calls (one per round after round 1),
     each processing all active episodes simultaneously.
 
-    Args:
-        envs: list of KantEnvironment instances (one per episode)
-        episode_configs: list of (game_key, strategy, first_action)
-        model, tokenizer, device: for batched generation
-
-    Returns:
-        list of episode result dicts (or None for failed episodes)
+    Free_chat dispatch: if EVERY game in the batch is a free_chat
+    variant, route to the 2-phase rollout in train.free_chat_rollouts
+    (one model call per phase per round, env.step called twice). Mixed
+    batches fall through to the legacy single-phase loop, which now
+    raises if any free_chat game appears so the caller has to bucket
+    free_chat envs separately rather than silently treating them as
+    single-phase.
     """
     from env.models import GameAction as LocalGameAction
+    from train.free_chat_rollouts import (
+        play_batch_free_chat_episodes,
+        is_free_chat_game,
+    )
+
+    fc_flags = [is_free_chat_game(c[0]) for c in episode_configs]
+    if all(fc_flags) and fc_flags:
+        return play_batch_free_chat_episodes(
+            envs, episode_configs, model, tokenizer, device,
+            batch_generate_fn=_batch_generate_actions,
+        )
+    if any(fc_flags):
+        raise ValueError(
+            "Mixed free_chat / non-free_chat batch in "
+            "_play_batch_interactive_episodes. Bucket free_chat games "
+            "separately so the 2-phase rollout dispatch is unambiguous."
+        )
 
     n = len(episode_configs)
     results = [None] * n

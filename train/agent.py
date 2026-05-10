@@ -173,11 +173,17 @@ def parse_free_chat(response: str, available_actions: List[str]) -> tuple[str, s
     return parse_action(text, available_actions), text.strip()
 
 
-def parse_action(response: str, available_actions: List[str]) -> str:
-    """Parse an action from LLM response text.
+class ParseActionError(ValueError):
+    """Raised when an LLM response cannot be matched to any action token.
+    Replaces the previous random.choice last-resort branch which silently
+    contaminated action distributions with coin-flipped tokens (e.g.
+    'defeat' in free_chat_pd 2026-05-09 was being rewritten to 'defect'
+    via random.choice with p=0.5)."""
 
-    Tries: exact match -> case-insensitive -> substring -> random selection.
-    """
+
+def parse_action(response: str, available_actions: List[str]) -> str:
+    """Parse an action from LLM response text. Tries exact -> case-
+    insensitive -> substring; raises ParseActionError if none match."""
     stripped = response.strip()
 
     # Exact match
@@ -195,8 +201,11 @@ def parse_action(response: str, available_actions: List[str]) -> str:
         if action.lower() in lower:
             return action
 
-    # Random selection as last resort
-    return random.choice(available_actions)
+    raise ParseActionError(
+        f"LLM response {response!r} did not match any of the available "
+        f"actions {available_actions!r}. No silent fallback — caller must "
+        f"decide how to handle the parse miss."
+    )
 
 
 class LLMAgent:

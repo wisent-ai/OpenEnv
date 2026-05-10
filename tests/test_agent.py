@@ -113,10 +113,14 @@ def test_parse_substring():
     assert result == "cooperate"
 
 
-def test_parse_random_default():
-    """Completely unrelated text yields one of the available actions."""
-    result = parse_action("banana", ["cooperate", "defect"])
-    assert result in ["cooperate", "defect"]
+def test_parse_raises_on_unmatched():
+    """Off-vocabulary response must raise ParseActionError, not silently
+    substitute a random action. Was previously a random.choice fallback
+    that contaminated action distributions with coin-flip tokens."""
+    import pytest
+    from train.agent import ParseActionError
+    with pytest.raises(ParseActionError):
+        parse_action("banana", ["cooperate", "defect"])
 
 
 # ── LLMAgent tests ──

@@ -275,6 +275,21 @@ def _batch_generate_actions(model, tokenizer, obs_list, device):
     if not obs_list:
         return []
 
+    # Phase-aware generation params: the 2-phase free_chat rollout
+    # sets obs.metadata["phase"] to "message" or "action"; all obs in a
+    # single batch share the same phase. Action phase wants a tight,
+    # near-greedy decode (temp 0.1, 4 tokens) so the model emits a
+    # single action token rather than wandering for 16 tokens. Message
+    # phase keeps higher temp + longer budget for short prose. Legacy
+    # single-phase obs (no metadata.phase) keeps the original config.
+    _phase = (obs_list[0].metadata or {}).get("phase") if obs_list else None
+    if _phase == "action":
+        _gen_max, _gen_temp = 4, 0.1
+    elif _phase == "message":
+        _gen_max, _gen_temp = 24, 0.7
+    else:
+        _gen_max, _gen_temp = 16, 0.7
+
     # Build all prompts
     texts = []
     for obs in obs_list:
@@ -298,7 +313,7 @@ def _batch_generate_actions(model, tokenizer, obs_list, device):
         inputs = {k: v.to(device) for k, v in inputs.items()}
         with torch.no_grad():
             outputs = model.generate(
-                **inputs, max_new_tokens=16, temperature=0.7,
+                **inputs, max_new_tokens=_gen_max, temperature=_gen_temp,
                 do_sample=True, pad_token_id=tokenizer.pad_token_id,
             )
         actions = []
@@ -331,7 +346,7 @@ def _batch_generate_actions(model, tokenizer, obs_list, device):
         inputs = {k: v.to(device) for k, v in inputs.items()}
         with torch.no_grad():
             outputs = model.generate(
-                **inputs, max_new_tokens=16, temperature=0.7,
+                **inputs, max_new_tokens=_gen_max, temperature=_gen_temp,
                 do_sample=True, pad_token_id=tokenizer.pad_token_id,
             )
         completion = tokenizer.decode(

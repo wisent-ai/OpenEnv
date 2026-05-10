@@ -139,7 +139,7 @@ def create_instance(trial_id: str, params: dict) -> str | None:
                 f"--metadata-from-file=startup-script={startup_file} "
                 f"2>&1"
             )
-            result = run_cmd(cmd, timeout=300)
+            result = run_cmd(cmd)
             if "Created" in result or "RUNNING" in result:
                 logger.info(f"Trial {trial_id} created in {zone}")
                 return zone
@@ -151,21 +151,18 @@ def create_instance(trial_id: str, params: dict) -> str | None:
     return None
 
 
-def wait_for_result(trial_id: str, timeout_min: int = 30) -> dict | None:
-    """Poll GCS for trial result."""
+def wait_for_result(trial_id: str, **_unused) -> dict:
+    """Poll GCS until the trial result lands. No timeout (CLAUDE.md:
+    'No timeouts'); the previous 30-min deadline + 'except (
+    JSONDecodeError, TimeoutExpired): pass' silently turned slow
+    H100 dispatches and corrupt result JSON into TrialPruned with
+    the real cause hidden behind an elapsed-time return None."""
     result_path = f"{GCS_BUCKET}/hyperopt/{trial_id}/result.json"
-    deadline = time.time() + timeout_min * 60
-
-    while time.time() < deadline:
-        try:
-            output = run_cmd(f"gsutil cat {result_path} 2>/dev/null", timeout=15)
-            if output and "{" in output:
-                return json.loads(output)
-        except (json.JSONDecodeError, subprocess.TimeoutExpired):
-            pass
+    while True:
+        output = run_cmd(f"gsutil cat {result_path} 2>/dev/null")
+        if output and "{" in output:
+            return json.loads(output)
         time.sleep(30)
-
-    return None
 
 
 def cleanup_instance(trial_id: str):
@@ -208,7 +205,7 @@ def objective(params: dict) -> dict:
         return {"loss": 1.0, "status": STATUS_FAIL}
 
     try:
-        result = wait_for_result(trial_id, timeout_min=30)
+        result = wait_for_result(trial_id)
     finally:
         cleanup_instance(trial_id)
 

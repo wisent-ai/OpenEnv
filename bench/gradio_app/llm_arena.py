@@ -158,16 +158,17 @@ def run_infinite_tournament(game_name, variants, models):
                               rnd, m["p2_score"], m["p1_score"])
             prompt1 = PromptBuilder.build(obs1)
             prompt2 = PromptBuilder.build(obs2)
-            try:
-                raw1 = _call_llm(m["p1_prov"], m["p1_model"], prompt1)
-                act1 = parse_action(raw1, actions)
-            except Exception:
-                act1 = _rand.choice(actions)
-            try:
-                raw2 = _call_llm(m["p2_prov"], m["p2_model"], prompt2)
-                act2 = parse_action(raw2, actions)
-            except Exception:
-                act2 = _rand.choice(actions)
+            # No silent random.choice fallback. The previous version
+            # caught any LLM-call or parse exception and substituted
+            # _rand.choice(actions), contaminating the arena's recorded
+            # action distribution with coin-flipped tokens. Now any
+            # call/parse failure propagates so the arena driver can
+            # surface the real cause (DNF / retry / etc.) instead of
+            # treating it as a real arena outcome.
+            raw1 = _call_llm(m["p1_prov"], m["p1_model"], prompt1)
+            act1 = parse_action(raw1, actions)
+            raw2 = _call_llm(m["p2_prov"], m["p2_model"], prompt2)
+            act2 = parse_action(raw2, actions)
             p1_pay, p2_pay = info["payoff_fn"](act1, act2)
             m["p1_score"] += p1_pay
             m["p2_score"] += p2_pay

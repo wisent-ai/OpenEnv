@@ -112,7 +112,7 @@ def create_trial_instance(trial_id: str, params: dict) -> str | None:
             f"--metadata-from-file=startup-script={startup_file} "
             f"2>&1"
         )
-        result = run_cmd(cmd, timeout=300)
+        result = run_cmd(cmd)
         if "Created" in result or "RUNNING" in result:
             logger.info(f"Trial {trial_id} created in {zone}")
             import os
@@ -126,21 +126,20 @@ def create_trial_instance(trial_id: str, params: dict) -> str | None:
     return None
 
 
-def wait_for_trial(trial_id: str, timeout_min: int = 30) -> dict | None:
-    """Poll GCS for trial result."""
+def wait_for_trial(trial_id: str, **_unused) -> dict:
+    """Poll GCS until the trial result lands. No timeout — the trial
+    instance writes /workspace/trial_result.json and shuts down; we
+    poll until that file appears in GCS. CLAUDE.md is explicit ('No
+    timeouts'); the previous 30-min deadline silently turned slow
+    A100 dispatches into 'TrialPruned' with the real cause hidden
+    behind an elapsed-time return None. Now propagates JSON decode
+    errors so the caller knows the file is corrupt rather than late."""
     result_path = f"{GCS_BUCKET}/optuna/{trial_id}/result.json"
-    deadline = time.time() + timeout_min * 60
-
-    while time.time() < deadline:
-        try:
-            output = run_cmd(f"gsutil cat {result_path} 2>/dev/null", timeout=15)
-            if output and "{" in output:
-                return json.loads(output)
-        except (json.JSONDecodeError, subprocess.TimeoutExpired):
-            pass
+    while True:
+        output = run_cmd(f"gsutil cat {result_path} 2>/dev/null")
+        if output and "{" in output:
+            return json.loads(output)
         time.sleep(30)
-
-    return None
 
 
 def cleanup_trial(trial_id: str):
@@ -171,12 +170,15 @@ def objective(trial: optuna.Trial) -> float:
         raise optuna.TrialPruned("Could not create instance")
 
     try:
-        result = wait_for_trial(trial_id, timeout_min=25)
+        result = wait_for_trial(trial_id)
     finally:
         cleanup_trial(trial_id)
 
-    if result is None or "error" in result:
-        raise optuna.TrialPruned("Trial did not produce results")
+    # wait_for_trial now blocks until a result file appears; it never
+    # returns None. The only way to prune is an explicit error in the
+    # trial result JSON.
+    if "error" in result:
+        raise optuna.TrialPruned(f"Trial reported error: {result['error']}")
 
     # Composite score: we want high reward_fn, low zero_std, positive reward_trend
     reward_fn = result.get("reward_fn", 0)

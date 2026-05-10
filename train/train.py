@@ -468,10 +468,16 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
             "available_moves", [["cooperate", "defect"]] * len(completions)
         )
 
-        # Parse all first actions
+        # Parse all first actions. For free_chat games skip — completions are NL
+        # messages or 2-phase emissions, not bare action tokens. play_batch_free_chat_
+        # episodes parses them per phase and ignores first_action.
+        from train.free_chat_rollouts import is_free_chat_game as _is_fc_game
         first_actions = []
         for i, (completion, moves) in enumerate(zip(completions, available_moves_batch)):
-            action = parse_action(completion.strip(), moves)
+            if _is_fc_game(game_keys[i]):
+                action = moves[0]  # sentinel; play_batch_free_chat_episodes ignores it
+            else:
+                action = parse_action(completion.strip(), moves)
             first_actions.append(action)
             if i < 3:
                 logger.info(

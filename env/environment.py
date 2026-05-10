@@ -85,7 +85,8 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
             )
 
         player_action = action.action
-        opponent_action = self._auto_play_opponent(player_action)
+        player_message = (action.metadata or {}).get("message", "") or ""
+        opponent_action, opponent_message = self._auto_play_opponent(player_action)
 
         p_pay, o_pay = self._game.payoff_fn(player_action, opponent_action)
 
@@ -96,6 +97,8 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
             opponent_action=opponent_action,
             player_payoff=p_pay,
             opponent_payoff=o_pay,
+            player_message=player_message,
+            opponent_message=opponent_message,
         )
 
         history = list(self._state.history) + [result]
@@ -126,7 +129,10 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _auto_play_opponent(self, player_action: str) -> str:
+    def _auto_play_opponent(self, player_action: str) -> tuple[str, str]:
+        """Return (opponent_action, opponent_message). Message is "" for
+        scripted strategies and for any opponent that doesn't surface a
+        message via GameAction.metadata['message']."""
         assert self._game is not None
 
         if self._opponent_fn is not None:
@@ -138,7 +144,8 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
                     f"Opponent returned invalid action '{opp_action.action}'. "
                     f"Choose from: {opp_actions}"
                 )
-            return opp_action.action
+            opp_msg = (opp_action.metadata or {}).get("message", "") or ""
+            return opp_action.action, opp_msg
 
         assert self._strategy is not None
         hist = [
@@ -151,7 +158,7 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
         opp_actions = self._opponent_actions()
         return self._strategy.choose_action(
             self._game.game_type, opp_actions, hist,
-        )
+        ), ""
 
     def _opponent_actions(self) -> list[str]:
         assert self._game is not None
@@ -180,10 +187,21 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
                 opponent_action=r.player_action,
                 player_payoff=r.opponent_payoff,
                 opponent_payoff=r.player_payoff,
+                player_message=r.opponent_message,
+                opponent_message=r.player_message,
             )
             for r in self._state.history
         ]
         opp_actions = self._opponent_actions()
+        meta: dict = {}
+        if "free_chat" in (self._game.applied_variants or ()):
+            meta["free_chat"] = True
+        if flipped_history:
+            last = flipped_history[-1]
+            if last.opponent_message:
+                meta["last_opp_message"] = last.opponent_message
+            if last.player_message:
+                meta["last_player_message"] = last.player_message
         return GameObservation(
             done=False,
             reward=_ZERO_F,
@@ -196,6 +214,7 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
             player_score=self._state.opponent_score,
             opponent_score=self._state.player_score,
             opponent_strategy="agent",
+            metadata=meta,
         )
 
     def _build_observation(
@@ -205,6 +224,17 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
         done: bool = False,
     ) -> GameObservation:
         assert self._game is not None
+        # Surface the opponent's most-recent free-form message into
+        # obs.metadata so the prompt builder (or any caller) can render
+        # it verbatim without inspecting full history. Empty when the
+        # game isn't a free_chat variant or no message was sent.
+        meta: dict = {}
+        if "free_chat" in (self._game.applied_variants or ()):
+            meta["free_chat"] = True
+        if last_round is not None and last_round.opponent_message:
+            meta["last_opp_message"] = last_round.opponent_message
+        if last_round is not None and last_round.player_message:
+            meta["last_player_message"] = last_round.player_message
         return GameObservation(
             done=done,
             reward=reward,
@@ -218,6 +248,7 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
             opponent_score=self._state.opponent_score,
             opponent_strategy=self._strategy_name,
             last_round=last_round,
+            metadata=meta,
         )
 
 

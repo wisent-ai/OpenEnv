@@ -54,6 +54,15 @@ class PromptBuilder:
             + _NEWLINE + obs.game_description
         )
 
+        # Free-chat: render the opponent's most-recent free-form message
+        # verbatim into the prompt so the agent can react to natural-
+        # language signaling. Driven by env-side metadata, so any game
+        # that becomes a free-chat variant via apply_free_chat picks this
+        # up automatically without per-game prompt-builder changes.
+        last_opp_msg = (obs.metadata or {}).get("last_opp_message", "")
+        if last_opp_msg:
+            sections.append("[Opponent said last round]\n" + last_opp_msg)
+
         # History section (limited to last N rounds)
         if obs.history:
             history_lines: List[str] = []
@@ -88,13 +97,67 @@ class PromptBuilder:
             + _NEWLINE + _NEWLINE.join(action_lines)
         )
 
-        # Instruction
+        # Instruction. For free-chat games (signaled by metadata flag the
+        # env sets, OR by presence of last_opp_message earlier in this
+        # episode) ask for MESSAGE + ACTION two-line format instead of
+        # the bare-action SYSTEM_PROMPT.
+        is_free_chat = bool(
+            (obs.metadata or {}).get("last_opp_message")
+            or (obs.metadata or {}).get("free_chat")
+        )
+        if is_free_chat:
+            instruction = (
+                "Write ONE short message to your opponent on the first line, "
+                "starting with 'MESSAGE:'. Then on a new line write exactly "
+                "'ACTION: <action>' where <action> is one of the available "
+                "actions listed above. The message is non-binding cheap talk; "
+                "only the action affects payoff."
+            )
+        else:
+            instruction = SYSTEM_PROMPT
         sections.append(
             _BRACKET_OPEN + PROMPT_SECTION_INSTRUCTION + _BRACKET_CLOSE
-            + _NEWLINE + SYSTEM_PROMPT
+            + _NEWLINE + instruction
         )
 
         return _SECTION_SEP.join(sections)
+
+
+_FREE_CHAT_ACTION_RE = None
+
+
+def _free_chat_action_re():
+    """Lazy compile of the MESSAGE/ACTION regex used by parse_free_chat."""
+    global _FREE_CHAT_ACTION_RE
+    if _FREE_CHAT_ACTION_RE is None:
+        import re
+        _FREE_CHAT_ACTION_RE = re.compile(
+            r"ACTION\s*[:\-]\s*([A-Za-z0-9_\-]+)", re.IGNORECASE,
+        )
+    return _FREE_CHAT_ACTION_RE
+
+
+def parse_free_chat(response: str, available_actions: List[str]) -> tuple[str, str]:
+    """Parse a free-chat completion of the form ``MESSAGE: <text>\\nACTION: <token>``.
+
+    Returns ``(action, message)``. The action is matched against
+    ``available_actions`` by the same exact / case-insensitive / substring
+    cascade as :func:`parse_action`. The message is everything before the
+    matched ACTION line; if no ACTION line is present the entire response
+    is treated as the message and the action falls back to substring match
+    on the raw response (so a response that's only a bare token still
+    parses).
+    """
+    text = response or ""
+    m = _free_chat_action_re().search(text)
+    if m:
+        message = text[: m.start()].strip()
+        # Strip a leading 'MESSAGE:' prefix the model often emits.
+        if message.lower().startswith("message:"):
+            message = message[len("message:"):].strip()
+        action = parse_action(m.group(1), available_actions)
+        return action, message
+    return parse_action(text, available_actions), text.strip()
 
 
 def parse_action(response: str, available_actions: List[str]) -> str:
@@ -151,6 +214,14 @@ class LLMAgent:
         self._last_prompt = prompt
         completion = self._generate_fn(prompt)
         self._last_completion = completion
+        # Detect free-chat games via the prompt's instruction shape.
+        # PromptBuilder injects a 'MESSAGE / ACTION' instruction when the
+        # variant is active (it can read obs.metadata flags or the game's
+        # applied_variants). The cheap test: if the prompt asks for a
+        # MESSAGE line, parse the response with the free-chat path.
+        if "MESSAGE:" in prompt and "ACTION:" in prompt:
+            action_str, msg = parse_free_chat(completion, obs.available_actions)
+            return GameAction(action=action_str, metadata={"message": msg})
         action_str = parse_action(completion, obs.available_actions)
         return GameAction(action=action_str)
 

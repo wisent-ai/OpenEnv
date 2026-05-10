@@ -35,10 +35,25 @@ from constant_definitions.var.pd_variant_constants import (
     DEFAULT_NOISE_SCALE_NUMERATOR,
     DEFAULT_NOISE_SCALE_DENOMINATOR,
 )
-from constant_definitions.var.communication_constants import COMMIT_COST
+from constant_definitions.var.communication_constants import (
+    COMMIT_COST, VARIANT_FREE_CHAT,
+)
 
 _ONE = int(bool(True))
 _ZERO = int()
+
+
+def apply_free_chat(base: GameConfig, base_key: str = "") -> GameConfig:
+    """Free-form NL message channel. Action vocab unchanged; message rides
+    on GameAction.metadata['message'] and is surfaced to the opponent via
+    GameObservation.metadata['last_opp_message']. Marker only — env, agent,
+    PromptBuilder all key off VARIANT_FREE_CHAT in applied_variants. Payoff
+    untouched (cheap talk: non-binding, depends only on action)."""
+    return replace(
+        base,
+        applied_variants=base.applied_variants + (VARIANT_FREE_CHAT,),
+        base_game_key=base_key or base.base_game_key,
+    )
 
 
 def apply_cheap_talk(

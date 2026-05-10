@@ -19,6 +19,10 @@ class RoundResult(BaseModel):
     opponent_action: str = Field(..., description="Action taken by the opponent")
     player_payoff: float = Field(..., description="Payoff received by the agent")
     opponent_payoff: float = Field(..., description="Payoff received by the opponent")
+    # Free-form natural-language messages, populated only by free_chat games.
+    # Default empty so existing games and serialized records stay back-compat.
+    player_message: str = Field(default="", description="Free-form message the agent sent this round (free_chat games only)")
+    opponent_message: str = Field(default="", description="Free-form message the opponent sent this round (free_chat games only)")
 
 
 class GameAction(BaseModel):

@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from common.games import GAMES, GameConfig, _matrix_payoff_fn
-from common.variants import apply_cheap_talk, apply_binding_commitment
+from common.variants import apply_cheap_talk, apply_binding_commitment, apply_free_chat
 from constant_definitions.game_constants import DEFAULT_NUM_ROUNDS, SINGLE_SHOT_ROUNDS
 from constant_definitions.var.communication_constants import (
     CE_FOLLOW_FOLLOW, CE_FOLLOW_DEVIATE,
@@ -123,3 +123,30 @@ COMMUNICATION_GAMES: dict[str, GameConfig] = {
 }
 
 GAMES.update(COMMUNICATION_GAMES)
+
+
+# -- Free-chat variants for every registered 2P game --
+# apply_free_chat(base) keeps the action vocab unchanged and adds a
+# free-form message channel (see common/variants.py + env/environment.py).
+# We register a free_chat_<key> sibling for every base game so the variant
+# is uniformly available across the registry without per-game wiring.
+_BASE_KEYS_FOR_FREE_CHAT = list(GAMES.keys())
+FREE_CHAT_GAMES: dict[str, GameConfig] = {}
+for _k in _BASE_KEYS_FOR_FREE_CHAT:
+    if _k.startswith("free_chat_"):
+        continue
+    if "free_chat" in (GAMES[_k].applied_variants or ()):
+        continue
+    FREE_CHAT_GAMES["free_chat_" + _k] = replace(
+        apply_free_chat(GAMES[_k], base_key=_k),
+        name="Free-chat " + GAMES[_k].name,
+        description=(
+            GAMES[_k].description
+            + " In this variant each player additionally sends a free-form "
+            "natural-language message to the opponent before acting; the "
+            "opponent sees the verbatim message in their next-round prompt. "
+            "Messages are non-binding cheap talk and do not affect payoff."
+        ),
+    )
+
+GAMES.update(FREE_CHAT_GAMES)

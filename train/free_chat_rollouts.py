@@ -41,18 +41,21 @@ def _local_coop_rate(history) -> float:
 
 
 def _constrained_action_generate(model, tokenizer, obs_list, device):
-    """Force the first generated token to match an action-word prefix.
+    """Force model.generate to emit one of the available action words exactly.
 
-    Small models (Llama-3.2-1B) emit unparseable prose during the action
-    phase even with sharp prompts. We restrict the step-0 logits to the
-    first-token IDs of each available action word so a valid action
-    prefix is guaranteed. Subsequent tokens are unrestricted so the
-    model completes the word naturally. parse_action's substring match
-    then picks up the full action word from the completion.
+    A step-0-only constraint isn't enough: small models commit to a
+    valid first-token like " co" then drift to "cooking" instead of
+    "cooperate", and parse_action's substring match needs the FULL
+    action word. So we make the constraint STATEFUL — at every step
+    of generation, the only allowed next-tokens are those that keep
+    `generated` as a prefix of at least one action's full token
+    sequence. Once an action is fully spelled out, allow EOS.
 
-    The constraint is format-only; the policy still chooses WHICH action
-    to take, so the emergent strategic dynamics the study aims to observe
-    (lying, lie-detection, cooperation patterns) are preserved.
+    The constraint is format-only; the policy still chooses WHICH
+    action to commit to at step 0 (and any action whose first-token
+    has higher logit wins under greedy decode), so the emergent
+    strategic dynamics (lying, lie-detection, cooperation) are
+    preserved — only the FORMAT is forced into an action vocab.
     """
     import torch
 
@@ -77,32 +80,50 @@ def _constrained_action_generate(model, tokenizer, obs_list, device):
             messages, tokenize=False, add_generation_prompt=True
         )
 
-        allowed_first: set[int] = set()
+        # Build the set of viable FULL-word token sequences. Try a few
+        # surface forms (leading space, capitalization) since chat templates
+        # and tokenizers vary in where the assistant turn starts.
+        action_seqs: list[list[int]] = []
         for a in actions:
-            for variant in (" " + a, a, a.capitalize(), " " + a.capitalize()):
+            for variant in (" " + a, a, " " + a.capitalize(), a.capitalize()):
                 ids = tokenizer.encode(variant, add_special_tokens=False)
                 if ids:
-                    allowed_first.add(ids[0])
-        if not allowed_first:
+                    action_seqs.append(ids)
+        if not action_seqs:
             raise RuntimeError(
-                f"_constrained_action_generate: empty first-token set for "
-                f"actions {actions!r}. Tokenizer rejected every surface form; "
-                f"surface the failure rather than synthesize an action."
+                f"_constrained_action_generate: tokenizer produced no "
+                f"token sequence for any surface form of actions {actions!r}."
             )
-        allowed_first_list = sorted(allowed_first)
+        eos_id = tokenizer.eos_token_id
 
         inputs = tokenizer(text, return_tensors="pt").to(device)
         prompt_len = inputs["input_ids"].shape[1]
 
-        def _prefix_fn(batch_id, input_ids, _plen=prompt_len, _allowed=allowed_first_list):
-            if input_ids.shape[-1] == _plen:
-                return _allowed
-            return list(range(tokenizer.vocab_size or 32000))
+        def _prefix_fn(batch_id, input_ids,
+                       _plen=prompt_len, _seqs=action_seqs, _eos=eos_id):
+            gen = input_ids[_plen:].tolist() if input_ids.ndim == 1 else input_ids[0, _plen:].tolist()
+            k = len(gen)
+            next_allowed: set[int] = set()
+            done_seen = False
+            for seq in _seqs:
+                if k > len(seq):
+                    continue
+                if gen == seq[:k]:
+                    if k < len(seq):
+                        next_allowed.add(seq[k])
+                    else:
+                        done_seen = True
+            if done_seen and _eos is not None:
+                next_allowed.add(_eos)
+            if not next_allowed:
+                return [_eos] if _eos is not None else [0]
+            return sorted(next_allowed)
 
+        max_seq_len = max(len(s) for s in action_seqs)
         with torch.no_grad():
             out = model.generate(
                 **inputs,
-                max_new_tokens=8,
+                max_new_tokens=max_seq_len + 1,
                 do_sample=False,
                 pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
                 prefix_allowed_tokens_fn=_prefix_fn,

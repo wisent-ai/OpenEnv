@@ -830,6 +830,12 @@ def main():
         save_total_limit=3,
         beta=args.kl_beta,
         bf16=torch.cuda.is_available(),
+        # 8-bit AdamW (bitsandbytes) instead of fp32 AdamW saves ~10 GB
+        # of optimizer state for a 1B model — required to fit GRPO on a
+        # 15 GB T4. Falls back to standard adamw_torch on CPU (where the
+        # bnb backend would not work).
+        optim="adamw_bnb_8bit" if torch.cuda.is_available() else "adamw_torch",
+        gradient_checkpointing=True,
         fp16=False,
         report_to=args.report_to,
         run_name=args.wandb_run_name,

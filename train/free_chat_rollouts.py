@@ -124,7 +124,9 @@ def _constrained_action_generate(model, tokenizer, obs_list, device):
             out = model.generate(
                 **inputs,
                 max_new_tokens=max_seq_len + 1,
-                do_sample=False,
+                do_sample=True,
+                temperature=1.0,
+                top_p=1.0,
                 pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
                 prefix_allowed_tokens_fn=_prefix_fn,
             )

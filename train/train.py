@@ -731,10 +731,15 @@ def main():
     # Loading bf16 weights on a T4 then using fp16 GradScaler causes
     # "_amp_foreach_non_finite_check_and_unscale_cuda not implemented for
     # BFloat16" because the scaler unscales bf16 grads it cannot handle.
-    if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8:
+    # Use bf16 unconditionally on GPU. bf16 has the same exponent range
+    # as fp32 so no GradScaler is needed (no AMP scaler.unscale_ calls
+    # that error out on fp16 grads vs fp16 master, or on bf16 grads vs
+    # the cuda kernel that does not implement bf16 unscale). On T4 (cap
+    # 7.5) bf16 is software-emulated and slightly slower, but the run
+    # completes correctly. For the dynamics study which only runs 100
+    # GRPO steps this is the right trade — slower steps, no crashes.
+    if torch.cuda.is_available():
         _train_dtype = torch.bfloat16
-    elif torch.cuda.is_available():
-        _train_dtype = torch.float16
     else:
         _train_dtype = torch.float32
     load_kwargs = {
@@ -824,8 +829,8 @@ def main():
         save_steps=args.save_steps,
         save_total_limit=3,
         beta=args.kl_beta,
-        bf16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8,
-        fp16=torch.cuda.is_available() and torch.cuda.get_device_capability()[0] < 8,
+        bf16=torch.cuda.is_available(),
+        fp16=False,
         report_to=args.report_to,
         run_name=args.wandb_run_name,
         push_to_hub=args.push_to_hub,

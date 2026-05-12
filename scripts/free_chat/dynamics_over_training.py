@@ -44,17 +44,41 @@ import common.games_info.communication  # noqa: F401  (registers free_chat_*)
 
 
 def _stated_action(msg: str, actions: list[str]) -> str | None:
-    """Return the unique action mentioned (word-boundary) or None /
-    'AMBIGUOUS' for zero / multiple matches."""
+    """Return the unique action mentioned (word-boundary OR action-prefix
+    in the FIRST token of the message) or None / 'AMBIGUOUS'.
+
+    Two passes:
+      1. Word-boundary substring (full action word anywhere in the msg).
+         Catches "I will defect" style.
+      2. First-token prefix (action-word prefix at the start of the msg).
+         Catches the GRPO-converged pattern where a 1B model emits the
+         tokenizer's first-token of the action word as the message
+         opener: 'def are to that...' for defect, 'coop you...' for
+         cooperate, etc. The prefix must be at least 2 chars to avoid
+         single-letter coincidences. Word-boundary match wins when both
+         fire (full-word emission is the stronger evidence).
+    """
     if not msg:
         return None
     msg_l = msg.lower()
     mentioned = [a for a in actions if re.search(r"\b" + re.escape(a.lower()) + r"\b", msg_l)]
-    if not mentioned:
+    if mentioned:
+        if len(set(mentioned)) > 1:
+            return "AMBIGUOUS"
+        return mentioned[0]
+    first_token = msg_l.split()[0] if msg_l.split() else ""
+    prefix_hits = []
+    for a in actions:
+        al = a.lower()
+        for k in range(2, len(al) + 1):
+            if first_token.startswith(al[:k]):
+                prefix_hits.append(a)
+                break
+    if not prefix_hits:
         return None
-    if len(set(mentioned)) > 1:
+    if len(set(prefix_hits)) > 1:
         return "AMBIGUOUS"
-    return mentioned[0]
+    return prefix_hits[0]
 
 
 def _classify_round(player_msg, player_act, opp_msg, opp_act, actions):

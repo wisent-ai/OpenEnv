@@ -700,7 +700,6 @@ def parse_args():
                          "Lets a job survive agent VM reaps that wipe "
                          "local disk by resuming from the GCS checkpoint.")
     p.add_argument("--resume-from-checkpoint", type=str, default=None,
-    p.add_argument("--resume-from-checkpoint", type=str, default=None,
                     help="Path to checkpoint or 'latest' to resume training")
     # LoRA / QLoRA options
     p.add_argument("--use-lora", action="store_true",

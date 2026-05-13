@@ -55,21 +55,32 @@ def _install_hf_rate_limit_token_bucket() -> None:
 
         setattr(HfApi, _m, _make(_orig))
     HfApi._wisent_rate_limit_installed = True
+    def _make_mod(_o):
+        def _w(*a, **k):
+            wait_for_hf_token()
+            return _o(*a, **k)
+        _w._wisent_rate_limit_installed = True
+        return _w
     try:
         import huggingface_hub as _hh
         for _fn in ("hf_hub_download", "snapshot_download"):
             _orig = getattr(_hh, _fn, None)
             if _orig is None or getattr(_orig, "_wisent_rate_limit_installed", False):
                 continue
-
-            def _make_mod(_o):
-                def _w(*a, **k):
-                    wait_for_hf_token()
-                    return _o(*a, **k)
-                _w._wisent_rate_limit_installed = True
-                return _w
-
             setattr(_hh, _fn, _make_mod(_orig))
+        import huggingface_hub.file_download as _hfd
+        for _fn in ("hf_hub_download",):
+            _orig = getattr(_hfd, _fn, None)
+            if _orig is not None and not getattr(_orig, "_wisent_rate_limit_installed", False):
+                setattr(_hfd, _fn, _make_mod(_orig))
+    except Exception:
+        pass
+    try:
+        import transformers.utils.hub as _thub
+        for _fn in ("hf_hub_download", "cached_file", "cached_files"):
+            _orig = getattr(_thub, _fn, None)
+            if _orig is not None and not getattr(_orig, "_wisent_rate_limit_installed", False):
+                setattr(_thub, _fn, _make_mod(_orig))
     except Exception:
         pass
 

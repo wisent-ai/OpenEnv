@@ -77,6 +77,58 @@ def _install_hf_rate_limit_token_bucket() -> None:
 _install_hf_rate_limit_token_bucket()
 
 
+def _gcs_sync(local_path: str, gcs_uri: str, log_fn=print) -> bool:
+    """Sync a local file OR directory to GCS via gcloud storage cp.
+
+    Used by the checkpoint resume path: when a Trainer save_steps fires
+    on a wisent-compute agent VM that gets reaped before training
+    completes (Llama-1B 5k run was reaped 3 times today), the local
+    checkpoint dies with the VM. Pushing it to GCS each save means a
+    fresh agent can pull the latest checkpoint on startup and resume
+    from that step instead of from step 0.
+
+    Returns True on success, False on any failure. Tries gcloud
+    storage first (modern, doesn't depend on pyOpenSSL.crypto.sign),
+    falls back to gsutil only when gcloud is not on PATH.
+    """
+    import shutil, subprocess
+    cmd = None
+    if shutil.which("gcloud"):
+        cmd = ["gcloud", "storage", "cp", "--recursive", local_path, gcs_uri]
+    elif shutil.which("gsutil"):
+        cmd = ["gsutil", "-m", "cp", "-r", local_path, gcs_uri]
+    if cmd is None:
+        log_fn("[ckpt-sync] no gcloud/gsutil available")
+        return False
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        log_fn(f"[ckpt-sync] {' '.join(cmd)} failed rc={r.returncode} "
+               f"stderr={(r.stderr or '')[:200]}")
+        return False
+    return True
+
+
+def _gcs_pull(gcs_uri: str, local_dir: str, log_fn=print) -> bool:
+    """Inverse of _gcs_sync: pull a checkpoint tree from GCS into a
+    local directory before trainer.train(resume_from_checkpoint=...).
+    """
+    import os, shutil, subprocess
+    os.makedirs(local_dir, exist_ok=True)
+    cmd = None
+    if shutil.which("gcloud"):
+        cmd = ["gcloud", "storage", "cp", "--recursive", gcs_uri, local_dir]
+    elif shutil.which("gsutil"):
+        cmd = ["gsutil", "-m", "cp", "-r", gcs_uri, local_dir]
+    if cmd is None:
+        return False
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        log_fn(f"[ckpt-pull] {' '.join(cmd)} rc={r.returncode} "
+               f"stderr={(r.stderr or '')[:200]}")
+        return False
+    return True
+
+
 from common.games_meta.game_tags import GAME_TAGS
 from constant_definitions.batch4.tag_constants import CATEGORIES
 from constant_definitions.game_constants import EVAL_ZERO, EVAL_ONE

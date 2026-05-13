@@ -694,6 +694,12 @@ def parse_args():
                     help="Comma-separated game keys to restrict the training dataset to (overrides --use-train-split).")
     p.add_argument("--variant-fraction", type=float, default=VARIANT_FRACTION,
                     help="Fraction of samples using dynamic variant composition")
+    p.add_argument("--checkpoint-gcs-uri", type=str, default=None,
+                    help="If set, sync checkpoints to this gs:// path "
+                         "after each save and pull from it on startup. "
+                         "Lets a job survive agent VM reaps that wipe "
+                         "local disk by resuming from the GCS checkpoint.")
+    p.add_argument("--resume-from-checkpoint", type=str, default=None,
     p.add_argument("--resume-from-checkpoint", type=str, default=None,
                     help="Path to checkpoint or 'latest' to resume training")
     # LoRA / QLoRA options
@@ -862,7 +868,33 @@ def main():
         trainer_kwargs["peft_config"] = peft_config
 
     trainer = GRPOTrainer(**trainer_kwargs)
+    trainer = GRPOTrainer(**trainer_kwargs)
+    # Attach a checkpoint -> GCS sync callback. Fires after each
+    # save_steps boundary so the most recent checkpoint is durable
+    # against agent VM reaps. Decoupled from the trainer loop via
+    # subprocess (gcloud storage cp) so a slow upload only delays
+    # the next step, not the optimizer step itself.
+    if args.checkpoint_gcs_uri:
+        from transformers import TrainerCallback as _TC
+        from train.splits import _gcs_sync as _ckpt_sync
+        class _CkptSyncCb(_TC):
+            def on_save(self, _args, state, control, **_kw):
+                ckpt = os.path.join(_args.output_dir, f"checkpoint-{state.global_step}")
+                if os.path.isdir(ckpt):
+                    print(f"[ckpt] sync step {state.global_step} -> {args.checkpoint_gcs_uri}")
+                    _ckpt_sync(ckpt, args.checkpoint_gcs_uri.rstrip("/") + "/")
+        trainer.add_callback(_CkptSyncCb())
 
+    # Pull latest checkpoint from GCS so a fresh agent VM can resume
+    # past restarts. Each agent VM starts with empty disk; without this
+    # pull, args.output_dir contains nothing and the trainer starts
+    # from step 0 (lost ~9h on the Llama 5k run after 3 reaps).
+    if args.checkpoint_gcs_uri:
+        from train.splits import _gcs_pull as _ckpt_pull
+        print(f"[ckpt] pulling from {args.checkpoint_gcs_uri} -> {args.output_dir}")
+        _ckpt_pull(args.checkpoint_gcs_uri.rstrip("/") + "/*", args.output_dir)
+    resume_ckpt = args.resume_from_checkpoint
+    resume_ckpt = args.resume_from_checkpoint
     resume_ckpt = args.resume_from_checkpoint
     if resume_ckpt == "latest":
         # Check if any checkpoint actually exists; if not, start fresh

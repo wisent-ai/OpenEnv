@@ -723,7 +723,26 @@ def main():
     print(f"Output: {args.output_dir}")
     print(f"OpenEnv server: {args.env_url}")
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    def _hf_load_retry(_fn, *_a, **_k):
+        # Transient HF Hub connectivity (OSError "couldn't connect to
+        # huggingface.co") during model/config load was hard-FAILING the
+        # whole job and writing a terminal failed/ record even though the
+        # job is retryable (Llama 3ef705b2 batch-1778802890 failed
+        # 2026-05-15T16:39:41 at restarts=1/20; recovered only by requeue
+        # luck). Retry with exponential backoff so a blip does not kill it.
+        import time as _t
+        _last = None
+        for _i in range(6):
+            try:
+                return _fn(*_a, **_k)
+            except OSError as _e:
+                _last = _e
+                print(f"[hf-retry] {_fn.__name__} attempt "
+                      f"{_i + 1}/6 failed: {str(_e)[:160]}")
+                _t.sleep(min(60, 5 * (2 ** _i)))
+        raise _last
+
+    tokenizer = _hf_load_retry(AutoTokenizer.from_pretrained, args.model)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -763,8 +782,8 @@ def main():
 
     # Use eager attention for compatibility with batched left-padded generation
     load_kwargs["attn_implementation"] = "eager"
-    model_or_path = AutoModelForCausalLM.from_pretrained(
-        args.model, **load_kwargs
+    model_or_path = _hf_load_retry(
+        AutoModelForCausalLM.from_pretrained, args.model, **load_kwargs
     )
 
     if args.use_lora:

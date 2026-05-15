@@ -119,25 +119,47 @@ def _gcs_sync(local_path: str, gcs_uri: str, log_fn=print) -> bool:
     return True
 
 
-def _gcs_pull(gcs_uri: str, local_dir: str, log_fn=print) -> bool:
-    """Inverse of _gcs_sync: pull a checkpoint tree from GCS into a
-    local directory before trainer.train(resume_from_checkpoint=...).
+def _gcs_pull_latest(gcs_root: str, local_dir: str, log_fn=print) -> bool:
+    """Pull the NEWEST complete checkpoint-N from GCS into local_dir.
+
+    Replaces a bulk `cp gs://root/* dst` of every checkpoint (~18GB)
+    which, on partial failure or a pull racing the upload, left only
+    an older checkpoint locally so resume silently fell back — Llama
+    3ef705b2 lost ~500 steps/restart resuming from checkpoint-1000
+    while checkpoint-1500 sat complete in GCS, 2026-05-15. List
+    checkpoint-N newest-first, pull just that one dir, stop when
+    _ckpt_complete passes. True iff a complete ckpt was pulled.
     """
     import os, shutil, subprocess
     os.makedirs(local_dir, exist_ok=True)
-    cmd = None
-    if shutil.which("gcloud"):
-        cmd = ["gcloud", "storage", "cp", "--recursive", gcs_uri, local_dir]
-    elif shutil.which("gsutil"):
-        cmd = ["gsutil", "-m", "cp", "-r", gcs_uri, local_dir]
-    if cmd is None:
-        return False
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    root = gcs_root.rstrip("/")
+    g = bool(shutil.which("gcloud"))
+    ls = (["gcloud", "storage", "ls", root + "/"] if g
+          else ["gsutil", "ls", root + "/"])
+    r = subprocess.run(ls, capture_output=True, text=True)
     if r.returncode != 0:
-        log_fn(f"[ckpt-pull] {' '.join(cmd)} rc={r.returncode} "
-               f"stderr={(r.stderr or '')[:200]}")
+        log_fn(f"[ckpt-pull] list rc={r.returncode} {(r.stderr or '')[:160]}")
         return False
-    return True
+    steps = []
+    for ln in r.stdout.splitlines():
+        b = ln.rstrip("/").rsplit("/", 1)[-1]
+        if b.startswith("checkpoint-"):
+            try:
+                steps.append(int(b.split("-")[-1]))
+            except ValueError:
+                pass
+    for n in sorted(steps, reverse=True):
+        src, dst = f"{root}/checkpoint-{n}", os.path.join(local_dir, f"checkpoint-{n}")
+        cp = (["gcloud", "storage", "cp", "--recursive", src, local_dir] if g
+              else ["gsutil", "-m", "cp", "-r", src, local_dir])
+        cr = subprocess.run(cp, capture_output=True, text=True)
+        if cr.returncode == 0 and _ckpt_complete(dst):
+            log_fn(f"[ckpt-pull] pulled complete checkpoint-{n}")
+            return True
+        log_fn(f"[ckpt-pull] checkpoint-{n} rc={cr.returncode} incomplete; older")
+        shutil.rmtree(dst, ignore_errors=True)
+    log_fn("[ckpt-pull] no complete checkpoint in GCS")
+    return False
 
 
 from common.games_meta.game_tags import GAME_TAGS

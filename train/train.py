@@ -889,9 +889,9 @@ def main():
     # pull, args.output_dir contains nothing and the trainer starts
     # from step 0 (lost ~9h on the Llama 5k run after 3 reaps).
     if args.checkpoint_gcs_uri:
-        from train.splits import _gcs_pull as _ckpt_pull
-        print(f"[ckpt] pulling from {args.checkpoint_gcs_uri} -> {args.output_dir}")
-        _ckpt_pull(args.checkpoint_gcs_uri.rstrip("/") + "/*", args.output_dir)
+        from train.splits import _gcs_pull_latest as _ckpt_pull
+        print(f"[ckpt] pulling newest checkpoint from {args.checkpoint_gcs_uri} -> {args.output_dir}")
+        _ckpt_pull(args.checkpoint_gcs_uri, args.output_dir)
     # Resolve resume target to the newest COMPLETE checkpoint.
     # Old code globbed checkpoint-* and set resume=True, letting
     # Trainer auto-pick the highest dir without checking its weight

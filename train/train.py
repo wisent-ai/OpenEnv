@@ -892,18 +892,14 @@ def main():
         from train.splits import _gcs_pull as _ckpt_pull
         print(f"[ckpt] pulling from {args.checkpoint_gcs_uri} -> {args.output_dir}")
         _ckpt_pull(args.checkpoint_gcs_uri.rstrip("/") + "/*", args.output_dir)
-    resume_ckpt = args.resume_from_checkpoint
-    resume_ckpt = args.resume_from_checkpoint
-    resume_ckpt = args.resume_from_checkpoint
-    if resume_ckpt == "latest":
-        # Check if any checkpoint actually exists; if not, start fresh
-        import glob as _glob
-        ckpt_dirs = _glob.glob(os.path.join(args.output_dir, "checkpoint-*"))
-        if ckpt_dirs:
-            resume_ckpt = True  # Trainer auto-finds latest checkpoint in output_dir
-        else:
-            print("No existing checkpoints found, starting fresh.")
-            resume_ckpt = None
+    # Resolve resume target to the newest COMPLETE checkpoint.
+    # Old code globbed checkpoint-* and set resume=True, letting
+    # Trainer auto-pick the highest dir without checking its weight
+    # shards exist -- hard-FAILED the run when a GCS pull raced the
+    # checkpoint upload and left the index but not the safetensors
+    # (Qwen3 724084db at step 1000, 2026-05-15).
+    from train.splits import resolve_resume_checkpoint as _resolve_resume
+    resume_ckpt = _resolve_resume(args.resume_from_checkpoint, args.output_dir)
 
     print("Starting GRPO training...")
     print(f"  Reward: composite (payoff + cooperation + Pareto + fairness)")

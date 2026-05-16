@@ -559,6 +559,7 @@ def make_reward_fn(base_url: str, model=None, tokenizer=None):
         if _trajectory_log_path:
             _step_counter[0] += 1
             step = _step_counter[0]
+            os.makedirs(os.path.dirname(_trajectory_log_path) or ".", exist_ok=True)  # parent dir may not exist on a fresh resumed agent VM (FileNotFoundError crashed 724084db restart14 @step~1160)
             with open(_trajectory_log_path, "a", encoding="utf-8") as fh:
                 for ep_idx, ep in enumerate(episode_results):
                     if ep is None or "trajectory" not in ep:

@@ -902,6 +902,21 @@ def main():
                     print(f"[ckpt] sync step {state.global_step} -> {args.checkpoint_gcs_uri}")
                     _ckpt_sync(ckpt, args.checkpoint_gcs_uri.rstrip("/") + "/")
         trainer.add_callback(_CkptSyncCb())
+        class _ForceSaveCb(_TC):
+            # HF Trainer resuming from a checkpoint written with a
+            # different save_steps keeps the OLD save cadence (stock
+            # "save_steps: N != M (from trainer_state.json)" warning).
+            # Qwen3 724084db resumed checkpoint-1000 (made @save_steps
+            # 500), ran uninterrupted to step 1042 with --save-steps 20,
+            # yet wrote NO checkpoint past 1000 -> zero durable progress
+            # under the restart cadence. Force a save at every
+            # args.save_steps global-step boundary regardless of the
+            # resumed cadence so progress is durable across restarts.
+            def on_step_end(self, _a, state, control, **_k):
+                _ss = int(getattr(_a, "save_steps", 0) or 0)
+                if _ss > 0 and state.global_step > 0 and state.global_step % _ss == 0:
+                    control.should_save = True
+        trainer.add_callback(_ForceSaveCb())
 
     # Pull latest checkpoint from GCS so a fresh agent VM can resume
     # past restarts. Each agent VM starts with empty disk; without this

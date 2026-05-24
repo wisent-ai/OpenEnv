@@ -82,15 +82,10 @@ def install_parse_action_counter(log_completions: bool = False):
             _LOG.info("move=%d game=%s opp=%s parsed=%s raw=%r",
                       PARSE_TOTAL_COUNT, _CTX.get("game"), _CTX.get("opponent"),
                       parsed, response)
-        if _JSONL_FH is not None:
-            _JSONL_FH.write(json.dumps({
-                "ts": time.time(), "move": PARSE_TOTAL_COUNT,
-                "game": _CTX.get("game"), "opponent": _CTX.get("opponent"),
-                "raw": response, "parsed": parsed,
-                "available_actions": list(available_actions),
-                "parse_miss": not matched,
-            }, ensure_ascii=False) + "\n")
-            _JSONL_FH.flush()
+        # JSONL logging now happens in _agent_fn_from_llm so both
+        # message-phase and action-phase emissions land in the log; the
+        # legacy parse_action-only logging path was missing message
+        # emissions for free-chat games.
         return parsed
 
     _agent_mod.parse_action = _wrapped
@@ -98,7 +93,20 @@ def install_parse_action_counter(log_completions: bool = False):
 
 def _agent_fn_from_llm(agent: LLMAgent):
     def _fn(obs: GameObservation) -> GameAction:
-        return agent(obs)
+        ga = agent(obs)
+        if _JSONL_FH is not None:
+            phase = (obs.metadata or {}).get("phase", "")
+            _JSONL_FH.write(json.dumps({
+                "ts": time.time(),
+                "phase": phase,
+                "game": _CTX.get("game"),
+                "opponent": _CTX.get("opponent"),
+                "completion": getattr(agent, "_last_completion", ""),
+                "action": ga.action,
+                "message": (ga.metadata or {}).get("message", ""),
+            }, ensure_ascii=False) + "\n")
+            _JSONL_FH.flush()
+        return ga
     return _fn
 
 

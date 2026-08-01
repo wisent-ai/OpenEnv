@@ -1,5 +1,13 @@
 # KantBench
 
+<!-- wisent-readme-signals:start -->
+[![Release](https://img.shields.io/github/v/release/wisent-ai/OpenEnv?display_name=tag&sort=semver)](https://github.com/wisent-ai/OpenEnv/releases)
+[![Downloads](https://img.shields.io/github/downloads/wisent-ai/OpenEnv/total)](https://github.com/wisent-ai/OpenEnv/releases)
+[![License](https://img.shields.io/github/license/wisent-ai/OpenEnv)](https://github.com/wisent-ai/OpenEnv)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Wisent-5865F2?logo=discord&logoColor=white)](https://discord.gg/qRjpkthq54)
+<!-- wisent-readme-signals:end -->
+
+
 **A game-theory benchmark for training and evaluating AI agents in strategic reasoning.**
 
 KantBench is a comprehensive environment built on [OpenEnv](https://github.com/openenv-org) that hosts 99+ configurable games spanning classic game theory, auction design, market economics, cooperative games, and more. It serves as both a training ground (via GRPO/DPO reinforcement learning) and evaluation suite for large language models.

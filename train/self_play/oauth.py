@@ -25,7 +25,7 @@ _CONTENT_TYPE_FORM = "application/x-www-form-urlencoded"
 
 
 def _read_env_file() -> dict[str, str]:
-    """Read Supabase credentials from env vars or content-platform .env.local."""
+    """Read Supabase credentials from env vars or Echo's .env.local."""
     # Check environment variables first (for HF Spaces / Docker)
     sb_url = os.environ.get("SUPABASE_URL", "") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "")
     sb_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -35,7 +35,7 @@ def _read_env_file() -> dict[str, str]:
     env_path = os.path.join(
         os.path.expanduser("~"),
         "Documents", "CodingProjects", "Wisent",
-        "content-platform", ".env.local",
+        "echo", ".env.local",
     )
     env_vars: dict[str, str] = {}
     with open(env_path) as fh:

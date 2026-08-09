@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "product": "openenv-kant",
+  "releases": true,
+  "version_source": {
+    "kind": "regex",
+    "path": "pyproject.toml",
+    "pattern": "(?m)^\\s*version\\s*=\\s*[\\\"'](?P<version>[0-9A-Za-z._-]+)[\\\"']"
+  },
+  "platforms": {
+    "python": {
+      "runner_platform": "linux-amd64",
+      "quality": [
+        {
+          "name": "release-metadata",
+          "argv": [
+            "python3",
+            "scripts/stado_release.py",
+            "quality"
+          ]
+        }
+      ],
+      "build": {
+        "argv": [
+          "python3",
+          "scripts/stado_release.py",
+          "build"
+        ]
+      },
+      "stage": {
+        "release/python-distributions.tar": "release/python-distributions.tar"
+      }
+    }
+  },
+  "runtime": {
+    "binary": "release/python-distributions.tar",
+    "launcher": "release/python-distributions.tar",
+    "config_schema": 1,
+    "state_schema": 1,
+    "minimum_stado_version": "0.1.0",
+    "rollback_compatible_with": []
+  },
+  "promotion": {
+    "channels": [
+      "stable"
+    ],
+    "reconcile": false
+  },
+  "inputs": {},
+  "deliveries": []
+}

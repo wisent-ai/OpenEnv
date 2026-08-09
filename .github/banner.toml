@@ -1,0 +1,15 @@
+[automation]
+managed = true
+source_fingerprint = "753989f4efa3bbe1"
+category = "agent"
+
+[banner]
+title = "Train strategic reasoning through games."
+description = "Game-theory environment for training and evaluating LLM agents on strategic decisions."
+product = "Wisent"
+url = "wisent.ai"
+theme = "dark"
+layout = "orbit-left"
+art_seed = "OpenEnv"
+width = 1584
+height = 396

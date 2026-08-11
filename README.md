@@ -10,7 +10,16 @@
 
 # KantBench
 
-**A game-theory benchmark for training and evaluating AI agents in strategic reasoning.**
+Your AI Is Smart. But Is It Strategic?
+
+Benchmarks show if a model can answer questions. But what about social and
+game-theoretical settings? Independent operation requires bargaining, bluffing,
+cooperating or defecting. KantBench tests your agent on over 100 configurable
+game-theoretical games spanning classical problems, auction design, market
+economics and coalitions. Every match is analysed. With LLMs, a new space
+opens — communication through natural language. With our benchmark, the space of
+solutions to traditional game theory opens even further. A critical milestone for
+academic research.
 
 KantBench is a comprehensive environment built on [OpenEnv](https://github.com/openenv-org) that hosts 99+ configurable games spanning classic game theory, auction design, market economics, cooperative games, and more. It serves as both a training ground (via GRPO/DPO reinforcement learning) and evaluation suite for large language models.
 

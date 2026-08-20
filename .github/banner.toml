@@ -1,13 +1,13 @@
 [automation]
 managed = true
-source_fingerprint = "753989f4efa3bbe1"
+source_fingerprint = "4ae95d67e4f9b1ac"
 category = "agent"
 
 [banner]
 title = "Train strategic reasoning through games."
 description = "Game-theory environment for training and evaluating LLM agents on strategic decisions."
 product = "Wisent"
-url = "wisent.ai"
+url = "wisent.com"
 theme = "dark"
 layout = "orbit-left"
 art_seed = "OpenEnv"

@@ -133,6 +133,36 @@ pip install -e ".[train]"
 python -m train.train --model <model_name> --max-steps <steps>
 ```
 
+## Environment API
+
+Reset to a specific game and opponent strategy, an N-player game, or a random
+configuration:
+
+```python
+result = env.reset(game="stag_hunt", strategy="grudger")
+result = env.reset(game="nplayer_volunteer_dilemma", strategy="random")
+result = env.reset()
+```
+
+The 17 built-in strategies are `random`, `always_cooperate`, `always_defect`,
+`tit_for_tat`, `tit_for_two_tats`, `grudger`, `pavlov`,
+`suspicious_tit_for_tat`, `generous_tit_for_tat`, `adaptive`, `mixed`,
+`ultimatum_fair`, `ultimatum_low`, `trust_fair`, `trust_generous`,
+`public_goods_fair`, and `public_goods_free_rider`.
+
+The server exposes:
+
+- `/web` for the interactive environment explorer
+- `/docs` for the OpenAPI/Swagger interface
+- `/health` for container health
+- `/ws` for persistent reset/step sessions
+
+`KantBenchAction` has one string field, `move`. `KantBenchObservation` returns
+`game_name`, `game_description`, `available_moves`, `your_move`,
+`opponent_move`, `your_payoff`, `opponent_payoff`, `cumulative_score`,
+`round_number`, `max_rounds`, `opponent_strategy`, and `history`. N-player
+observations also return `num_players`, `player_index`, and `all_scores`.
+
 ## Training
 
 KantBench uses a composite reward signal combining:

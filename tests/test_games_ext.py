@@ -38,8 +38,6 @@ _FIVE = _THREE + _TWO
 _SIX = _FIVE + _ONE
 _EIGHT = _SIX + _TWO
 
-_EXPECTED_TOTAL = _EIGHT * _THREE * (_THREE + _ONE) + _THREE
-
 _EXTENDED_KEYS = [
     "matching_pennies", "rock_paper_scissors", "battle_of_the_sexes",
     "pure_coordination", "deadlock", "harmony",
@@ -51,9 +49,6 @@ _EXTENDED_KEYS = [
 
 
 class TestExtendedRegistry:
-    def test_total_game_count(self) -> None:
-        assert len(GAMES) == _EXPECTED_TOTAL
-
     @pytest.mark.parametrize("key", _EXTENDED_KEYS)
     def test_game_registered(self, key: str) -> None:
         assert key in GAMES

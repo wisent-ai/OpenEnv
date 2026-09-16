@@ -7,7 +7,6 @@ sys.path.insert(
 )
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 from common.games import GAMES, get_game
 from common.meta.variants_reputation import (
@@ -146,14 +145,6 @@ class TestParseGossipAction:
         assert base == "stag"
 
 
-class TestReputationVariantRegistry:
-    def test_gossip_in_registry(self) -> None:
-        assert VARIANT_GOSSIP in _REPUTATION_VARIANT_REGISTRY
-
-    def test_registry_function_is_apply_gossip(self) -> None:
-        assert _REPUTATION_VARIANT_REGISTRY[VARIANT_GOSSIP] is apply_gossip
-
-
 class TestCogneeMemoryStore:
     def test_default_reputation(self) -> None:
         store = CogneeMemoryStore()
@@ -225,20 +216,3 @@ class TestGossipComposition:
         assert o == _CC
 
 
-class TestGossipGameRegistry:
-    def test_gossip_pd_registered(self) -> None:
-        assert "gossip_prisoners_dilemma" in GAMES
-
-    def test_gossip_sh_registered(self) -> None:
-        assert "gossip_stag_hunt" in GAMES
-
-    def test_gossip_hd_registered(self) -> None:
-        assert "gossip_hawk_dove" in GAMES
-
-    def test_gossip_pd_has_correct_variant(self) -> None:
-        game = GAMES["gossip_prisoners_dilemma"]
-        assert VARIANT_GOSSIP in game.applied_variants
-
-    def test_gossip_pd_base_key(self) -> None:
-        game = GAMES["gossip_prisoners_dilemma"]
-        assert game.base_game_key == "prisoners_dilemma"

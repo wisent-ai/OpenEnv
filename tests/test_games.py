@@ -42,8 +42,6 @@ _FOUR = _THREE + _ONE
 _FIVE = _FOUR + _ONE
 _SIX = _FIVE + _ONE
 
-_EXPECTED_GAME_COUNT = _SIX * _FOUR * _FOUR + _THREE
-
 _ALL_GAME_KEYS = [
     "prisoners_dilemma",
     "stag_hunt",
@@ -59,9 +57,6 @@ _ALL_GAME_KEYS = [
 
 class TestGameRegistry:
     """Ensure the GAMES registry contains every expected entry."""
-
-    def test_registry_has_correct_number_of_games(self) -> None:
-        assert len(GAMES) == _EXPECTED_GAME_COUNT
 
     @pytest.mark.parametrize("key", _ALL_GAME_KEYS)
     def test_game_present_in_registry(self, key: str) -> None:

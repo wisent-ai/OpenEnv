@@ -1,4 +1,4 @@
 # Evaluation outputs the GRPO, REINFORCE and safety runs wrote (run_eval_now.py and the
-# tournament eval on the GPU host), one JSON per model and training variant, cited by
-# results/RESULTS_SUMMARY.md and results/SESSION_LOG.md; a data set runs fill, not files a person lays out.
+# tournament eval on the GPU host), one JSON per model and training variant; a data set
+# runs fill, not files a person lays out.
 results/evals/

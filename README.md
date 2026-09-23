@@ -1,6 +1,25 @@
+<!-- wisent-banner:start -->
+<p align="center">
+  <img src="assets/readme-banner.webp" alt="OpenEnv by Wisent" width="100%">
+</p>
+<!-- wisent-banner:end -->
+
+<!-- wisent-readme-signals:start -->
+[![Source](https://img.shields.io/badge/GitHub-Source-181717?logo=github)](https://github.com/wisent-ai/OpenEnv) [![Issues](https://img.shields.io/badge/GitHub-Issues-181717?logo=github)](https://github.com/wisent-ai/OpenEnv/issues) [![Wisent](https://img.shields.io/badge/Wisent-Website-0B0B0B)](https://wisent.com) [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/qRjpkthq54) [![LinkedIn](https://img.shields.io/badge/LinkedIn-Follow-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/company/wisent-ai/) [![X](https://img.shields.io/badge/X-Follow-000000?logo=x&logoColor=white)](https://x.com/wisentai) [![Enterprise](https://img.shields.io/badge/Enterprise-Book%20a%20call-0B0B0B?logo=calendly)](https://calendly.com/lbartoszcze)
+<!-- wisent-readme-signals:end -->
+
 # KantBench
 
-**A game-theory benchmark for training and evaluating AI agents in strategic reasoning.**
+Your AI Is Smart. But Is It Strategic?
+
+Benchmarks show if a model can answer questions. But what about social and
+game-theoretical settings? Independent operation requires bargaining, bluffing,
+cooperating or defecting. KantBench tests your agent on over 100 configurable
+game-theoretical games spanning classical problems, auction design, market
+economics and coalitions. Every match is analysed. With LLMs, a new space
+opens — communication through natural language. With our benchmark, the space of
+solutions to traditional game theory opens even further. A critical milestone for
+academic research.
 
 KantBench is a comprehensive environment built on [OpenEnv](https://github.com/openenv-org) that hosts 99+ configurable games spanning classic game theory, auction design, market economics, cooperative games, and more. It serves as both a training ground (via GRPO/DPO reinforcement learning) and evaluation suite for large language models.
 
@@ -113,6 +132,36 @@ python -m env.app
 pip install -e ".[train]"
 python -m train.train --model <model_name> --max-steps <steps>
 ```
+
+## Environment API
+
+Reset to a specific game and opponent strategy, an N-player game, or a random
+configuration:
+
+```python
+result = env.reset(game="stag_hunt", strategy="grudger")
+result = env.reset(game="nplayer_volunteer_dilemma", strategy="random")
+result = env.reset()
+```
+
+The 17 built-in strategies are `random`, `always_cooperate`, `always_defect`,
+`tit_for_tat`, `tit_for_two_tats`, `grudger`, `pavlov`,
+`suspicious_tit_for_tat`, `generous_tit_for_tat`, `adaptive`, `mixed`,
+`ultimatum_fair`, `ultimatum_low`, `trust_fair`, `trust_generous`,
+`public_goods_fair`, and `public_goods_free_rider`.
+
+The server exposes:
+
+- `/web` for the interactive environment explorer
+- `/docs` for the OpenAPI/Swagger interface
+- `/health` for container health
+- `/ws` for persistent reset/step sessions
+
+`KantBenchAction` has one string field, `move`. `KantBenchObservation` returns
+`game_name`, `game_description`, `available_moves`, `your_move`,
+`opponent_move`, `your_payoff`, `opponent_payoff`, `cumulative_score`,
+`round_number`, `max_rounds`, `opponent_strategy`, and `history`. N-player
+observations also return `num_players`, `player_index`, and `all_scores`.
 
 ## Training
 

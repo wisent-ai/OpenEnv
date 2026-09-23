@@ -1,0 +1,17 @@
+[automation]
+managed = true
+source_fingerprint = "bd2940dd8f3eecea"
+category = "general"
+copy_status = "missing"
+approved_in = ""
+
+[banner]
+title = "Openenv"
+description = ""
+product = "Wisent"
+url = "wisent.com"
+theme = "dark"
+layout = "signal-left"
+art_seed = "OpenEnv"
+width = 1584
+height = 396

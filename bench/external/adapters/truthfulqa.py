@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from bench.external._base import BenchmarkAdapter, BenchmarkResult
+from bench.external.runner_to_staged._staged import configure_offline_lm_eval
 from bench.external.constants import (
     BENCH_TRUTHFULQA,
     LM_EVAL_TRUTHFULQA_TASK,
@@ -24,6 +25,9 @@ class TruthfulQAAdapter(BenchmarkAdapter):
         return "TruthfulQA (MC)"
 
     def run(self, model_handle: Any) -> BenchmarkResult:
+        configure_offline_lm_eval()
+        if model_handle.is_api_model:
+            raise RuntimeError("TruthfulQA requires a staged local model")
         try:
             import lm_eval
         except ImportError as exc:
@@ -37,7 +41,10 @@ class TruthfulQAAdapter(BenchmarkAdapter):
 
         results = lm_eval.simple_evaluate(
             model="hf",
-            model_args=f"pretrained={model_handle.model_name_or_path}",
+            model_args=(
+                f"pretrained={model_handle.model_name_or_path},"
+                "local_files_only=True,trust_remote_code=False"
+            ),
             tasks=[LM_EVAL_TRUTHFULQA_TASK],
         )
 

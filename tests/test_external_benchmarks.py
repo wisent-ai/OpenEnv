@@ -8,7 +8,7 @@ import pytest
 
 from bench.external._base import BenchmarkResult
 from bench.external._model_handle import ModelHandle
-from bench.external.runner import ExternalBenchmarkRunner
+from bench.external.runner_to_staged.runner import ExternalBenchmarkRunner
 from constant_definitions.game_constants import EVAL_HALF
 
 # Test fixture values derived from named constants

@@ -10,8 +10,8 @@ from typing import Any, Callable, Dict, List, Optional
 from env.environment import KantEnvironment
 from env.models import GameAction, GameObservation
 from train.agent import LLMAgent, PromptBuilder, parse_action
-from train.rewards import episode_reward
-from train.trajectory import TrajectoryCollector, EpisodeTrajectory
+from train.rewards_to_trajectory.rewards import episode_reward
+from train.rewards_to_trajectory.trajectory import TrajectoryCollector, EpisodeTrajectory
 from train.self_play.opponents import FrozenOpponent, OpponentPool
 from train.self_play.config import SelfPlayConfig
 from constant_definitions.train.agent_constants import SYSTEM_PROMPT

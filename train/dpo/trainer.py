@@ -10,8 +10,8 @@ from env.models import GameAction, GameObservation
 from train.agent import LLMAgent, PromptBuilder, parse_action
 from train.dpo.config import DPOConfig
 from train.dpo.pairs import generate_preference_pairs
-from train.splits import get_train_eval_split
-from train.trajectory import EpisodeTrajectory
+from train.rewards_to_trajectory.splits import get_train_eval_split
+from train.rewards_to_trajectory.trajectory import EpisodeTrajectory
 
 from constant_definitions.game_constants import EVAL_ZERO
 
@@ -134,7 +134,7 @@ class KantDPOTrainer:
 
         if run_external:
             from bench.external._model_handle import ModelHandle
-            from bench.external.runner import ExternalBenchmarkRunner
+            from bench.external.runner_to_staged.runner import ExternalBenchmarkRunner
 
             handle = ModelHandle(
                 model_name_or_path=self._config.model_name,

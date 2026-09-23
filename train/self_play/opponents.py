@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from pathlib import Path
 from typing import Callable, List, Optional
 
 from env.models import GameAction, GameObservation
@@ -55,7 +56,7 @@ class FrozenOpponent:
         tokenizer: object,
         max_tokens: int = MAX_ACTION_TOKENS,
     ) -> FrozenOpponent:
-        """Create from a HuggingFace model (runs with torch.no_grad)."""
+        """Create from an already loaded local model."""
         import torch
 
         def _generate(prompt: str) -> str:
@@ -76,26 +77,44 @@ class FrozenOpponent:
     def from_checkpoint(
         cls,
         path: str,
-        tokenizer_name: str,
+        tokenizer_path: str,
         max_tokens: int = MAX_ACTION_TOKENS,
     ) -> FrozenOpponent:
         """Load a frozen opponent from a saved checkpoint directory."""
         from transformers import AutoModelForCausalLM, AutoTokenizer
+        checkpoint = Path(path).expanduser()
+        tokenizer_dir = Path(tokenizer_path).expanduser()
+        if not checkpoint.is_absolute() or not tokenizer_dir.is_absolute():
+            raise ValueError("checkpoint and tokenizer paths must be absolute")
+        checkpoint = checkpoint.resolve(strict=True)
+        tokenizer_dir = tokenizer_dir.resolve(strict=True)
+        if not checkpoint.is_dir() or not tokenizer_dir.is_dir():
+            raise ValueError("checkpoint and tokenizer paths must be directories")
 
-        loaded_model = AutoModelForCausalLM.from_pretrained(path)
+        loaded_model = AutoModelForCausalLM.from_pretrained(
+            checkpoint, local_files_only=True
+        )
         loaded_model.eval()
-        loaded_tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        loaded_tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_dir, local_files_only=True
+        )
         return cls.from_model(loaded_model, loaded_tokenizer, max_tokens)
 
     @classmethod
-    def from_api(
+    def from_router(
         cls,
-        api_call_fn: Callable[[str, str], str],
+        model_name: str,
+        max_tokens: int = MAX_ACTION_TOKENS,
     ) -> FrozenOpponent:
-        """Create from an API-based agent (OpenAI, Anthropic, etc.)."""
-        return cls(
-            generate_fn=lambda prompt: api_call_fn(SYSTEM_PROMPT, prompt),
-        )
+        """Create an API opponent through the authenticated Stado model router."""
+        from common.machine_to_stado.model_router import chat_completion
+
+        return cls(generate_fn=lambda prompt: chat_completion(
+            model_name,
+            [{"role": "system", "content": SYSTEM_PROMPT},
+             {"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+        ))
 
 
 class OpponentPool:

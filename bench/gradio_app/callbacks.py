@@ -2,6 +2,7 @@
 from __future__ import annotations
 import random as _rand
 import gradio as gr
+from common.machine_to_stado.model_router import chat_completion
 
 from registry import (
     _ZERO, _ONE, _TWO, _FOUR, _TEN,
@@ -17,7 +18,6 @@ from registry import (
     NPlayerEnvironment, NPlayerAction,
     PromptBuilder, parse_action, GameObservation, RoundResult,
     _SYS_PROMPT, _LLM_OPPONENT_LABEL, _LLM_MODELS,
-    get_env_api_key, ANTHROPIC_OAUTH_BETA_HEADER,
 )
 
 
@@ -80,7 +80,7 @@ def _render(st):
 
 
 def _llm_choose_action(state, info, provider, model):
-    """Have the LLM choose an action via OAuth tokens."""
+    """Have the LLM choose an action through the Stado model router."""
     if not _HAS_LLM_AGENT:
         return _rand.choice(info["actions"]), "(LLM agent not available)"
     history = []
@@ -100,29 +100,14 @@ def _llm_choose_action(state, info, provider, model):
         opponent_strategy="human")
     prompt = PromptBuilder.build(obs)
     try:
-        token = get_env_api_key(provider)
-        if not token:
-            return _rand.choice(info["actions"]), "OAuth token unavailable"
-        if provider == "Anthropic":
-            import anthropic
-            client = anthropic.Anthropic(
-                api_key=None, auth_token=token,
-                default_headers={"anthropic-beta": ANTHROPIC_OAUTH_BETA_HEADER},
-            )
-            resp = client.messages.create(
-                model=model, max_tokens=_TEN + _TEN, system=_SYS_PROMPT,
-                messages=[{"role": "user", "content": prompt}])
-            raw = resp.content[_ZERO].text
-        elif provider == "OpenAI":
-            import openai
-            client = openai.OpenAI(api_key=token)
-            resp = client.chat.completions.create(
-                model=model, max_tokens=_TEN + _TEN,
-                messages=[{"role": "system", "content": _SYS_PROMPT},
-                          {"role": "user", "content": prompt}])
-            raw = resp.choices[_ZERO].message.content
-        else:
+        if provider not in _LLM_MODELS:
             return _rand.choice(info["actions"]), f"Unknown provider: {provider}"
+        raw = chat_completion(
+            model,
+            [{"role": "system", "content": _SYS_PROMPT},
+             {"role": "user", "content": prompt}],
+            max_tokens=_TEN + _TEN,
+        )
     except Exception as exc:
         return _rand.choice(info["actions"]), f"API error: {exc}"
     act_list = list(opp_actions) if opp_actions else info["actions"]

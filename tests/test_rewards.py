@@ -1,4 +1,4 @@
-"""Tests for train/rewards.py -- reward computation.
+"""Tests for train/rewards_to_trajectory/rewards.py -- reward computation.
 
 The training reward is raw self-payoff. These tests assert that property:
 the reward depends only on the agent's own score and the number of rounds,
@@ -14,7 +14,7 @@ from constant_definitions.game_constants import (
     EVAL_TWO,
     EVAL_ZERO_FLOAT,
 )
-from train.rewards import batch_reward, episode_reward, per_step_shaping
+from train.rewards_to_trajectory.rewards import batch_reward, episode_reward, per_step_shaping
 
 _TEN = EVAL_TWO + EVAL_TWO + EVAL_TWO + EVAL_TWO + EVAL_TWO
 _THREE = EVAL_TWO + EVAL_ONE

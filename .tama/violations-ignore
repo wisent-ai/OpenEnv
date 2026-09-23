@@ -15,3 +15,8 @@ results/evals/
 #   openenv.yaml — the openenv CLI: build, push and validate refuse a directory without this manifest
 #   pyproject.toml — pip and the Python build backends
 .
+# An OpenEnv environment directory. openenv build/push/validate refuse it unless
+# openenv.yaml, __init__.py, client.py, models.py, README.md and pyproject.toml
+# sit at its root (validate_env_structure in openenv/cli/_cli_utils.py), and
+# the root Dockerfile is the image the space builds, so six files are fixed here.
+spaces/kant/

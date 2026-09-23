@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
-from train.trajectory import EpisodeTrajectory
+from train.rewards_to_trajectory.trajectory import EpisodeTrajectory
 from constant_definitions.game_constants import EVAL_ONE, EVAL_ZERO
 from constant_definitions.train.dpo_constants import (
     DPO_BOTTOM_QUANTILE_DENOMINATOR,

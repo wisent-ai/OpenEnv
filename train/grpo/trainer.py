@@ -9,13 +9,13 @@ from env.environment import KantEnvironment
 from env.models import GameAction, GameObservation
 from train.agent import LLMAgent, PromptBuilder, parse_action
 from train.grpo.config import GRPOConfig
-from train.rewards import (
+from train.rewards_to_trajectory.rewards import (
     episode_reward,
     expected_self_payoff_uniform_opponent,
     per_step_shaping,
 )
-from train.splits import get_train_eval_split
-from train.trajectory import TrajectoryCollector
+from train.rewards_to_trajectory.splits import get_train_eval_split
+from train.rewards_to_trajectory.trajectory import TrajectoryCollector
 
 from constant_definitions.game_constants import EVAL_ONE, EVAL_ZERO, EVAL_ZERO_FLOAT
 
@@ -208,7 +208,7 @@ class KantGRPOTrainer:
 
         if run_external:
             from bench.external._model_handle import ModelHandle
-            from bench.external.runner import ExternalBenchmarkRunner
+            from bench.external.runner_to_staged.runner import ExternalBenchmarkRunner
 
             handle = ModelHandle(
                 model_name_or_path=self._config.model_name,

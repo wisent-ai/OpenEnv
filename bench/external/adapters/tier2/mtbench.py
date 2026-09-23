@@ -2,25 +2,23 @@
 
 from __future__ import annotations
 
-import logging
+import json
 import re
 from typing import Any, Dict, List, Optional
 
 from bench.external._base import BenchmarkAdapter, BenchmarkResult
 from bench.external._model_handle import ModelHandle
+from bench.external.runner_to_staged._staged import staged_file
 from bench.external.constants import (
     BENCH_MTBENCH,
     MTBENCH_DEFAULT_JUDGE,
     MTBENCH_MAX_SCORE,
     MTBENCH_MIN_SCORE,
-    MTBENCH_QUESTIONS_DATASET,
-    MTBENCH_QUESTIONS_GITHUB,
     ONE,
     ZERO,
     ZERO_FLOAT,
 )
 
-logger = logging.getLogger(__name__)
 
 _JUDGE_PROMPT = (
     "Please act as an impartial judge and evaluate the quality of the "
@@ -46,15 +44,7 @@ class MTBenchAdapter(BenchmarkAdapter):
         return "MT-Bench (Instruction Following)"
 
     def run(self, model_handle: Any) -> BenchmarkResult:
-        try:
-            from datasets import load_dataset
-            ds = load_dataset(MTBENCH_QUESTIONS_DATASET, split="train")
-        except Exception:
-            logger.warning(
-                "HF dataset %s unavailable — falling back to GitHub JSON",
-                MTBENCH_QUESTIONS_DATASET,
-            )
-            ds = self._load_questions_from_github()
+        ds = self._load_questions()
 
         judge_handle = ModelHandle(model_name_or_path=MTBENCH_DEFAULT_JUDGE)
 
@@ -110,23 +100,27 @@ class MTBenchAdapter(BenchmarkAdapter):
         )
 
     @staticmethod
-    def _load_questions_from_github() -> List[Dict[str, Any]]:
-        """Download MT-Bench questions JSONL from FastChat GitHub."""
-        import json
-        import urllib.request
-
+    def _load_questions() -> List[Dict[str, Any]]:
+        """Load MT-Bench questions from the machine-staged JSONL object."""
+        path = staged_file("OPENENV_MTBENCH_DATA_PATH")
         rows = []
-        with urllib.request.urlopen(MTBENCH_QUESTIONS_GITHUB) as resp:
-            for line in resp.read().decode("utf-8").splitlines():
-                line = line.strip()
-                if not line:
+        with path.open("r", encoding="utf-8") as stream:
+            for line in stream:
+                if not line.strip():
                     continue
                 obj = json.loads(line)
                 turns = obj.get("turns", [])
+                prompt = turns[ZERO] if turns else obj.get("prompt", "")
+                if not isinstance(prompt, str) or not prompt:
+                    raise RuntimeError(
+                        "staged MT-Bench JSONL contains an invalid prompt"
+                    )
                 rows.append({
-                    "prompt": turns[ZERO] if turns else "",
+                    "prompt": prompt,
                     "category": obj.get("category", "general"),
                 })
+        if not rows:
+            raise RuntimeError("staged MT-Bench JSONL is empty")
         return rows
 
     @staticmethod

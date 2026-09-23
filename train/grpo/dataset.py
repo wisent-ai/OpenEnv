@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from train.trajectory import EpisodeTrajectory, StepRecord
+from train.rewards_to_trajectory.trajectory import EpisodeTrajectory, StepRecord
 from constant_definitions.game_constants import EVAL_ONE, EVAL_ZERO_FLOAT
 from constant_definitions.train.grpo_constants import (
     GRPO_SHAPING_ALPHA_DENOMINATOR,

@@ -22,7 +22,7 @@ def __getattr__(name: str) -> object:
         from bench.external._model_handle import ModelHandle
         return ModelHandle
     if name == "ExternalBenchmarkRunner":
-        from bench.external.runner import ExternalBenchmarkRunner
+        from bench.external.runner_to_staged.runner import ExternalBenchmarkRunner
         return ExternalBenchmarkRunner
     if name == "generate_external_report":
         from bench.external.report import generate_external_report

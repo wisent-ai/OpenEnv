@@ -9,7 +9,7 @@ opponents). It is deliberately a per-game dict rather than a single
 cross-game scalar because PD payoffs live in {0,1,3,5}, Ultimatum in
 [0,10], Public Goods in [0,~30] etc., so a cross-game average mixes
 incommensurable units. Within a single game the number is in the same
-units that ``train.rewards.episode_reward`` optimises during training.
+units that ``train.rewards_to_trajectory.rewards.episode_reward`` optimises during training.
 Cooperation rate, exploitation resistance, Pareto efficiency, fairness
 index, and adaptability are reported as descriptive secondary outcomes.
 ``strategic_reasoning`` is retained for backwards comparison.
@@ -242,7 +242,7 @@ def _mean_self_payoff_per_game(games: Dict[str, Any]) -> Dict[str, float]:
     opponent strategy and every episode, sums every episode's
     ``rounds_played``, then divides. Returns the dict of per-game scalars.
     Within one game this number is in the same units that
-    ``train.rewards.episode_reward`` optimises. We do NOT aggregate across
+    ``train.rewards_to_trajectory.rewards.episode_reward`` optimises. We do NOT aggregate across
     games into one scalar because games have wildly different payoff scales
     (PD payoffs in {0,1,3,5}, Public Goods in [0,~30], Ultimatum in [0,10],
     etc.) and a cross-game average would mix incommensurable units.

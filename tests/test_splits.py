@@ -1,4 +1,4 @@
-"""Tests for train/splits.py -- deterministic stratified split."""
+"""Tests for train/rewards_to_trajectory/splits.py -- deterministic stratified split."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from constant_definitions.train.split_constants import (
     MIN_EVAL_TAG_FRACTION_NUMERATOR,
     SPLIT_SEED,
 )
-from train.splits import get_train_eval_split
+from train.rewards_to_trajectory.splits import get_train_eval_split
 
 _DOMAIN_TAGS = CATEGORIES["domain"]
 _ONE = int(bool(True))

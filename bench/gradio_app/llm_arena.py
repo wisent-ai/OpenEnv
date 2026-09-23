@@ -1,12 +1,12 @@
 """LLM Arena -- infinite spectator tournament."""
 from __future__ import annotations
 import random as _rand
+from common.machine_to_stado.model_router import chat_completion
 
 from registry import (
     _ZERO, _ONE, _TWO, _TEN,
     _HAS_LLM_AGENT, _LLM_MODELS,
-    PromptBuilder, parse_action, GameObservation, RoundResult,
-    _SYS_PROMPT, get_env_api_key, ANTHROPIC_OAUTH_BETA_HEADER,
+    PromptBuilder, parse_action, GameObservation, RoundResult, _SYS_PROMPT,
 )
 from callbacks import _get_game_info
 
@@ -66,29 +66,15 @@ def _parse_rule_status(p1_action, p2_action, locked_rule):
 
 
 def _call_llm(provider, model, prompt):
-    """Call an LLM provider using OAuth tokens and return raw text."""
-    token = get_env_api_key(provider)
-    if not token:
-        raise RuntimeError(f"OAuth token unavailable for {provider}")
-    if provider == "Anthropic":
-        import anthropic
-        client = anthropic.Anthropic(
-            api_key=None, auth_token=token,
-            default_headers={"anthropic-beta": ANTHROPIC_OAUTH_BETA_HEADER},
-        )
-        resp = client.messages.create(
-            model=model, max_tokens=_MAX_TOKENS, system=_SYS_PROMPT,
-            messages=[{"role": "user", "content": prompt}])
-        return resp.content[_ZERO].text
-    if provider == "OpenAI":
-        import openai
-        client = openai.OpenAI(api_key=token)
-        resp = client.chat.completions.create(
-            model=model, max_tokens=_MAX_TOKENS,
-            messages=[{"role": "system", "content": _SYS_PROMPT},
-                      {"role": "user", "content": prompt}])
-        return resp.choices[_ZERO].message.content
-    return ""
+    """Call a model through the server-side Stado model router."""
+    if provider not in _LLM_MODELS:
+        raise RuntimeError(f"Unknown model provider: {provider}")
+    return chat_completion(
+        model,
+        [{"role": "system", "content": _SYS_PROMPT},
+         {"role": "user", "content": prompt}],
+        max_tokens=_MAX_TOKENS,
+    )
 
 
 def _build_obs(info, p_hist, o_hist, rnd, p_score, o_score):

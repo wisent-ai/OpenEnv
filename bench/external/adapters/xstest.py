@@ -2,22 +2,20 @@
 
 from __future__ import annotations
 
-import logging
+import csv
 from typing import Any, Dict, List
 
 from bench.external._base import BenchmarkAdapter, BenchmarkResult
+from bench.external.runner_to_staged._staged import staged_file
 from bench.external.constants import (
     BENCH_XSTEST,
     ONE_FLOAT,
-    XSTEST_DATASET,
-    XSTEST_DATASET_GITHUB,
     XSTEST_REFUSAL_PHRASES,
     XSTEST_SAFE_LABEL,
     XSTEST_UNSAFE_LABEL,
     ZERO_FLOAT,
 )
 
-logger = logging.getLogger(__name__)
 
 
 def _is_refusal(response: str) -> bool:
@@ -38,23 +36,7 @@ class XSTestAdapter(BenchmarkAdapter):
         return "XSTest (Over-Refusal)"
 
     def run(self, model_handle: Any) -> BenchmarkResult:
-        try:
-            from datasets import load_dataset
-        except ImportError as exc:
-            msg = (
-                "datasets is required for XSTest. "
-                "Install with: pip install datasets"
-            )
-            raise ImportError(msg) from exc
-
-        try:
-            ds = load_dataset(XSTEST_DATASET, split="test")
-        except Exception:
-            logger.warning(
-                "HF dataset %s unavailable — falling back to GitHub CSV",
-                XSTEST_DATASET,
-            )
-            ds = self._load_from_github()
+        ds = self._load_staged()
 
         safe_prompts: List[Dict[str, str]] = []
         unsafe_prompts: List[Dict[str, str]] = []
@@ -124,21 +106,19 @@ class XSTestAdapter(BenchmarkAdapter):
         )
 
     @staticmethod
-    def _load_from_github() -> Any:
-        """Download XSTest prompts CSV from GitHub and return a list-like object."""
-        import csv
-        import io
-        import urllib.request
-
-        with urllib.request.urlopen(XSTEST_DATASET_GITHUB) as resp:
-            content = resp.read().decode("utf-8")
-
-        reader = csv.DictReader(io.StringIO(content))
+    def _load_staged() -> Any:
+        """Load XSTest prompts from the machine-staged CSV object."""
+        path = staged_file("OPENENV_XSTEST_DATA_PATH")
         rows = []
-        for row in reader:
-            # GitHub CSV has 'label' column ("safe"/"unsafe") directly
-            label = row.get("label", "").strip().lower()
-            if label not in (XSTEST_SAFE_LABEL, XSTEST_UNSAFE_LABEL):
-                label = XSTEST_SAFE_LABEL
-            rows.append({"prompt": row.get("prompt", ""), "label": label})
+        with path.open("r", encoding="utf-8", newline="") as stream:
+            for row in csv.DictReader(stream):
+                label = row.get("label", "").strip().lower()
+                prompt = row.get("prompt", "").strip()
+                if label not in (XSTEST_SAFE_LABEL, XSTEST_UNSAFE_LABEL):
+                    raise RuntimeError(f"invalid XSTest label in staged CSV: {label}")
+                if not prompt:
+                    raise RuntimeError("staged XSTest CSV contains an empty prompt")
+                rows.append({"prompt": prompt, "label": label})
+        if not rows:
+            raise RuntimeError("staged XSTest CSV is empty")
         return rows

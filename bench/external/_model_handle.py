@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+from pathlib import Path
 from typing import Any, Optional
+from common.machine_to_stado.model_router import chat_completion
 
 from bench.external.constants import EVAL_MAX_NEW_TOKENS, ZERO, ONE
 from constant_definitions.train.models.model_constants import API_MODELS
@@ -14,18 +16,11 @@ logger = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class ModelHandle:
-    """Lightweight wrapper that unifies local HF and API model generation.
+    """Unify machine-staged local inference and Stado-routed inference.
 
-    Parameters
-    ----------
-    model_name_or_path : str
-        HuggingFace model id / local path, or API model name.
-    model : Any, optional
-        Pre-loaded HuggingFace model (avoids reloading).
-    tokenizer : Any, optional
-        Pre-loaded HuggingFace tokenizer.
-    max_new_tokens : int
-        Maximum tokens to generate per call.
+    ``model_name_or_path`` is either an absolute staged model directory or a
+    router model name. A caller may instead supply an already loaded local model
+    and tokenizer.
     """
 
     model_name_or_path: str
@@ -45,21 +40,28 @@ class ModelHandle:
     def generate(self, prompt: str) -> str:
         """Generate a completion for *prompt*.
 
-        Dispatches to local HuggingFace generation or API call depending
-        on ``is_api_model``.
+        Dispatches to staged local generation or the Stado model router.
         """
         if self.is_api_model:
             return self._generate_api(prompt)
         return self._generate_local(prompt)
 
     # ------------------------------------------------------------------
-    # Local HuggingFace generation
+    # Local staged generation
     # ------------------------------------------------------------------
 
     def ensure_loaded(self) -> None:
-        """Lazy-load model and tokenizer if not already present."""
+        """Lazy-load a machine-staged local model and tokenizer."""
         if self.model is not None and self.tokenizer is not None:
             return
+        if "://" in self.model_name_or_path:
+            raise ValueError("local model must be a machine-staged directory")
+        model_path = Path(self.model_name_or_path).expanduser()
+        if not model_path.is_absolute():
+            raise ValueError("local model path must be absolute")
+        model_path = model_path.resolve(strict=True)
+        if not model_path.is_dir():
+            raise ValueError(f"local model path is not a directory: {model_path}")
         try:
             from transformers import AutoModelForCausalLM, AutoTokenizer
         except ImportError as exc:
@@ -69,17 +71,19 @@ class ModelHandle:
             )
             raise ImportError(msg) from exc
 
-        logger.info("Loading model %s", self.model_name_or_path)
+        logger.info("Loading staged model %s", model_path)
         self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_name_or_path,
+            model_path,
+            local_files_only=True,
         )
         self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_name_or_path,
+            model_path,
             device_map="auto",
+            local_files_only=True,
         )
 
     def _generate_local(self, prompt: str) -> str:
-        """Generate with a local HuggingFace model."""
+        """Generate with a machine-staged local model."""
         self.ensure_loaded()
         inputs = self.tokenizer(prompt, return_tensors="pt")
         device = next(self.model.parameters()).device
@@ -99,63 +103,9 @@ class ModelHandle:
     # ------------------------------------------------------------------
 
     def _generate_api(self, prompt: str) -> str:
-        """Generate via an external API (OpenAI or Anthropic)."""
-        name = self.model_name_or_path
-        if name.startswith("claude"):
-            return self._generate_anthropic(prompt)
-        return self._generate_openai(prompt)
-
-    def _generate_openai(self, prompt: str) -> str:
-        try:
-            import openai
-        except ImportError as exc:
-            msg = (
-                "openai is required for API inference. "
-                "Install with: pip install openai"
-            )
-            raise ImportError(msg) from exc
-
-        client = openai.OpenAI()
-        response = client.chat.completions.create(
-            model=self.model_name_or_path,
-            messages=[{"role": "user", "content": prompt}],
+        """Generate through the provider-neutral Stado model router."""
+        return chat_completion(
+            self.model_name_or_path,
+            [{"role": "user", "content": prompt}],
             max_tokens=self.max_new_tokens,
         )
-        return response.choices[ZERO].message.content or ""
-
-    def _generate_anthropic(self, prompt: str) -> str:
-        import os
-        # Prefer direct Anthropic API when ANTHROPIC_API_KEY is set;
-        # fall back to Vertex AI otherwise.
-        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-        if api_key:
-            try:
-                from anthropic import Anthropic
-            except ImportError as exc:
-                raise ImportError(
-                    "anthropic is required. Install with: pip install anthropic"
-                ) from exc
-            client = Anthropic(api_key=api_key)
-            response = client.messages.create(
-                model=self.model_name_or_path,
-                max_tokens=self.max_new_tokens,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return response.content[ZERO].text
-
-        try:
-            from anthropic import AnthropicVertex
-        except ImportError as exc:
-            raise ImportError(
-                "anthropic[vertex] is required. Install with: pip install anthropic[vertex]"
-            ) from exc
-
-        project = os.environ.get("GCP_PROJECT", "wisent-480400")
-        region = os.environ.get("ANTHROPIC_VERTEX_REGION", "us-central1")
-        client = AnthropicVertex(project_id=project, region=region)
-        response = client.messages.create(
-            model=self.model_name_or_path,
-            max_tokens=self.max_new_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.content[ZERO].text

@@ -278,20 +278,20 @@ class LLMAgent:
 
 
 class APIAgent(LLMAgent):
-    """Agent that uses an external API (OpenAI/Anthropic) for generation.
-
-    Parameters
-    ----------
-    api_call_fn : callable
-        Function(system_prompt, user_prompt) -> str that calls the API.
-    """
+    """Agent backed exclusively by the authenticated Stado model router."""
 
     def __init__(
         self,
-        api_call_fn: Callable[[str, str], str],
+        model_name: str,
         prompt_builder: Optional[PromptBuilder] = None,
     ) -> None:
+        from common.machine_to_stado.model_router import chat_completion
+
         def _generate(prompt: str) -> str:
-            return api_call_fn(SYSTEM_PROMPT, prompt)
+            return chat_completion(
+                model_name,
+                [{"role": "system", "content": SYSTEM_PROMPT},
+                 {"role": "user", "content": prompt}],
+            )
 
         super().__init__(generate_fn=_generate, prompt_builder=prompt_builder)

@@ -13,55 +13,37 @@ the ``STRATEGIES_2P`` registry, matching the pattern already used by
 """
 
 from __future__ import annotations
+from common.machine_to_stado.model_router import chat_completion
 
 from registry import (
     _ZERO, _ONE, _TWO,
     DEFAULT_NUM_ROUNDS,
     _HAS_FULL_STRATEGIES, STRATEGIES_2P, _GAME_INFO,
-    _LLM_MODELS, _SYS_PROMPT, get_env_api_key, ANTHROPIC_OAUTH_BETA_HEADER,
+    _LLM_MODELS, _SYS_PROMPT,
     PromptBuilder, parse_action, GameObservation, RoundResult,
 )
 
 
 def _model_provider(model_name):
-    """Return the OAuth provider name a model belongs to, or empty string."""
+    """Return the configured provider group for a routed model, or empty."""
     for prov, models in _LLM_MODELS.items():
         if model_name in models:
             return prov
     return ""
 
 
-def _llm_token(model_name):
-    """Call an LLM via OAuth, return the raw text. Mirrors llm_arena._call_llm."""
-    return None  # placeholder; the live caller is _llm_call below.
 
 
 def _llm_call(model_name: str, prompt: str) -> str:
     provider = _model_provider(model_name)
-    token = get_env_api_key(provider)
-    if not token:
-        raise RuntimeError(f"OAuth token unavailable for {provider}")
-    if provider == "Anthropic":
-        import anthropic
-        client = anthropic.Anthropic(
-            api_key=None, auth_token=token,
-            default_headers={"anthropic-beta": ANTHROPIC_OAUTH_BETA_HEADER},
-        )
-        resp = client.messages.create(
-            model=model_name, max_tokens=20, system=_SYS_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[_ZERO].text
-    if provider == "OpenAI":
-        import openai
-        client = openai.OpenAI(api_key=token)
-        resp = client.chat.completions.create(
-            model=model_name, max_tokens=20,
-            messages=[{"role": "system", "content": _SYS_PROMPT},
-                      {"role": "user", "content": prompt}],
-        )
-        return resp.choices[_ZERO].message.content
-    raise RuntimeError(f"Unknown provider for model {model_name}")
+    if not provider:
+        raise RuntimeError(f"Unknown provider for model {model_name}")
+    return chat_completion(
+        model_name,
+        [{"role": "system", "content": _SYS_PROMPT},
+         {"role": "user", "content": prompt}],
+        max_tokens=int("20"),
+    )
 
 
 def _build_obs_for_side(info, my_history, opp_history, rnd, my_score, opp_score, total):
@@ -166,9 +148,9 @@ def run_metrics_tournament(
     strategy on *selected_games*; columns are mean self-payoff and
     cooperation rate.
 
-    mode="llm_self": both sides of every match are *model* (an OAuth-
-    backed LLM listed in registry._LLM_MODELS). Same columns. Only 2P
-    games are scored; N-player games skipped because the gradio harness
+    mode="llm_self": both sides of every match are *model*, routed through
+    authenticated Stado infrastructure. Only two-player games are scored;
+    multiplayer games are skipped because the Gradio harness
     builds GameObservation, not NPlayerObservation.
     """
     if not selected_games:

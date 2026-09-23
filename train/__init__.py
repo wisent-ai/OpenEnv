@@ -23,13 +23,13 @@ def __getattr__(name: str) -> object:
         }
         return _map[name]
     if name == "episode_reward":
-        from train.rewards import episode_reward
+        from train.rewards_to_trajectory.rewards import episode_reward
         return episode_reward
     if name == "get_train_eval_split":
-        from train.splits import get_train_eval_split
+        from train.rewards_to_trajectory.splits import get_train_eval_split
         return get_train_eval_split
     if name in ("EpisodeTrajectory", "StepRecord", "TrajectoryCollector"):
-        from train.trajectory import (
+        from train.rewards_to_trajectory.trajectory import (
             EpisodeTrajectory, StepRecord, TrajectoryCollector,
         )
         _map = {

@@ -2,3 +2,16 @@
 # tournament eval on the GPU host), one JSON per model and training variant; a data set
 # runs fill, not files a person lays out.
 results/evals/
+# The repository root. Every file below is read from the root by the
+# tool named beside it, so none of them can move into a folder and the
+# five-files-per-folder rule cannot be met here. Written by
+# `tama declare-root`, which refuses to write this while the root still
+# holds a file somebody could move.
+#   .gitignore — git
+#   .wisent-release.json — the Wisent release tooling
+#   LICENSE — GitHub reads the licence from the root
+#   README.md — GitHub shows it on the repository page
+#   __init__.py — the openenv CLI: its required-files check (openenv/cli/_cli_utils.py) lists it at the environment root
+#   openenv.yaml — the openenv CLI: build, push and validate refuse a directory without this manifest
+#   pyproject.toml — pip and the Python build backends
+.

@@ -1,0 +1,3 @@
+# Root files the openenv CLI (openenv-core) reads from the environment root.
+openenv.yaml — the openenv CLI: build, push and validate refuse a directory without this manifest
+__init__.py — the openenv CLI: its required-files check (openenv/cli/_cli_utils.py) lists it at the environment root

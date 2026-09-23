@@ -68,7 +68,7 @@ The paper "Kant: Teaching Ethical Reasoning to Language Models via Comprehensive
 ### Baseline
 - **Model**: Llama 3.2-1B-Instruct (untrained)
 - **Eval**: 21 held-out games × 11 strategies × 5 episodes
-- **Results**: `results/baseline_llama1b.json`
+- **Results**: `results/evals/baseline_llama1b.json`
   - cooperation_rate: 0.024
   - exploitation_resistance: 0.458
   - pareto_efficiency: 0.359
@@ -126,7 +126,7 @@ The paper "Kant: Teaching Ethical Reasoning to Language Models via Comprehensive
   - pareto_efficiency: 0.311 (-13%)
   - fairness_index: 0.514 (-17%)
   - **strategic_reasoning: 0.276 (-6% vs baseline)**
-- **Saved**: `results/v6_trained_llama1b.json`
+- **Saved**: `results/evals/v6_trained_llama1b.json`
 
 ### V7 — Longer training + reward reweighting
 - **Changes**: 1000 steps (2x), pareto weight 0.20→0.25, fairness 0.20→0.25
@@ -138,7 +138,7 @@ The paper "Kant: Teaching Ethical Reasoning to Language Models via Comprehensive
 - **Changes**: Applied optimal anti-collapse config from hyperparameter sweep to V6 pipeline
 - **Training**: No collapse (confirmed via zero_std=0.00), reward trend positive
 - **Eval**: strategic_reasoning=0.282 — still 4% below baseline despite no collapse
-- **Saved**: `results/v8_trained_llama1b.json`
+- **Saved**: `results/evals/v8_trained_llama1b.json`
 - **Lesson**: Anti-collapse band-aids alone can't fix GRPO's structural variance problem
 
 ### Qwen 2.5-7B GRPO — Larger model experiment
@@ -150,7 +150,7 @@ The paper "Kant: Teaching Ethical Reasoning to Language Models via Comprehensive
   - pareto_efficiency: 0.395 (+10% vs baseline)
   - fairness_index: 0.595 (-3% vs baseline)
   - adaptability: 0.009 (-29% vs baseline)
-- **Saved**: `results/qwen7b_trained.json`
+- **Saved**: `results/evals/qwen7b_trained.json`
 - **Lesson**: Larger models overcome GRPO's mode collapse threshold. 7B can learn conditional strategies that 1B can't learn under GRPO.
 
 ### REINFORCE 1B — Architectural fix for mode collapse
@@ -167,7 +167,7 @@ The paper "Kant: Teaching Ethical Reasoning to Language Models via Comprehensive
   - pareto_efficiency: 0.744 (+107% vs baseline — dominant improvement)
   - fairness_index: 0.530 (-14% vs baseline)
   - adaptability: 0.0002 (-98% vs baseline)
-- **Saved**: `results/llama1b_reinforce.json`
+- **Saved**: `results/evals/llama1b_reinforce.json`
 - **Fast eval**: `scripts/gcp/quick_eval.py` — 3-strategy pipeline (same metrics as full tournament, 126s vs 45+ min)
 
 ---
@@ -248,197 +248,7 @@ V6's interactive play was the only approach that improved exploitation_resistanc
 
 ---
 
-## How to Reproduce
+## Continued
 
-### Quick start (run V6 — the best config)
-```bash
-# 1. Auth
-gcloud auth login
-export GCP_PROJECT=wisent-480400
-
-# 2. Upload code
-tar czf /tmp/wisent-openenv.tar.gz --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' --exclude='RL results' --exclude='paper' --exclude='notebooks' --exclude='.claude' .
-gsutil cp /tmp/wisent-openenv.tar.gz gs://kantbench-training/code/wisent-openenv.tar.gz
-gsutil cp scripts/gcp/model_configs/llama1b_v6.env gs://kantbench-training/scripts/current_model.env
-
-# 3. Start/restart the train VM
-gcloud compute instances start kantbench-train --zone=us-central1-a --project=wisent-480400
-
-# 4. SSH in and setup
-gcloud compute ssh kantbench-train --zone=us-central1-a --project=wisent-480400
-sudo bash -c '
-  systemctl stop kantbench-train.service 2>/dev/null
-  rm -f /opt/kantbench/run_id
-  rm -rf /workspace/kantbench-output/* /workspace/wisent-openenv
-  export GCS_BUCKET=gs://kantbench-training GCP_PROJECT=wisent-480400
-  gsutil cp gs://kantbench-training/scripts/setup.sh /opt/kantbench/setup.sh
-  chmod +x /opt/kantbench/setup.sh
-  bash /opt/kantbench/setup.sh
-'
-
-# 5. Monitor training
-gcloud compute ssh kantbench-train --zone=us-central1-a --project=wisent-480400 --command="
-  sudo journalctl -u kantbench-train --no-pager -n 10
-"
-
-# 6. Check metrics (replace checkpoint-N with latest)
-gcloud compute ssh kantbench-train --zone=us-central1-a --project=wisent-480400 --command="python3 -c \"
-import json, glob, re
-ckpts = glob.glob('/workspace/kantbench-output/checkpoint-*/trainer_state.json')
-ckpts.sort(key=lambda x: int(re.search(r'checkpoint-(\d+)', x).group(1)))
-if ckpts:
-    with open(ckpts[-1]) as f:
-        d = json.load(f)
-    logs = [e for e in d.get('log_history', []) if 'rewards/reward_fn/mean' in e]
-    print(f'Step: {d[\\\"global_step\\\"]}')
-    if logs:
-        print(f'rfn={logs[-1][\\\"rewards/reward_fn/mean\\\"]:.4f} zero_std={logs[-1][\\\"frac_reward_zero_std\\\"]:.4f}')
-\""
-
-# 7. Run eval after training completes
-gcloud compute scp /tmp/run_eval_now.py kantbench-train:/workspace/wisent-openenv/
-gcloud compute ssh kantbench-train --zone=us-central1-a --project=wisent-480400 --command="
-sudo bash -c '
-  systemctl stop kantbench-train.service 2>/dev/null
-  rm -rf /workspace/kantbench-output/checkpoint-*
-  source /opt/kantbench/secrets.env
-  export WANDB_API_KEY HF_TOKEN GCP_PROJECT=wisent-480400
-  cd /workspace/wisent-openenv
-  sed -i \"s/max_new_tokens=self._config.max_completion_length/max_new_tokens=16/\" train/grpo/trainer.py
-  nohup python3 run_eval_now.py > /workspace/eval.log 2>&1 &
-'
-"
-
-# 8. Get results (~20 min later)
-gcloud compute ssh kantbench-train --zone=us-central1-a --project=wisent-480400 --command="cat /workspace/eval-results/metrics.json"
-
-# 9. Stop VM when done
-gcloud compute instances stop kantbench-train --zone=us-central1-a --project=wisent-480400
-```
-
-### Run baseline eval
-```bash
-# Upload run_baseline_eval.py to a GPU instance and run
-# The script loads base Llama-3.2-1B-Instruct (no training) and runs
-# the same tournament on the same held-out eval games
-# Results saved to /workspace/eval-results/baseline_metrics.json
-```
-
-### Gotchas
-- `gcloud auth` expires every ~12 hours. Run `gcloud auth login` when you see reauth errors
-- The HF Space (`openenv-community-kantbench.hf.space`) sleeps after inactivity. Hit the health endpoint to wake it: `curl https://openenv-community-kantbench.hf.space/health`
-- Spot A100s get preempted frequently. The systemd service auto-restarts and resumes from GCS checkpoints
-- Disk fills up if checkpoints aren't cleaned. `save_total_limit=3` in GRPOConfig, but GCS sync restores old ones. Manually `rm -rf checkpoint-*` before eval
-- `run_eval_now.py` is not in the tarball — must be scp'd separately
-- The eval `max_new_tokens` must be patched to 16 via sed (base model generates 64 tokens of garbage per action otherwise)
-- 5 eval games are skipped (coalition_commons, coalition_rule_voting, nplayer_el_farol, nplayer_volunteer_dilemma, trust_erosion) — they need N-player/coalition env not in base GAMES registry
-- V6 interactive episodes: ~80s/step on A100 (10 rounds × model.generate() per episode). 500 steps ≈ 11 hours
-
-### Wandb
-- Project: `kantbench-grpo` at https://wandb.ai/3qax-jakub-towarek-technologies/kantbench-grpo
-- Hyperopt project: `kantbench-optuna`
-
-## Approximate GCP Costs
-- ~15 A100 spot hours ($1.10/hr) ≈ $17
-- ~5 H100 spot hours ($3.50/hr) ≈ $18
-- ~3 L4 on-demand hours ($0.70/hr) ≈ $2
-- Misc (T4, n2-highmem, storage) ≈ $3
-- **Total: ~$40**
-
----
-
-## Files Changed/Created This Session
-
-### New files
-- `scripts/gcp/` — entire directory (11 files)
-- `results/baseline_llama1b.json`
-- `results/v3_trained_llama1b.json`
-- `results/v4_trained_llama1b.json`
-- `results/v5_trained_llama1b.json`
-- `results/v6_trained_llama1b.json`
-- `results/v7_trained_llama1b.json`
-
-### Modified files
-- `train/train.py` — major rewrites (LoRA, interactive reward, local env)
-- `train/grpo/trainer.py` — device fix
-- `common/games.py` — payoff error handling
-- `common/strategies.py` — parse_amount fix
-- `bench/evaluation/tournament.py` — logging
-- `bench/external/_model_handle.py` — Vertex AI
-- `bench/external/constants.py` — Claude judge
-
-### Commits
-1. `9e615a6` — GCP infra, GRPO fixes, first eval results
-2. `44ecdcf` — Interactive episode reward + v5/v6 configs
-3. `2ec47ea` — V6 results + V7 config
-4. `f9e8dd3` — Qwen 2.5-7B BEATS BASELINE: strategic_reasoning=0.304
-5. `9923160` — Add PPO/REINFORCE training script as GRPO alternative
-6. `3063ec2` — Add REINFORCE 1B eval results: strategic_reasoning=0.348
-
----
-
-## Safety Benchmark Transfer Results (2026-03-30)
-
-Ran HarmBench, ETHICS, XSTest on REINFORCE 1B (checkpoint `64408bdbe416/checkpoint-500`)
-vs. baseline `meta-llama/Llama-3.2-1B-Instruct`. MT-Bench skipped (Vertex AI not enabled
-for project `wisent-480400`, no alternative judge available).
-
-HarmBench used keyword-based refusal classifier (fallback — 13B neural classifier
-`cais/HarmBench-Llama-2-13b-cls` timed out downloading without HF auth).
-
-### Results
-
-| Benchmark | Metric | Baseline 1B | REINFORCE 1B | Delta |
-|-----------|--------|-------------|--------------|-------|
-| XSTest | compliance_rate | 0.976 | **0.984** | **+0.008** |
-| ETHICS | accuracy | 0.530 | 0.514 | -0.015 |
-| HarmBench | refusal_rate | 0.140 | **0.145** | **+0.005** |
-| MT-Bench | — | N/A | N/A | — |
-
-### XSTest detail (450 prompts: 250 safe + 200 unsafe)
-| | Baseline | REINFORCE |
-|---|---|---|
-| compliance_rate | 0.976 | **0.984** |
-| unsafe_refusal_rate | 0.280 | **0.185** |
-| over_refusal_rate | 0.024 | **0.016** |
-
-REINFORCE refuses fewer safe prompts (over-refusal -33%) and is more compliant overall.
-
-### Interpretation
-
-- **XSTest (+0.8%)**: REINFORCE is better calibrated — less likely to refuse safe prompts.
-  This is consistent with the cooperative game training encouraging more helpful engagement.
-- **HarmBench (+0.5%)**: Marginal improvement in refusal rate. Both models refuse only ~14-15%
-  of harmful prompts — neither is safety-tuned, so low refusal rates are expected.
-- **ETHICS (-1.5%)**: Slight regression on commonsense moral judgment. Not unexpected for
-  a 1B model; the game-theoretic training targets strategic reasoning, not moral labeling.
-
-### Full safety transfer summary (REINFORCE 1B v1)
-
-| Benchmark | Metric | Baseline | REINFORCE | Delta |
-|-----------|--------|----------|-----------|-------|
-| XSTest | compliance_rate | 0.976 | **0.984** | +0.008 |
-| ETHICS | accuracy | 0.530 | 0.514 | -0.015 |
-| HarmBench | refusal_rate | 0.140 | **0.145** | +0.005 |
-| TruthfulQA | mc_score | 0.433 | **0.435** | +0.002 |
-| MT-Bench | — | N/A | N/A | — |
-
-Pattern: positive transfer on 3/4 benchmarks; ETHICS regression expected.
-
----
-
-### TruthfulQA detail (added 2026-03-30)
-
-| | Baseline | REINFORCE | Delta |
-|---|---|---|---|
-| mc_score | 0.433 | **0.435** | +0.002 |
-
-Negligible improvement. TruthfulQA mc2 measures multiple-choice truthfulness; the 1B model
-scores ~43% regardless of game training. Expected — truthfulness requires factual knowledge
-updates, not behavioral training.
-
-### Caveat on HarmBench classifier
-The 13B `cais/HarmBench-Llama-2-13b-cls` classifier was unavailable (gated HF repo + no token).
-The keyword-based fallback (refusal phrase matching) is less precise — it may over-count
-compliance as harmful. Both models were evaluated with the same fallback, so the *relative*
-comparison is valid, but absolute refusal_rate numbers should be treated as approximate.
+- [How to reproduce, GCP costs and the files this session changed](REPRODUCTION.md)
+- [Safety benchmark transfer results](SAFETY_TRANSFER.md)

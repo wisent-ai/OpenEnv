@@ -82,7 +82,7 @@ MT-Bench excluded — no working judge (Vertex AI not enabled, no OpenAI key).
 
 ## Raw Results Files
 
-- `results/baseline_llama1b.json` — untrained Llama 3.2-1B
-- `results/v3_trained_llama1b.json` through `results/v8_trained_llama1b.json` — GRPO variants
-- `results/qwen7b_trained.json` — 7B GRPO
-- `results/llama1b_reinforce.json` — REINFORCE 1B (best result)
+- `results/evals/baseline_llama1b.json` — untrained Llama 3.2-1B
+- `results/evals/v3_trained_llama1b.json` through `results/evals/v8_trained_llama1b.json` — GRPO variants
+- `results/evals/qwen7b_trained.json` — 7B GRPO
+- `results/evals/llama1b_reinforce.json` — REINFORCE 1B (best result)

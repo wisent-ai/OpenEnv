@@ -8,8 +8,8 @@ const SIMILARITY_PCT = 70;
 const PAGES_BONUS = 2;
 const HUNDRED = 100;
 
-const bibFile = path.join(__dirname, "paper", "references.bib");
-const sectionsDir = path.join(__dirname, "paper", "sections");
+const bibFile = path.join(__dirname, "references.bib");
+const sectionsDir = path.join(__dirname, "sections");
 const content = fs.readFileSync(bibFile, "utf-8");
 
 // Parse entries

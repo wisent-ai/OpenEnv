@@ -146,9 +146,9 @@ class KantEnvironment(Environment[GameObservation, GameAction, GameState]):
         return self._build_observation(reward=p_pay, last_round=result, done=done)
 
     def _step_free_chat(self, action: GameAction) -> GameObservation:
-        """Delegate the 2-phase free-chat round to env.free_chat.step_free_chat
+        """Delegate the 2-phase free-chat round to env.session.free_chat.step_free_chat
         (helpers split out to keep this file under the per-file cap)."""
-        from env.free_chat import step_free_chat
+        from env.session.free_chat import step_free_chat
         return step_free_chat(self, action)
 
     @property

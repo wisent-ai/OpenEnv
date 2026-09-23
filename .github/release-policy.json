@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "releases": false,
+  "reason": "The repository declares the openenv-kant benchmark source package but has no package-registry workflow, release tag contract, hosted deployment manifest, or other publisher for a versioned artifact."
+}

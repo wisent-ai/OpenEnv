@@ -10,22 +10,9 @@
   "platforms": {
     "python": {
       "runner_platform": "linux-amd64",
-      "quality": [
-        {
-          "name": "release-metadata",
-          "argv": [
-            "python3",
-            "scripts/stado_release.py",
-            "quality"
-          ]
-        }
-      ],
+      "quality": [],
       "build": {
-        "argv": [
-          "python3",
-          "scripts/stado_release.py",
-          "build"
-        ]
+        "argv": ["stado", "product", "python", "build"]
       },
       "stage": {
         "release/python-distributions.tar": "release/python-distributions.tar"

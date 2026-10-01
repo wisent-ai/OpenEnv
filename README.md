@@ -23,13 +23,6 @@ academic research.
 
 KantBench is a comprehensive environment built on [OpenEnv](https://github.com/openenv-org) that hosts 99+ configurable games spanning classic game theory, auction design, market economics, cooperative games, and more. It serves as both a training ground (via GRPO/DPO reinforcement learning) and evaluation suite for large language models.
 
-## Live Demos
-
-| | |
-|---|---|
-| **[KantBench Dashboard](https://huggingface.co/spaces/openenv-community/KantBench-Dashboard)** | Interactive Gradio app for human play, payoff matrix exploration, and LLM arena tournaments |
-| **[KantBench Environment](https://huggingface.co/spaces/openenv-community/KantBench)** | OpenEnv HTTP server powering the benchmark API |
-
 ## What's Inside
 
 ### Game Library (99+ games)
@@ -112,8 +105,6 @@ common/           Game definitions, strategies, variants, and extensions
 env/              OpenEnv environment, FastAPI server, Pydantic models
 train/            GRPO/DPO training scripts and reward functions
 bench/            Gradio dashboard, evaluation, and arena tooling
-spaces/           HuggingFace Spaces deployment (Docker + client)
-tests/            Test suite
 notebooks/        Exploration notebooks
 ```
 
@@ -127,10 +118,6 @@ python -m bench.gradio_app.app
 
 # Run the OpenEnv server
 python -m env.app
-
-# Train with GRPO
-pip install -e ".[train]"
-python -m train.train --model <model_name> --max-steps <steps>
 ```
 
 ## Environment API

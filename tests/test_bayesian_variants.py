@@ -1,11 +1,6 @@
 """Tests for the Bayesian (noisy) variant transforms."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 from common.games import GAMES
 from common.variants import (

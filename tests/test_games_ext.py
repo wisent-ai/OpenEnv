@@ -1,11 +1,6 @@
 """Tests for extended game definitions."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 
 from common.games import GAMES, get_game

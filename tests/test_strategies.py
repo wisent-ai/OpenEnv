@@ -1,11 +1,6 @@
 """Tests for opponent strategy implementations."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 
 from constant_definitions.game_constants import (

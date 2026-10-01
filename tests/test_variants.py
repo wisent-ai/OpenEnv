@@ -1,11 +1,6 @@
 """Tests for the composable variant system."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 from common.games import GAMES, get_game
 from common.variants import (

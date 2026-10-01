@@ -1,11 +1,6 @@
 """Tests for stochastic and Bayesian game definitions."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 from common.games import GAMES, get_game
 from constant_definitions.batch4.stochastic_constants import (

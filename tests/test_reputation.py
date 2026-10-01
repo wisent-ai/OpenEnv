@@ -1,11 +1,6 @@
 """Tests for the gossip variant, memory store, and composition."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 
 from common.games import GAMES, get_game

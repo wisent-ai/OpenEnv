@@ -1,11 +1,6 @@
 """Tests for the game configuration registry and payoff functions."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 
 from constant_definitions.game_constants import (

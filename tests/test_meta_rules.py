@@ -1,11 +1,6 @@
 """Tests for the meta-gaming rule catalog and variant transforms."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 from common.games import GAMES, get_game
 from common.meta.meta_rules import (

@@ -1,11 +1,6 @@
 """Tests for the dynamic game creation API."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 
 from constant_definitions.nplayer.dynamic_constants import (

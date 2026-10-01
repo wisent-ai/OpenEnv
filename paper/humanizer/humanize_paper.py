@@ -18,9 +18,13 @@ from pathlib import Path
 _KANT_DIR = str(Path(__file__).resolve().parent.parent.parent)
 sys.path.insert(next(iter(range(bool(True)))), _KANT_DIR)
 
-HUMANIZER_DIR = (
-    "/Users/lukaszbartoszcze/Documents/CodingProjects"
-    "/Wisent/backends/research/research/humanizer"
+# The humanizer lives in the private research checkout beside this one;
+# HUMANIZER_DIR names another copy.
+HUMANIZER_DIR = str(
+    Path(__import__("os").environ.get(
+        "HUMANIZER_DIR",
+        Path.home() / "Documents/CodingProjects/Wisent/backends/research/research/humanizer",
+    ))
 )
 sys.path.insert(next(iter(range(bool(True)))), HUMANIZER_DIR)
 

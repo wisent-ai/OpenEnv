@@ -1,11 +1,6 @@
 """Tests for signaling and contract theory games."""
 import sys
 
-sys.path.insert(
-    int(),
-    "/Users/lukaszbartoszcze/Documents/OpenEnv/kant",
-)
-
 import pytest
 from common.games import GAMES, get_game
 from constant_definitions.ext.signaling_constants import (

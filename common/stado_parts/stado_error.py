@@ -7,15 +7,15 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 
-_SOCKET_TIMEOUT_SECONDS = int("120")
-_ERROR_DETAIL_LIMIT = int("500")
-_HTTP_OK = int("200")
-_HTTP_REDIRECT = int("300")
-_HTTP_NOT_FOUND = int("404")
-_HTTP_CONFLICT = int("409")
-_CHUNK_BYTES = int("1048576")
-_EXIT_OK = int("0")
-_EXIT_MISSING = int("1")
+_SOCKET_TIMEOUT_SECONDS = 120
+_ERROR_DETAIL_LIMIT = 500
+_HTTP_OK = 200
+_HTTP_REDIRECT = 300
+_HTTP_NOT_FOUND = 404
+_HTTP_CONFLICT = 409
+_CHUNK_BYTES = 1048576
+_EXIT_OK = 0
+_EXIT_MISSING = 1
 
 
 class StadoError(RuntimeError):

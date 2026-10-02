@@ -88,12 +88,12 @@ def load_staged_dataset(
 ) -> Dataset:
     """Load deterministic prompt records from a staged JSON or JSONL object."""
     path = require_local_artifact(value, "training dataset", directory=False)
-    if n_samples <= int("0"):
+    if n_samples <= 0:
         raise ValueError("training sample count must be positive")
 
     with path.open("r", encoding="utf-8") as stream:
-        first = stream.read(int("1"))
-        stream.seek(int("0"))
+        first = stream.read(1)
+        stream.seek(0)
         if first == "[":
             raw_records = json.load(stream)
         else:
@@ -131,7 +131,7 @@ def load_staged_dataset(
             "strategy": str(raw.get("strategy", "")),
             "variant": str(raw.get("variant", "")),
             "available_moves": available_moves,
-            "rounds_remaining": raw.get("rounds_remaining", int("0")),
+            "rounds_remaining": raw.get("rounds_remaining", 0),
         })
 
     if len(records) < n_samples:

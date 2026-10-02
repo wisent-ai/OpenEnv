@@ -223,7 +223,7 @@ def parse_args():
     p.add_argument("--data-path", required=True,
                    help="Absolute path to the machine-staged JSON or JSONL dataset")
     p.add_argument("--output-dir", default="./kantbench-grpo")
-    p.add_argument("--episodes", type=int, default=int("1000"),
+    p.add_argument("--episodes", type=int, default=1000,
                    help="Number of staged dataset records to consume")
     p.add_argument("--num-generations", type=int, default=8, help="GRPO group size")
     p.add_argument("--batch-size", type=int, default=4)

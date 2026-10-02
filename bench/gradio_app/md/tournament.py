@@ -42,7 +42,7 @@ def _llm_call(model_name: str, prompt: str) -> str:
         model_name,
         [{"role": "system", "content": _SYS_PROMPT},
          {"role": "user", "content": prompt}],
-        max_tokens=int("20"),
+        max_tokens=20,
     )
 
 

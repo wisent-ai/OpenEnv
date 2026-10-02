@@ -61,10 +61,10 @@ def chat_completion(
         },
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=int("120")) as response:
+    with urllib.request.urlopen(request, timeout=120) as response:
         payload = json.load(response)
     try:
-        content = payload["choices"][int("0")]["message"]["content"]
+        content = payload["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise RuntimeError("Stado model router returned no completion") from exc
     if not isinstance(content, str):

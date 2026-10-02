@@ -27,7 +27,7 @@ def _invoke(*args: str) -> dict[str, Any]:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise MachineError(result.stderr.strip() or "invalid Stado machine response") from exc
-    if result.returncode != int("0") or not payload.get("ok"):
+    if result.returncode != 0 or not payload.get("ok"):
         error = payload.get("error") or {}
         raise MachineError(str(error.get("message") or result.stderr or "Stado machine command failed"))
     return payload["result"]
@@ -57,7 +57,7 @@ def _require_openenv_uri(uri: str) -> None:
 def _file_sha256(path: str | Path) -> str:
     digest = hashlib.sha256()
     with Path(path).open("rb") as stream:
-        while chunk := stream.read(int("1048576")):
+        while chunk := stream.read(1048576):
             digest.update(chunk)
     return digest.hexdigest()
 
@@ -103,9 +103,9 @@ def submit(
     command: str,
     input_objects: dict[str, dict[str, str]],
     output_uri: str,
-    vram_gb: int = int("40"),
+    vram_gb: int = 40,
     gpu_type: str = "",
-    max_cost_per_hour: float = float("4"),
+    max_cost_per_hour: float = 4.0,
     secret_env: dict[str, dict[str, str]] | None = None,
 ) -> str:
     _require_openenv_uri(output_uri)

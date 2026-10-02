@@ -32,7 +32,7 @@ def _make_anthropic_fn(model: str) -> Callable[[str], str]:
             model,
             [{"role": "system", "content": SYSTEM_PROMPT},
              {"role": "user", "content": prompt}],
-            max_tokens=int("255"),
+            max_tokens=255,
         )
     return _generate
 

@@ -6,5 +6,5 @@ select, input { margin-left: .3rem; }
 button { margin: .2rem; padding: .3rem .8rem; }
 table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
 th, td { border-bottom: 1px solid #ddd; padding: .3rem; text-align: left; }
-#refusal { color: #a00; white-space: pre-wrap; }
+#refusal, .refusal { color: #a00; white-space: pre-wrap; }
 #status { color: #555; }

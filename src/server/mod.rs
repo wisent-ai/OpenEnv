@@ -2,12 +2,15 @@
 //! protocol. A WebSocket on `/ws` is one persistent session (`reset`, `step`,
 //! `state`, `close` messages); `/reset`, `/step` and `/state` answer over a
 //! session that lives for one request, as OpenEnv's simulation mode does;
-//! `/web` is the interactive explorer; `/health`, `/metadata` and `/schema`
-//! describe the server. The number of open sessions is the caller's.
+//! `/web` is the interactive explorer, with `/game/<key>` (a game's payoff
+//! cells) and `/tournament` (a tournament on request) behind it; `/health`,
+//! `/metadata` and `/schema` describe the server. The number of open sessions
+//! is the settings document's.
 
 mod session;
 mod socket;
 pub mod space;
+mod views;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -71,6 +74,8 @@ fn router(shared: Shared) -> Router {
         .route("/state", get(state))
         .route("/ws", get(socket::upgrade))
         .route("/reward", post(reward))
+        .route("/game/:key", get(views::game))
+        .route("/tournament", post(views::tournament))
         .with_state(shared)
 }
 

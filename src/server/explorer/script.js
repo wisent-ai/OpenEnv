@@ -23,8 +23,70 @@ async function load() {
   catalog = await (await fetch("/games")).json();
   fill(byId("game"), catalog.pair.concat(catalog.group));
   fill(byId("variant"), catalog.variants);
+  fill(byId("agent-strategy"), catalog.strategies);
+  for (const name of catalog.strategies) {
+    const label = document.createElement("label");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = name;
+    box.className = "opponent";
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(" " + name));
+    byId("opponents").appendChild(label);
+  }
   strategiesFor(byId("game").value);
   byId("game").addEventListener("change", () => strategiesFor(byId("game").value));
+}
+
+async function showPayoffs() {
+  const table = byId("payoffs");
+  table.innerHTML = "";
+  byId("payoff-refusal").textContent = "";
+  const response = await fetch("/game/" + encodeURIComponent(byId("game").value));
+  if (!response.ok) {
+    byId("payoff-refusal").textContent = (await response.json()).detail;
+    return;
+  }
+  const built = await response.json();
+  const head = document.createElement("tr");
+  cell(head, "you \\ opponent");
+  for (const column of built.columns) cell(head, column);
+  table.appendChild(head);
+  built.rows.forEach((rowName, index) => {
+    const row = document.createElement("tr");
+    cell(row, rowName);
+    for (const paid of built.cells[index]) {
+      cell(row, Array.isArray(paid) ? paid.join(", ") : paid.refused);
+    }
+    table.appendChild(row);
+  });
+}
+
+async function runTournament() {
+  const strategies = Array.from(document.querySelectorAll(".opponent:checked")).map((box) => box.value);
+  const request = { games: [byId("game").value], strategies };
+  if (byId("agent-strategy").value) request.agent_strategy = byId("agent-strategy").value;
+  if (byId("agent-route").value) request.agent_route = byId("agent-route").value;
+  byId("tournament-status").textContent = "Running...";
+  const table = byId("metrics");
+  table.innerHTML = "";
+  const response = await fetch("/tournament", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    byId("tournament-status").textContent = result.detail;
+    return;
+  }
+  byId("tournament-status").textContent = result.total_episodes + " episodes, seed " + result.seed;
+  for (const [name, value] of Object.entries(result.metrics)) {
+    const row = document.createElement("tr");
+    cell(row, name);
+    cell(row, value === null ? "not measurable from these results" : JSON.stringify(value));
+    table.appendChild(row);
+  }
 }
 
 function cell(row, text) {
@@ -103,4 +165,6 @@ async function step(played) {
 }
 
 byId("reset").addEventListener("click", reset);
+byId("show-payoffs").addEventListener("click", showPayoffs);
+byId("run-tournament").addEventListener("click", runTournament);
 load();

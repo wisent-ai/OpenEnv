@@ -11,6 +11,7 @@
 settings document decides every payoff; a game it does not declare is refused
 with the name of what is missing.</p>
 <fieldset>
+  <legend>Play</legend>
   <label>Game <select id="game"></select></label>
   <label>Strategy <select id="strategy"></select></label>
   <label>Variant <select id="variant"><option value="">none</option></select></label>
@@ -24,6 +25,26 @@ with the name of what is missing.</p>
 <div id="moves"></div>
 <p id="scores"></p>
 <table><thead><tr><th>Round</th><th>Moves</th><th>Payoffs</th></tr></thead><tbody id="history"></tbody></table>
+
+<fieldset>
+  <legend>Payoffs</legend>
+  <button id="show-payoffs">Show the selected game's payoffs</button>
+  <p id="payoff-refusal" class="refusal"></p>
+  <table id="payoffs"></table>
+</fieldset>
+
+<fieldset>
+  <legend>Tournament</legend>
+  <p>Plays the selected game against every checked strategy,
+  <code>evaluation.episodes</code> times each, with the agent's seat held by a
+  strategy or by a model behind Brama.</p>
+  <div id="opponents"></div>
+  <label>Agent strategy <select id="agent-strategy"><option value="">none</option></select></label>
+  <label>Agent route <input id="agent-route" placeholder="a Brama route"></label>
+  <button id="run-tournament">Run</button>
+  <p id="tournament-status"></p>
+  <table id="metrics"></table>
+</fieldset>
 <script src="/explorer.js"></script>
 </body>
 </html>

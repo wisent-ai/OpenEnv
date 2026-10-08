@@ -326,11 +326,14 @@ kant serve --settings settings.json --listen 0.0.0.0:<port>
 
 | Route | What it answers |
 |---|---|
-| `GET /web` | the explorer: pick a game, strategy and variant, reset, play moves |
+| `GET /web` | the explorer: play a game against a strategy, show a game's payoffs, run a tournament |
 | `GET /ws` | one persistent session: `reset`, `step`, `state`, `close` messages |
 | `POST /reset` | a reset over a session that lives for one request |
 | `POST /step`, `GET /state` | refused with 409: a one-request session has no episode; play over `/ws` |
 | `GET /games` | every game key, strategy and variant a reset may name |
+| `GET /game/<key>` | a two-seat game as the settings document builds it, with every payoff cell |
+| `POST /tournament` | `{"games", "strategies", "agent_strategy" or "agent_route", "opponent_route"}`: the answer `kant tournament` gives |
+| `POST /reward` | Ster's outside scorer, when the server was started with `--states` (see Training) |
 | `GET /health`, `/metadata`, `/schema` | server status, description, and the action, observation and reset schemas |
 
 Over `/ws` a client sends `{"type": "reset", "data": {"game": "prisoners_dilemma", "strategy": "tit_for_tat"}}`

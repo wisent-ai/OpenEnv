@@ -55,3 +55,7 @@ path = "tests/training/dataset.rs"
 [[test]]
 name = "server_views"
 path = "tests/server/views.rs"
+
+[[test]]
+name = "evaluation_matchups"
+path = "tests/evaluation/matchups.rs"

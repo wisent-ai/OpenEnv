@@ -2,5 +2,6 @@
 //! data.
 
 pub mod dataset;
+pub mod matchups;
 pub mod serve;
 pub mod tournament;

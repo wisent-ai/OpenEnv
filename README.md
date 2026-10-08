@@ -396,6 +396,24 @@ A metric the results cannot measure is absent rather than zero: there is no
 exploitation resistance without an `always_defect` opponent, no adaptability
 with one opponent, and no `strategic_reasoning` unless all five are present.
 
+### Matchups and the arena
+
+`kant matchups` plays named seats against each other: every ordered pair of
+seats, a seat against itself included, in every game, `evaluation.episodes`
+times each.
+
+```bash
+kant matchups --settings settings.json --game prisoners_dilemma \
+  --seat small=route:<brama route> --seat large=route:<brama route> --seat grudger=strategy:grudger
+```
+
+Each matchup records both scores, both cooperation rates and the rounds.
+When the settings document declares `arena`, each seat also gets a
+reputation: its cooperation rate and the fairness of its episodes, each
+blended by exponential smoothing from `arena.prior` with `arena.decay` the
+weight an old value keeps, combined as `arena.weights.cooperation` and
+`arena.weights.fairness`. Without `arena` no reputation is reported.
+
 ## Training
 
 Ster owns the gradient (`ster tune grpo`, `ster tune dpo`); KantBench writes

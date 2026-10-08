@@ -35,7 +35,10 @@ const USAGE: &str = "usage (command first, then options):
   kant dataset --settings FILE --game G [--game G]... --strategy S [--strategy S]...
                --agent-strategy A --output DIRECTORY
                     (prompts.json for ster tune grpo, pairs.json for ster tune dpo, and the
-                     states.json kant serve --states scores against)";
+                     states.json kant serve --states scores against)
+  kant matchups --settings FILE --game G [--game G]... --seat NAME=route:R|NAME=strategy:S...
+                    (every seat against every seat, itself included, in every game,
+                     evaluation.episodes times; arena reputation when arena is declared)";
 
 fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
     let words = Words::parse(args);
@@ -51,6 +54,7 @@ fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
         "serve" => cli::services::serve::run(&words),
         "tournament" => cli::services::tournament::run(&words),
         "dataset" => cli::services::dataset::run(&words),
+        "matchups" => cli::services::matchups::run(&words),
         other => Err(Error::Usage(format!("unknown command {other}\n{USAGE}"))),
     }
 }

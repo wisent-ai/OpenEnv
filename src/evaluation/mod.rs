@@ -4,6 +4,7 @@
 //! agent's own kind in the opponent's seat; one marked cross-model puts the
 //! declared opponent model there.
 
+pub mod matchups;
 pub mod metrics;
 
 use std::collections::BTreeMap;
@@ -107,7 +108,7 @@ impl Runner {
         })
     }
 
-    fn seat(&self, spec: &SeatSpec, game: &Game, seed: u64) -> Result<Box<dyn Agent>> {
+    pub(crate) fn seat(&self, spec: &SeatSpec, game: &Game, seed: u64) -> Result<Box<dyn Agent>> {
         match spec {
             SeatSpec::Model(route) => {
                 let brama = self.brama.clone().ok_or_else(|| Error::Config("a model seat needs Brama".to_owned()))?;

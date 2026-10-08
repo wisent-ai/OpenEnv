@@ -1,0 +1,10 @@
+body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 60rem; padding: 0 1rem; }
+h1 { font-size: 1.4rem; }
+fieldset { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; }
+label { display: inline-block; margin-right: 1rem; }
+select, input { margin-left: .3rem; }
+button { margin: .2rem; padding: .3rem .8rem; }
+table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+th, td { border-bottom: 1px solid #ddd; padding: .3rem; text-align: left; }
+#refusal { color: #a00; white-space: pre-wrap; }
+#status { color: #555; }

@@ -22,7 +22,11 @@ const USAGE: &str = "usage (command first, then options):
   kant coalition --settings FILE --game G --strategy S [--strategy S]...
                  --governance S [--governance S]... --script FILE [--rounds N] [--episode ID]
                     (one coalition episode; the script is a JSON list of
-                     {\"negotiate\": {...}} and {\"move\": M} steps)";
+                     {\"negotiate\": {...}} and {\"move\": M} steps)
+  kant serve --settings FILE --listen ADDRESS
+                    (the OpenEnv server: /ws sessions, /reset, /web explorer; at most
+                     server.sessions sessions open at once; announces its bound
+                     address on standard error)";
 
 fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
     let words = Words::parse(args);
@@ -35,6 +39,7 @@ fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
         "play" => cli::play::run(&words),
         "group" => cli::group::group(&words),
         "coalition" => cli::group::coalition(&words),
+        "serve" => cli::serve::run(&words),
         other => Err(Error::Usage(format!("unknown command {other}\n{USAGE}"))),
     }
 }

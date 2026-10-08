@@ -5,6 +5,7 @@
 pub mod catalog;
 pub mod group;
 pub mod play;
+pub mod serve;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;

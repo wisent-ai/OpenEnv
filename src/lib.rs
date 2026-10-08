@@ -12,6 +12,7 @@ pub mod governance;
 pub mod group;
 pub mod settings;
 pub mod reputation;
+pub mod server;
 pub mod strategy;
 pub mod variant;
 

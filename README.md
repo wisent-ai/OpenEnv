@@ -311,47 +311,45 @@ score keeps). The agent sees `opponent_reputation` and `interaction_count` in
 every observation's metadata; a gossip move (`gossip_<rating>_<move>`) records
 its rating.
 
-## Quick Start
+## Environment server
+
+`kant serve` serves the environment over OpenEnv's HTTP and WebSocket
+protocol. The address is the caller's; how many WebSocket sessions may be open
+at once is the settings document's `server.sessions`, and a settings document
+without it is refused before anything listens. The bound address is announced
+on standard error (`--listen` with port zero lets the operating system choose
+one).
 
 ```bash
-pip install -e ".[dev,gradio,api]"
-
-# Run the interactive dashboard locally
-python -m bench.gradio_app.app
-
-# Run the OpenEnv server
-python -m env.app
+kant serve --settings settings.json --listen 0.0.0.0:<port>
 ```
 
-## Environment API
+| Route | What it answers |
+|---|---|
+| `GET /web` | the explorer: pick a game, strategy and variant, reset, play moves |
+| `GET /ws` | one persistent session: `reset`, `step`, `state`, `close` messages |
+| `POST /reset` | a reset over a session that lives for one request |
+| `POST /step`, `GET /state` | refused with 409: a one-request session has no episode; play over `/ws` |
+| `GET /games` | every game key, strategy and variant a reset may name |
+| `GET /health`, `/metadata`, `/schema` | server status, description, and the action, observation and reset schemas |
 
-Reset to a specific game and opponent strategy, an N-player game, or a random
-configuration:
+Over `/ws` a client sends `{"type": "reset", "data": {"game": "prisoners_dilemma", "strategy": "tit_for_tat"}}`
+(optionally with `variant`, `num_rounds` and `episode_id`; a group game's
+`strategy` plays every other seat) and `{"type": "step", "data": {"move": "cooperate"}}`
+(optionally with a free-chat `message`). Each answer is
+`{"type": "observation", "data": {"observation": ..., "reward": ..., "done": ...}}`.
+A refusal is `{"type": "error", "data": {"code": ..., "message": ...}}` with
+`INVALID_JSON`, `VALIDATION_ERROR` (a message without the fields it needs),
+`EXECUTION_ERROR` (the environment refused: an undeclared game, an unknown
+move, a finished episode), `UNKNOWN_TYPE`, or `CAPACITY_REACHED` (every
+session place is taken; the socket is closed).
 
-```python
-result = env.reset(game="stag_hunt", strategy="grudger")
-result = env.reset(game="nplayer_volunteer_dilemma", strategy="random")
-result = env.reset()
-```
-
-The 17 built-in strategies are `random`, `always_cooperate`, `always_defect`,
-`tit_for_tat`, `tit_for_two_tats`, `grudger`, `pavlov`,
-`suspicious_tit_for_tat`, `generous_tit_for_tat`, `adaptive`, `mixed`,
-`ultimatum_fair`, `ultimatum_low`, `trust_fair`, `trust_generous`,
-`public_goods_fair`, and `public_goods_free_rider`.
-
-The server exposes:
-
-- `/web` for the interactive environment explorer
-- `/docs` for the OpenAPI/Swagger interface
-- `/health` for container health
-- `/ws` for persistent reset/step sessions
-
-`KantBenchAction` has one string field, `move`. `KantBenchObservation` returns
+The observation is the KantBench document clients already read:
 `game_name`, `game_description`, `available_moves`, `your_move`,
 `opponent_move`, `your_payoff`, `opponent_payoff`, `cumulative_score`,
-`round_number`, `max_rounds`, `opponent_strategy`, and `history`. N-player
-observations also return `num_players`, `player_index`, and `all_scores`.
+`round_number`, `max_rounds`, `opponent_strategy`, `history` and `message`;
+group games add `num_players`, `player_index` and `all_scores`. The move and
+payoff fields are absent until a round has been played, rather than zero.
 
 ## Training
 

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>KantBench explorer</title>
+<link rel="stylesheet" href="/explorer.css">
+</head>
+<body>
+<h1>KantBench explorer</h1>
+<p>Pick a game and an opponent strategy, reset, then play moves. The server's
+settings document decides every payoff; a game it does not declare is refused
+with the name of what is missing.</p>
+<fieldset>
+  <label>Game <select id="game"></select></label>
+  <label>Strategy <select id="strategy"></select></label>
+  <label>Variant <select id="variant"><option value="">none</option></select></label>
+  <label>Rounds <input id="rounds" placeholder="declared"></label>
+  <label>Message <input id="message" placeholder="free-chat games"></label>
+  <button id="reset">Reset</button>
+</fieldset>
+<p id="status">Not connected.</p>
+<p id="refusal"></p>
+<div id="game-text"></div>
+<div id="moves"></div>
+<p id="scores"></p>
+<table><thead><tr><th>Round</th><th>Moves</th><th>Payoffs</th></tr></thead><tbody id="history"></tbody></table>
+<script src="/explorer.js"></script>
+</body>
+</html>

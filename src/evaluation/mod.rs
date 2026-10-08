@@ -7,6 +7,7 @@
 pub mod group;
 pub mod matchups;
 pub mod metrics;
+pub mod report;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

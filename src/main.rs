@@ -29,7 +29,7 @@ const USAGE: &str = "usage (command first, then options):
                      answers to a dataset's prompts; announces its bound address on
                      standard error)
   kant tournament --settings FILE --game G [--game G]... --strategy S [--strategy S]...
-                  (--agent-route R | --agent-strategy S) [--opponent-route R]
+                  (--agent-route R | --agent-strategy S) [--opponent-route R] [--report FILE]
                     (the agent against every strategy in every game, evaluation.episodes
                      times each, with the metrics; a model seat goes through Brama)
   kant dataset --settings FILE --game G [--game G]... --strategy S [--strategy S]...

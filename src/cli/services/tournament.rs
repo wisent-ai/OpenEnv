@@ -26,6 +26,12 @@ pub fn run(words: &Words) -> Result<Value> {
     let tournament = Runner::new(settings.clone(), agent, opponent)?.run(&games, &strategies)?;
     let mut answer = serde_json::to_value(&tournament).map_err(|source| Error::Json { origin: "tournament".to_owned(), source })?;
     answer["settings"] = json!(settings.document());
+    if let Some(path) = words.one("report")? {
+        let path = std::path::PathBuf::from(path);
+        std::fs::write(&path, crate::evaluation::report::markdown(&tournament))
+            .map_err(|source| Error::Io { path: path.clone(), source })?;
+        answer["report"] = json!(path);
+    }
     Ok(answer)
 }
 

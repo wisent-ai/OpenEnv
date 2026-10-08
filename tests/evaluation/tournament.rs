@@ -49,12 +49,15 @@ fn declared() -> Value {
 #[test]
 fn every_pairing_is_played_the_declared_number_of_times_and_scored() {
     let settings = settings_file("tournament-strategies");
+    let report = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("tournament-strategies").join("report.md");
     let output = kant(&[
         "tournament", "--settings", &settings, "--game", "prisoners_dilemma", "--strategy", "always_defect",
-        "--strategy", "always_cooperate", "--agent-strategy", "tit_for_tat",
+        "--strategy", "always_cooperate", "--agent-strategy", "tit_for_tat", "--report", report.to_str().expect("path"),
     ]);
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     let result: Value = serde_json::from_slice(&output.stdout).expect("one JSON document");
+    let written = std::fs::read_to_string(&report).expect("the report is written");
+    assert!(written.contains("| always_defect |") && written.contains("strategy tit_for_tat"), "{written}");
     let episodes = declared()["evaluation"]["episodes"].as_u64().expect("episodes");
     let opponents = result["games"]["prisoners_dilemma"]["opponents"].as_object().expect("opponents").clone();
     assert_eq!(result["total_episodes"].as_u64(), Some(episodes * opponents.len() as u64));

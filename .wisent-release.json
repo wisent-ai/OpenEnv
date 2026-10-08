@@ -4,18 +4,23 @@
   "releases": true,
   "version_source": {
     "kind": "regex",
-    "path": "pyproject.toml",
-    "pattern": "(?m)^\\s*version\\s*=\\s*[\\\"'](?P<version>[0-9A-Za-z._-]+)[\\\"']"
+    "path": "Cargo.toml",
+    "pattern": "(?m)^version\\s*=\\s*\"(?P<version>\\d+\\.\\d+\\.\\d+)\"\\s*$"
   },
   "platforms": {
-    "python": {
+    "linux-amd64": {
       "runner_platform": "linux-amd64",
-      "quality": [],
+      "quality": [
+        {"name": "fmt", "argv": ["cargo", "fmt", "--all", "--", "--check"]}
+      ],
       "build": {
-        "argv": ["stado", "product", "python", "build"]
+        "argv": ["cargo", "build", "--release", "--locked", "--target-dir", "target"]
       },
+      "tests": [
+        {"name": "kant", "argv": ["cargo", "test", "--release", "--locked", "--target-dir", "target"]}
+      ],
       "stage": {
-        "release/python-distributions.tar": "release/python-distributions.tar"
+        "target/release/kant": "bin/kant"
       }
     }
   },

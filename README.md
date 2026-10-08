@@ -21,7 +21,7 @@ opens — communication through natural language. With our benchmark, the space 
 solutions to traditional game theory opens even further. A critical milestone for
 academic research.
 
-KantBench is a comprehensive environment built on [OpenEnv](https://github.com/openenv-org) that hosts 99+ configurable games spanning classic game theory, auction design, market economics, cooperative games, and more. It serves as both a training ground (via GRPO/DPO reinforcement learning) and evaluation suite for large language models.
+KantBench is a game-theory environment speaking the [OpenEnv](https://github.com/meta-pytorch/OpenEnv) protocol, with configurable games spanning classic game theory, auction design, market economics, cooperative games, group and coalition games, and more. It is both an evaluation suite for language models and the environment Ster trains them in (GRPO and DPO through `ster tune`).
 
 ## What's Inside
 
@@ -93,34 +93,44 @@ Prisoner's Dilemma          Stag Hunt               Hawk-Dove
 ## Project Structure
 
 ```
-common/           Game definitions, strategies, variants, and extensions
-  games.py          Core game configs (PD, Stag Hunt, Hawk-Dove, ...)
-  strategies.py     17 opponent strategies
-  variants.py       12 composable game variants
-  games_ext/        Matrix, sequential, auction, and N-player games
-  games_info/       Information and signaling games
-  games_market/     Market and economic games
-  games_coop/       Cooperative and dynamic games
-  games_adaptive/   Adaptive and meta-game generation
-env/              OpenEnv environment, FastAPI server, Pydantic models
-train/            GRPO/DPO training scripts and reward functions
-bench/            Gradio dashboard, evaluation, and arena tooling
-notebooks/        Exploration notebooks
+src/
+  settings/       the settings document every number comes from
+  game/           the game library: families of two-seat games, payoff matrices
+  variant/        composable variants and the meta-game rule catalog
+  strategy/       opponent strategies for two-seat games
+  env/            the two-seat environment, with free-chat rounds
+  group/          group games, group strategies and the group environment
+  coalition/      coalition play over group games
+  governance/     meta-governance: proposals, votes, payoff mechanics
+  reputation.rs   reputation across episodes
+  agent/          model seats through Brama, prompts, answer parsing
+  evaluation/     tournaments, metrics, matchups, reports
+  training/       datasets and rewards for Ster
+  server/         the OpenEnv server and the /web explorer
+  cli/            the kant command line
+tests/<area>/     tests that run the built kant
+spaces/kant/      the Hugging Face Space container
+paper/            the KantBench paper
+results/          evaluation outputs of earlier runs
 ```
 
 ## Command line
 
-KantBench is moving from Python to one Rust program, `kant` (source under
-`src/`, tests under `tests/<area>/`). Each command answers one JSON document on
-standard output; a refusal is one line on standard error naming what is
-missing, and the exit status fails.
+KantBench is one Rust program, `kant`. Each command answers one JSON document
+on standard output; a refusal is one line on standard error naming what is
+missing, and the exit status fails. `kant` with no command prints every
+command and its options.
 
 ```bash
 kant games [--settings FILE]        # every game and what it reads; with --settings, whether that document builds it
 kant strategies [--settings FILE]   # every opponent strategy and what it reads
 kant play --settings FILE --game prisoners_dilemma --strategy tit_for_tat \
   --move cooperate --move defect [--rounds N] [--episode ID]
+kant group | coalition | serve | tournament | matchups | group-tournament | dataset ...
 ```
+
+Install it from a release (`stado product install openenv-kant`) or from this
+checkout with Cargo.
 
 ### The settings document
 

@@ -1,79 +1,31 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
+FROM rust:slim AS build
 
-# Multi-stage build using openenv-base
-# This Dockerfile is flexible and works for both:
-# - In-repo environments (with local OpenEnv sources)
-# - Standalone environments (with openenv from PyPI/Git)
-# The build script (openenv build) handles context detection and sets appropriate build args.
+# The revision the server is built from. A Space passes its variables to the
+# build as arguments, so the Space's settings state it; nothing is built from
+# a branch whose contents can change under the same name. An unset variable
+# fails this step, which names it.
+ARG KANT_REVISION
+RUN test -n "$KANT_REVISION"
+RUN apt-get update && apt-get install --yes --no-install-recommends git ca-certificates pkg-config \
+ && cargo install --locked --git https://github.com/wisent-ai/OpenEnv --rev "$KANT_REVISION" kantbench
 
-ARG BASE_IMAGE=ghcr.io/meta-pytorch/openenv-base:latest
-FROM ${BASE_IMAGE} AS builder
-
+FROM debian:stable-slim
+COPY --from=build /usr/local/cargo/bin/kant /usr/local/bin/kant
 WORKDIR /app
 
-# Ensure git is available (required for installing dependencies from VCS)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
-    rm -rf /var/lib/apt/lists/*
+# The settings document every payoff, round count and session limit comes
+# from: the Space variable KANT_SETTINGS holds it whole, so the numbers a
+# public run plays are the ones its operator stated there.
+ARG KANT_SETTINGS
+RUN test -n "$KANT_SETTINGS" && printf '%s' "$KANT_SETTINGS" > settings.json
 
-# Build argument to control whether we're building standalone or in-repo
-ARG BUILD_MODE=in-repo
-ARG ENV_NAME=KantBench
+# The address the server listens on is the Space's: Hugging Face routes a
+# Docker Space to the port its README's app_port names, or to the default it
+# states (https://huggingface.co/docs/hub/spaces-sdks-docker), so the Space
+# variable KANT_LISTEN states host and port to match. Unset, the build stops
+# here.
+ARG KANT_LISTEN
+RUN test -n "$KANT_LISTEN"
+ENV KANT_LISTEN=$KANT_LISTEN
 
-# Copy environment code (always at root of build context)
-COPY . /app/env
-
-# For in-repo builds, openenv is already vendored in the build context
-# For standalone builds, openenv will be installed via pyproject.toml
-WORKDIR /app/env
-
-# Ensure uv is available (for local builds where base image lacks it)
-RUN if ! command -v uv >/dev/null 2>&1; then \
-        curl -LsSf https://astral.sh/uv/install.sh | sh && \
-        mv /root/.local/bin/uv /usr/local/bin/uv && \
-        mv /root/.local/bin/uvx /usr/local/bin/uvx; \
-    fi
-    
-# Install dependencies using uv sync
-# If uv.lock exists, use it; otherwise resolve on the fly
-RUN --mount=type=cache,target=/root/.cache/uv \
-    if [ -f uv.lock ]; then \
-        uv sync --frozen --no-install-project --no-editable; \
-    else \
-        uv sync --no-install-project --no-editable; \
-    fi
-
-RUN --mount=type=cache,target=/root/.cache/uv \
-    if [ -f uv.lock ]; then \
-        uv sync --frozen --no-editable; \
-    else \
-        uv sync --no-editable; \
-    fi
-
-# Final runtime stage
-FROM ${BASE_IMAGE}
-
-WORKDIR /app
-
-# Copy the virtual environment from builder
-COPY --from=builder /app/env/.venv /app/.venv
-
-# Copy the environment code
-COPY --from=builder /app/env /app/env
-
-# Set PATH to use the virtual environment
-ENV PATH="/app/.venv/bin:$PATH"
-
-# Set PYTHONPATH so imports work correctly
-ENV PYTHONPATH="/app/env:$PYTHONPATH"
-
-# Clear base image ENTRYPOINT so our CMD runs directly
-ENTRYPOINT []
-
-# Run the FastAPI server
-ENV ENABLE_WEB_INTERFACE=true
-CMD ["sh", "-c", "echo '===== Application Startup at '$(date '+%Y-%m-%d %H:%M:%S')' =====' && cd /app/env && /app/.venv/bin/python -u -c 'import uvicorn; uvicorn.run(\"server.app:app\", host=\"0.0.0.0\", port=8000, log_level=\"debug\")' 2>&1"]
+CMD kant serve --settings settings.json --listen "$KANT_LISTEN"

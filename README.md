@@ -395,14 +395,37 @@ with one opponent, and no `strategic_reasoning` unless all five are present.
 
 ## Training
 
-KantBench uses a composite reward signal combining:
+Ster owns the gradient (`ster tune grpo`, `ster tune dpo`); KantBench writes
+what it reads and pays what it asks to score.
 
-- **Payoff** -- raw game-theoretic score
-- **Cooperation** -- prosocial behavior metric
-- **Pareto efficiency** -- proximity to the efficient frontier
-- **Fairness** -- equity of outcomes
+```bash
+kant dataset --settings settings.json --game prisoners_dilemma --strategy tit_for_tat \
+  --agent-strategy random --output data
+kant serve --settings settings.json --listen 0.0.0.0:<port> --states data/states.json
+ster tune grpo --prompts data/prompts.json --reward 'http://<host>:<port>/reward#/reward' ...
+ster tune dpo --pairs data/pairs.json ...
+```
 
-Training covers 90+ base games, 3 N-player games, and 9 meta-game configurations with dynamic variant composition during rollouts.
+`kant dataset` plays `training.episodes` episodes of each game against each
+strategy, the agent's seat held by `--agent-strategy`, and records every state
+before an agent move as the prompt a model seat reads (`agent.history_rounds`
+past rounds shown). It writes `prompts.json` (`{"prompts": [...]}`),
+`states.json` (each prompt with its game, earlier rounds and seed) and
+`pairs.json`, a Ster pair set whose positive side is the prompt followed by the
+move with the highest expected payoff and whose negative side is the prompt
+followed by the move with the lowest, kept when they differ by at least
+`training.pair_margin`.
+
+The reward is the agent's own payoff and nothing else: the expected
+self-payoff of the move an answer names, in the state its prompt shows,
+against an opponent who plays each of its moves equally often (a game whose
+payoffs move with the episode is replayed to that state first). No
+cooperation, fairness or Pareto term enters it, so those are measured
+outcomes rather than a shaping signal read back out. `POST /reward` takes
+Ster's `{"prompt", "text"}` and answers `{"reward", "move"}`; an answer naming
+no move earns the declared `training.unparsed_reward`; a prompt the dataset
+does not hold is refused with 422, and a server started without `--states`
+refuses `/reward` with 409.
 
 ## License
 

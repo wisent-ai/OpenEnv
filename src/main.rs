@@ -23,14 +23,19 @@ const USAGE: &str = "usage (command first, then options):
                  --governance S [--governance S]... --script FILE [--rounds N] [--episode ID]
                     (one coalition episode; the script is a JSON list of
                      {\"negotiate\": {...}} and {\"move\": M} steps)
-  kant serve --settings FILE --listen ADDRESS
+  kant serve --settings FILE --listen ADDRESS [--states FILE]
                     (the OpenEnv server: /ws sessions, /reset, /web explorer; at most
-                     server.sessions sessions open at once; announces its bound
-                     address on standard error)
+                     server.sessions sessions open at once; with --states, /reward scores
+                     answers to a dataset's prompts; announces its bound address on
+                     standard error)
   kant tournament --settings FILE --game G [--game G]... --strategy S [--strategy S]...
                   (--agent-route R | --agent-strategy S) [--opponent-route R]
                     (the agent against every strategy in every game, evaluation.episodes
-                     times each, with the metrics; a model seat goes through Brama)";
+                     times each, with the metrics; a model seat goes through Brama)
+  kant dataset --settings FILE --game G [--game G]... --strategy S [--strategy S]...
+               --agent-strategy A --output DIRECTORY
+                    (prompts.json for ster tune grpo, pairs.json for ster tune dpo, and the
+                     states.json kant serve --states scores against)";
 
 fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
     let words = Words::parse(args);
@@ -45,6 +50,7 @@ fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
         "coalition" => cli::episodes::group::coalition(&words),
         "serve" => cli::services::serve::run(&words),
         "tournament" => cli::services::tournament::run(&words),
+        "dataset" => cli::services::dataset::run(&words),
         other => Err(Error::Usage(format!("unknown command {other}\n{USAGE}"))),
     }
 }

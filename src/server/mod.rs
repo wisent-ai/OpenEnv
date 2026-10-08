@@ -24,6 +24,7 @@ use tokio::sync::Semaphore;
 use crate::error::{Error, Result};
 use crate::game::Library;
 use crate::group::GroupLibrary;
+use crate::training::reward::Scorer;
 use crate::settings::Settings;
 
 pub use session::{ResetRequest, Session, StepResult};
@@ -40,6 +41,8 @@ pub(crate) struct Shared {
     settings: Arc<Settings>,
     /// One permit per session that may be open at once.
     places: Arc<Semaphore>,
+    /// Rewards for answers to a training dataset's prompts.
+    scorer: Option<Arc<Scorer>>,
 }
 
 impl Shared {
@@ -67,6 +70,7 @@ fn router(shared: Shared) -> Router {
         .route("/step", post(step))
         .route("/state", get(state))
         .route("/ws", get(socket::upgrade))
+        .route("/reward", post(reward))
         .with_state(shared)
 }
 
@@ -128,11 +132,31 @@ async fn state(State(shared): State<Shared>) -> Response {
     }
 }
 
+#[derive(serde::Deserialize)]
+struct RewardRequest {
+    prompt: String,
+    text: String,
+}
+
+/// Ster's outside scorer: `{"prompt", "text"}` in, `{"reward", "move"}` out.
+/// A server started without `--states` has no dataset to score against.
+async fn reward(State(shared): State<Shared>, Json(request): Json<RewardRequest>) -> Response {
+    let Some(scorer) = &shared.scorer else {
+        let error = Error::Usage("this server was started without --states; start it with the states.json kant dataset wrote".to_owned());
+        return refused(StatusCode::CONFLICT, &error);
+    };
+    match scorer.score(&request.prompt, &request.text) {
+        Ok(scored) => Json(scored).into_response(),
+        Err(error) => refused(StatusCode::UNPROCESSABLE_ENTITY, &error),
+    }
+}
+
 /// Serve until the process is stopped, with at most `most` WebSocket
-/// sessions open at once. The bound address, which the operating system
+/// sessions open at once and, when `scorer` is given, `/reward` scoring
+/// answers to its dataset. The bound address, which the operating system
 /// chose when `listen` names port zero, is announced on standard error
 /// before the first request is taken.
-pub fn serve(listen: &str, settings: Arc<Settings>, most: usize) -> Result<()> {
+pub fn serve(listen: &str, settings: Arc<Settings>, most: usize, scorer: Option<Scorer>) -> Result<()> {
     let address: SocketAddr = listen
         .parse()
         .map_err(|_| Error::Usage(format!("--listen {listen} is not a socket address (host:port)")))?;
@@ -151,6 +175,7 @@ pub fn serve(listen: &str, settings: Arc<Settings>, most: usize) -> Result<()> {
             groups: Arc::new(GroupLibrary::standard()),
             settings,
             places: Arc::new(Semaphore::new(most)),
+            scorer: scorer.map(Arc::new),
         };
         axum::serve(listener, router(shared))
             .await

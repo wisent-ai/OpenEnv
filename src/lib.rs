@@ -16,6 +16,7 @@ pub mod settings;
 pub mod reputation;
 pub mod server;
 pub mod strategy;
+pub mod training;
 pub mod variant;
 
 pub use error::{Error, Result};

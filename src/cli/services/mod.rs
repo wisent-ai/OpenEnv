@@ -1,4 +1,6 @@
-//! Commands that serve the environment or run many episodes.
+//! Commands that serve the environment, run many episodes, or write training
+//! data.
 
+pub mod dataset;
 pub mod serve;
 pub mod tournament;

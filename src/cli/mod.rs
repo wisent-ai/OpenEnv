@@ -3,6 +3,7 @@
 //! error naming what is missing, with a failing exit status.
 
 pub mod catalog;
+pub mod group;
 pub mod play;
 
 use std::collections::{BTreeMap, BTreeSet};

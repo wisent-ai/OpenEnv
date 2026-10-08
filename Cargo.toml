@@ -25,3 +25,7 @@ path = "tests/play/episode.rs"
 [[test]]
 name = "play_composed"
 path = "tests/play/composed.rs"
+
+[[test]]
+name = "group_episodes"
+path = "tests/group/episodes.rs"

@@ -232,6 +232,85 @@ one-move game is refused.
 A strategy whose declared amount the game does not offer (`offer_12` in a pot
 of 10) is refused by name rather than played as another move.
 
+## Group games
+
+In a group game every seat moves at once and each is paid from the whole
+vector of moves. The agent holds exactly one seat, seat zero; every other seat
+is played for it by a group strategy (`random`, `always_cooperate`,
+`always_defect`, `tit_for_tat` — the majority of the other seats' last moves —
+and `adaptive`) or by another agent. Name one strategy for all other seats or
+one for each; any other count is refused.
+
+```bash
+kant group --settings FILE --game nplayer_public_goods --strategy always_cooperate --move contribute_0
+```
+
+Each group game declares `players` and `rounds` beside its payoff numbers:
+`nplayer_public_goods` reads `endowment` and `multiplier`;
+`nplayer_volunteer_dilemma` reads `benefit`, `cost` and `nobody` (what every
+seat gets when nobody volunteers); `nplayer_el_farol` reads `capacity` (the
+most attendees before the bar is crowded), `attend`, `crowded` and `home`.
+`free_chat_<key>` adds a message to each move; every seat sees the others'
+messages of the last round.
+
+### Coalitions and governance
+
+A coalition game opens every round with a negotiation step and closes it with
+a move. `kant coalition` plays a script of steps, each
+`{"negotiate": {"proposals": [...], "responses": [...], "governance_proposals": [...], "governance_votes": [...]}}`
+or `{"move": "<move>"}`:
+
+```bash
+kant coalition --settings FILE --game coalition_cartel --strategy coalition_loyal \
+  --governance governance_passive --script steps.json
+```
+
+A proposal names its `proposer`, its `members`, the `agreed_action` and
+optionally a `side_payment` the proposer pays each other member and an
+`exclude_target` or `include_target` seat. A proposal that names the agent
+forms only when the agent accepts it; the agent's own forms only when every
+other member's strategy accepts. How an agreement binds is the game's
+enforcement: `binding` makes members play the agreed move, `penalty` fines a
+defector the game's declared `penalty` share of its payoff, `cheap_talk` leaves
+it be.
+
+| Game | Enforcement | Reads besides `players`, `rounds`, `penalty` |
+|---|---|---|
+| `coalition_cartel` | penalty | `holds_at`, `colluding_held`, `colluding_broken`, `competing_held`, `competing_broken` |
+| `coalition_alliance` | cheap talk | `pool`, `betrayal`, `unsupported` |
+| `coalition_voting` | binding | `winner`, `loser` |
+| `coalition_ostracism` | penalty | `bonus_pool`, `excluded`, `kept` |
+| `coalition_resource_trading` | cheap talk, side payments | `diverse`, `uniform`, `minority_bonus` |
+| `coalition_rule_voting` | binding | `equal`, `winner_high`, `winner_low` |
+| `coalition_commons` | penalty | `sustainable_most`, `low_kept`, `high_kept`, `low_depleted`, `high_depleted` |
+
+Coalition strategies: `coalition_random`, `coalition_loyal`,
+`coalition_betrayer`, `coalition_conditional`, `coalition_tit_for_tat`,
+`coalition_grim_trigger`. Governance strategies (how the other seats vote):
+`governance_passive`, `governance_random`, `governance_conservative`,
+`governance_progressive`.
+
+Governance changes take effect when a strict majority of the seats in play
+approves them. A proposal sets a parameter (`enforcement`, `penalty`,
+`side_payments`), switches a mechanic on or off (optionally with new
+numbers), or switches a registered custom modifier. Its numbers come from the
+settings document's `governance` section, read only when a proposal or a
+mechanic needs them: `most_proposals` per round, `tax_rate`,
+`redistribution` (`equal` or `proportional`) with `damping`,
+`insurance_contribution` and `insurance_threshold`, `quota`, `subsidy_floor`
+and `subsidy_fund_rate`, `veto_player`, and `custom_clamp` for custom
+modifiers.
+
+### Reputation across episodes
+
+The reputation store keeps, per opponent, a cooperation score blended over
+its episodes by exponential smoothing, the number of episodes and the gossip
+ratings it received, in a file the run names. It reads `reputation.prior` (the
+score of an opponent with no record) and `reputation.decay` (the weight an old
+score keeps). The agent sees `opponent_reputation` and `interaction_count` in
+every observation's metadata; a gossip move (`gossip_<rating>_<move>`) records
+its rating.
+
 ## Quick Start
 
 ```bash

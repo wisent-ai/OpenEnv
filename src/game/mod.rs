@@ -4,6 +4,7 @@
 //! (`games.<key>`), and the built game keeps those numbers so a result can
 //! record what was played.
 
+mod amounts;
 pub(crate) mod families;
 mod matrix;
 
@@ -13,6 +14,7 @@ use std::sync::Arc;
 use rand::RngCore;
 use serde_json::{Map, Value};
 
+pub use amounts::{amount, amounts, mean, NONE, NOTHING};
 pub use matrix::{declared_matrix, matrix_between, matrix_entry, matrix_payoff, moves, Matrix};
 
 use crate::error::{Error, Result};
@@ -51,13 +53,6 @@ pub enum OpponentMoves {
     Own(Vec<String>),
 }
 
-/// A penalty a governed game charges, as a fraction of the payoff.
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
-pub struct Penalty {
-    pub numerator: i64,
-    pub denominator: i64,
-}
-
 #[derive(Clone)]
 pub struct Game {
     pub key: String,
@@ -72,9 +67,8 @@ pub struct Game {
     pub seats: Seats,
     pub variants: Vec<String>,
     pub base: String,
-    pub enforcement: String,
-    pub penalty: Option<Penalty>,
-    pub side_payments: bool,
+    /// The base game's own moves, before any variant tagged them.
+    pub base_actions: Vec<String>,
     pub opponent_mode: OpponentMode,
     pub opponent_actions: OpponentMoves,
     /// The values the settings document declared for this game.
@@ -91,6 +85,7 @@ impl Game {
             key: String::new(),
             name: name.to_owned(),
             description: description.to_owned(),
+            base_actions: actions.clone(),
             actions,
             kind: kind.to_owned(),
             rounds: Default::default(),
@@ -98,9 +93,6 @@ impl Game {
             seats: Seats::Pair,
             variants: Vec::new(),
             base: String::new(),
-            enforcement: String::new(),
-            penalty: None,
-            side_payments: false,
             opponent_mode: OpponentMode::Strategy,
             opponent_actions: OpponentMoves::Shared,
             parameters: Map::new(),
@@ -122,6 +114,24 @@ impl Game {
             OpponentMoves::Shared => &self.actions,
             OpponentMoves::Own(moves) => moves,
         }
+    }
+
+    /// The base move a played move carries: the move itself, or the base move
+    /// a variant tagged (`gossip_trustworthy_cooperate` carries `cooperate`).
+    /// The longest base move the played move ends with wins, since base moves
+    /// may share an ending.
+    pub fn base_move<'a>(&'a self, played: &str) -> Option<&'a str> {
+        self.base_actions
+            .iter()
+            .filter(|base| played == base.as_str() || played.ends_with(&format!("_{base}")))
+            .max_by_key(|base| base.len())
+            .map(String::as_str)
+    }
+
+    /// Whether a played move carries the base game's cooperative (first) move.
+    pub fn cooperated(&self, played: &str) -> bool {
+        self.base_move(played)
+            .is_some_and(|base| self.base_actions.first().is_some_and(|first| first == base))
     }
 
     pub fn summary(&self) -> Value {
@@ -259,34 +269,4 @@ impl Library {
         game.key = key.to_owned();
         Ok(game)
     }
-}
-
-/// The mean of some values: an equal split, a midpoint. Nothing has no mean.
-pub fn mean(values: &[f64]) -> f64 {
-    values.iter().sum::<f64>() / values.len() as f64
-}
-
-// The smallest amount a contribution, offer or investment can be: the
-// KantBench paper's games take an amount from nothing up to the endowment,
-// `x ∈ [0, E]`:
-// https://github.com/wisent-ai/OpenEnv/blob/main/paper/sections/games/library.tex
-pub const NOTHING: u64 = 0;
-
-/// The same nothing as a payoff: what a rejected offer pays, what a cost is
-/// before it accrues.
-pub const NONE: f64 = NOTHING as f64;
-
-/// The moves `<prefix>_<amount>` for every amount from nothing to `most`.
-pub fn amounts(prefix: &str, most: u64) -> Vec<String> {
-    (NOTHING..=most).map(|amount| format!("{prefix}_{amount}")).collect()
-}
-
-/// The amount a move like `offer_5` carries after its last underscore.
-pub fn amount(action: &str) -> Result<u64> {
-    action
-        .rsplit_once('_')
-        .and_then(|(_, amount)| amount.parse().ok())
-        .ok_or_else(|| Error::NoAmount {
-            action: action.to_owned(),
-        })
 }

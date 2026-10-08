@@ -125,6 +125,11 @@ impl Environment {
         Ok(episode.after_round(result))
     }
 
+    /// The running episode's game; none before the first reset.
+    pub fn game(&self) -> Option<&crate::game::Game> {
+        self.episode.as_ref().map(|episode| &episode.game)
+    }
+
     /// The running episode's state; none before the first reset.
     pub fn state(&self) -> Option<&GameState> {
         self.episode.as_ref().map(|episode| &episode.state)

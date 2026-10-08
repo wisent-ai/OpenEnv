@@ -15,7 +15,14 @@ const USAGE: &str = "usage (command first, then options):
                     (every opponent strategy and what it reads)
   kant play --settings FILE --game G --strategy S --move M [--move M]...
             [--rounds N] [--episode ID]
-                    (one episode against a strategy, the agent's moves in order)";
+                    (one episode against a strategy, the agent's moves in order)
+  kant group --settings FILE --game G --strategy S [--strategy S]... --move M [--move M]...
+             [--rounds N] [--episode ID]
+                    (one group episode; one strategy for every other seat, or one each)
+  kant coalition --settings FILE --game G --strategy S [--strategy S]...
+                 --governance S [--governance S]... --script FILE [--rounds N] [--episode ID]
+                    (one coalition episode; the script is a JSON list of
+                     {\"negotiate\": {...}} and {\"move\": M} steps)";
 
 fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
     let words = Words::parse(args);
@@ -26,6 +33,8 @@ fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
         "games" => cli::catalog::games(&words),
         "strategies" => cli::catalog::strategies(&words),
         "play" => cli::play::run(&words),
+        "group" => cli::group::group(&words),
+        "coalition" => cli::group::coalition(&words),
         other => Err(Error::Usage(format!("unknown command {other}\n{USAGE}"))),
     }
 }

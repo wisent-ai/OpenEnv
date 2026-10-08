@@ -4,6 +4,7 @@
 //! agent's own kind in the opponent's seat; one marked cross-model puts the
 //! declared opponent model there.
 
+pub mod group;
 pub mod matchups;
 pub mod metrics;
 

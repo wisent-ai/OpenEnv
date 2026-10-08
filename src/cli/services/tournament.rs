@@ -28,3 +28,17 @@ pub fn run(words: &Words) -> Result<Value> {
     answer["settings"] = json!(settings.document());
     Ok(answer)
 }
+
+/// `kant group-tournament --settings FILE --game G... --strategy S...
+/// --agent-strategy A [--governance S]`: group and coalition games, the
+/// agent's seat held by a group or coalition strategy.
+pub fn group(words: &Words) -> Result<Value> {
+    let settings = words.settings()?;
+    let games: Vec<String> = words.all("game").into_iter().map(str::to_owned).collect();
+    let strategies: Vec<String> = words.all("strategy").into_iter().map(str::to_owned).collect();
+    let agent = words.required("agent-strategy")?;
+    let played = crate::evaluation::group::run(settings.clone(), agent, &games, &strategies, words.one("governance")?)?;
+    let mut answer = serde_json::to_value(&played).map_err(|source| Error::Json { origin: "group tournament".to_owned(), source })?;
+    answer["settings"] = json!(settings.document());
+    Ok(answer)
+}

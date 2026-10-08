@@ -414,6 +414,25 @@ blended by exponential smoothing from `arena.prior` with `arena.decay` the
 weight an old value keeps, combined as `arena.weights.cooperation` and
 `arena.weights.fairness`. Without `arena` no reputation is reported.
 
+### Group and coalition tournaments
+
+`kant group-tournament` plays group and coalition games with the agent's seat
+held by a strategy and every other seat by each named strategy in turn,
+`evaluation.episodes` times each:
+
+```bash
+kant group-tournament --settings settings.json --game nplayer_public_goods --game coalition_cartel \
+  --strategy coalition_loyal --agent-strategy coalition_tit_for_tat --governance governance_random
+```
+
+A group game's episode reports the agent's score, every seat's score and the
+share of rounds the agent played the game's first, cooperative move. A
+coalition game's agent answers the proposals naming it and moves as its
+coalition strategy would; its episode also reports the share of rounds that
+formed a coalition, the share that saw a defection, and the governance
+proposed and adopted. A coalition game needs `--governance`, the strategy the
+other seats vote with.
+
 ## Training
 
 Ster owns the gradient (`ster tune grpo`, `ster tune dpo`); KantBench writes

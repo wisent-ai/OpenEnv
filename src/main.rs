@@ -38,7 +38,11 @@ const USAGE: &str = "usage (command first, then options):
                      states.json kant serve --states scores against)
   kant matchups --settings FILE --game G [--game G]... --seat NAME=route:R|NAME=strategy:S...
                     (every seat against every seat, itself included, in every game,
-                     evaluation.episodes times; arena reputation when arena is declared)";
+                     evaluation.episodes times; arena reputation when arena is declared)
+  kant group-tournament --settings FILE --game G [--game G]... --strategy S [--strategy S]...
+                        --agent-strategy A [--governance S]
+                    (group and coalition games; every other seat plays S; a coalition game
+                     needs the other seats' governance strategy)";
 
 fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
     let words = Words::parse(args);
@@ -55,6 +59,7 @@ fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
         "tournament" => cli::services::tournament::run(&words),
         "dataset" => cli::services::dataset::run(&words),
         "matchups" => cli::services::matchups::run(&words),
+        "group-tournament" => cli::services::tournament::group(&words),
         other => Err(Error::Usage(format!("unknown command {other}\n{USAGE}"))),
     }
 }

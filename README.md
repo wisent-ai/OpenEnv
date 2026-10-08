@@ -179,6 +179,35 @@ studies.
   multiplied pool is split among.
 - `kant games` lists what every game reads.
 
+### Composed and declared games
+
+A game key may name variants over a game, outermost first:
+`free_chat_stag_hunt`, `gossip_prisoners_dilemma`,
+`exit_cheap_talk_hawk_dove`. The game is built from its own `games.<key>`
+declaration and each variant reads its numbers from `variants.<variant>`:
+
+| Variant | Reads from `variants.<name>` | What it does |
+|---|---|---|
+| `cheap_talk` | nothing | every move becomes `msg_<said>_<move>`; payoffs follow the move |
+| `exit` | `payoff` | adds `exit`; if either seat exits both get `payoff` |
+| `binding_commitment` | `cost` | `commit_<first move>` locks the seat at `cost`; every move gains `free_<move>` |
+| `noisy_actions` | `tremble` | each seat's move is replaced by a random one with probability `tremble` |
+| `noisy_payoffs` | `scale` | Gaussian noise of mean zero and deviation `scale` on each payoff |
+| `self_play`, `cross_model` | nothing | the opponent's seat is the same model, or another model |
+| `free_chat` | nothing | each round gains a message step before the move |
+| `gossip` | `ratings` (list) | moves become `gossip_<rating>_<move>` |
+| `rule_signal`, `rule_proposal`, `constitutional`, `proposer_responder` | `rules` | moves carry a rule; matching (or accepted) rules change the round's payoffs |
+
+`rules` maps each rule the players may name to its numbers: `none` and
+`equalsplit` read nothing, `coopbonus` reads `bonus`, `defectpenalty` and
+`bandefect` read `penalty`, `minguarantee` reads `floor`. A rule's cooperative
+move is the base game's first move.
+
+A run can also declare a whole game under `custom_games.<key>`: `name`,
+`description`, `actions`, `rounds`, and either `payoffs` (every cell
+`[agent, opponent]`) or `symmetric` (one number per cell, the row seat's
+payoff). A key that is both a library game and a custom game is refused.
+
 Rounds are numbered from one. In the ultimatum and trust games the opponent
 answers the move it is shown this round: a responder sees the offer, a trustee
 the investment.

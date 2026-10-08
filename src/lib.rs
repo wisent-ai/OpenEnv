@@ -9,5 +9,6 @@ pub mod error;
 pub mod game;
 pub mod settings;
 pub mod strategy;
+pub mod variant;
 
 pub use error::{Error, Result};

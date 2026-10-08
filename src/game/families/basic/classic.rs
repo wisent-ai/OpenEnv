@@ -8,95 +8,40 @@ use std::sync::Arc;
 use crate::error::Result;
 use crate::settings::Declared;
 
-use super::{amount, amounts, matrix_payoff, Entry, Game, Library, Matrix, OpponentMoves, NOTHING};
-
-const MATRIX_PARAMETERS: &[&str] = &["payoffs"];
+use crate::game::{amount, amounts, matrix_entry, moves, Entry, Game, Library, OpponentMoves, NOTHING};
 
 pub(super) fn register(library: &mut Library) {
-    for entry in [
-        Entry {
-            key: "prisoners_dilemma",
-            family: "classic",
-            parameters: MATRIX_PARAMETERS,
-            build: prisoners_dilemma,
-        },
-        Entry {
-            key: "stag_hunt",
-            family: "classic",
-            parameters: MATRIX_PARAMETERS,
-            build: stag_hunt,
-        },
-        Entry {
-            key: "hawk_dove",
-            family: "classic",
-            parameters: MATRIX_PARAMETERS,
-            build: hawk_dove,
-        },
-        Entry {
-            key: "ultimatum",
-            family: "classic",
-            parameters: &["pot"],
-            build: ultimatum,
-        },
-        Entry {
-            key: "trust",
-            family: "classic",
-            parameters: &["endowment", "multiplier"],
-            build: trust,
-        },
-        Entry {
-            key: "public_goods",
-            family: "classic",
-            parameters: &["endowment", "multiplier", "players"],
-            build: public_goods,
-        },
-    ] {
-        library.add(entry);
-    }
-}
-
-fn moves(names: &[&str]) -> Vec<String> {
-    names.iter().map(|name| (*name).to_owned()).collect()
-}
-
-/// A 2×2 (or larger) game whose cells the declaration states.
-pub(crate) fn declared_matrix(
-    declared: &Declared<'_>,
-    name: &str,
-    description: &str,
-    actions: Vec<String>,
-) -> Result<Game> {
-    let matrix = Matrix::declared(declared, &actions, &actions)?;
-    Ok(Game::new(name, description, "matrix", actions, matrix_payoff(name, matrix)))
-}
-
-fn prisoners_dilemma(declared: &Declared<'_>) -> Result<Game> {
-    declared_matrix(
-        declared,
+    library.add(matrix_entry(
+        "prisoners_dilemma",
+        "classic",
+        &["cooperate", "defect"],
         "Prisoner's Dilemma",
         "Two players simultaneously choose to cooperate or defect. Mutual cooperation yields a moderate reward, mutual defection yields a low reward, and unilateral defection tempts with the highest individual payoff at the other player's expense.",
-        moves(&["cooperate", "defect"]),
-    )
-}
-
-fn stag_hunt(declared: &Declared<'_>) -> Result<Game> {
-    declared_matrix(
-        declared,
+    ));
+    library.add(matrix_entry(
+        "stag_hunt",
+        "classic",
+        &["stag", "hare"],
         "Stag Hunt",
         "Two players choose between hunting stag (risky but rewarding if both participate) or hunting hare (safe but less rewarding). Coordination on stag yields the highest joint payoff.",
-        moves(&["stag", "hare"]),
-    )
-}
-
-/// Dove is listed first, so a strategy that opens with its first move (the
-/// cooperative one) plays dove.
-fn hawk_dove(declared: &Declared<'_>) -> Result<Game> {
-    declared_matrix(
-        declared,
+    ));
+    // Dove is listed first, so a strategy that opens with its first (the
+    // cooperative) move plays dove.
+    library.add(matrix_entry(
+        "hawk_dove",
+        "classic",
+        &["dove", "hawk"],
         "Hawk-Dove",
         "Two players choose between aggressive (hawk) and passive (dove) strategies over a shared resource. Two hawks suffer mutual harm; a hawk facing a dove claims the resource; two doves share it.",
-        moves(&["dove", "hawk"]),
-    )
+    ));
+    library.add(Entry::new("ultimatum", "classic", &["pot"], ultimatum));
+    library.add(Entry::new("trust", "classic", &["endowment", "multiplier"], trust));
+    library.add(Entry::new(
+        "public_goods",
+        "classic",
+        &["endowment", "multiplier", "players"],
+        public_goods,
+    ));
 }
 
 /// The proposer offers part of a pot; an accepted offer pays

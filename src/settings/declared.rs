@@ -147,6 +147,21 @@ impl<'a> Declared<'a> {
             .collect()
     }
 
+    /// A list of text values, such as a declared game's moves.
+    pub fn texts(&self, name: &str) -> Result<Vec<String>> {
+        let value = self.value(name)?;
+        let list = value
+            .as_array()
+            .ok_or_else(|| self.malformed(name, "a list of text", value))?;
+        list.iter()
+            .map(|item| {
+                item.as_str()
+                    .map(str::to_owned)
+                    .ok_or_else(|| self.malformed(name, "a list of text", value))
+            })
+            .collect()
+    }
+
     /// A nested object, read with the same refusals under a longer scope.
     pub fn nested(&self, name: &str) -> Result<Declared<'a>> {
         let value = self.value(name)?;

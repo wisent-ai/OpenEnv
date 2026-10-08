@@ -4,7 +4,7 @@
 //! (`games.<key>`), and the built game keeps those numbers so a result can
 //! record what was played.
 
-mod classic;
+pub(crate) mod families;
 mod matrix;
 
 use std::collections::BTreeMap;
@@ -13,7 +13,7 @@ use std::sync::Arc;
 use rand::RngCore;
 use serde_json::{Map, Value};
 
-pub use matrix::{matrix_payoff, Matrix};
+pub use matrix::{declared_matrix, matrix_between, matrix_entry, matrix_payoff, moves, Matrix};
 
 use crate::error::{Error, Result};
 use crate::settings::{Declared, Settings};
@@ -143,16 +143,32 @@ impl Game {
 }
 
 /// How one library entry turns its declared numbers into a game.
-pub type Build = fn(&Declared<'_>) -> Result<Game>;
+pub type Build = Arc<dyn Fn(&Declared<'_>) -> Result<Game> + Send + Sync>;
 
 /// One game the library can build: its family, the names it reads from its
 /// declaration besides `rounds`, and its builder.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Entry {
     pub key: &'static str,
     pub family: &'static str,
     pub parameters: &'static [&'static str],
     pub build: Build,
+}
+
+impl Entry {
+    pub fn new(
+        key: &'static str,
+        family: &'static str,
+        parameters: &'static [&'static str],
+        build: impl Fn(&Declared<'_>) -> Result<Game> + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            key,
+            family,
+            parameters,
+            build: Arc::new(build),
+        }
+    }
 }
 
 /// Every game KantBench can build, keyed by the name a run asks for.
@@ -165,7 +181,7 @@ impl Library {
     /// The full library: each family registers its games.
     pub fn standard() -> Self {
         let mut library = Self::default();
-        classic::register(&mut library);
+        families::register(&mut library);
         library
     }
 
@@ -184,11 +200,33 @@ impl Library {
         })
     }
 
-    /// Build `key` from what `settings` declares under `games.<key>`.
+    /// Build `key`: a library game from what `settings` declares under
+    /// `games.<key>`; a game the settings declare whole under
+    /// `custom_games.<key>`; or a composed key `<variant>_<game>`, the game
+    /// built as its own key says and the variant applied with its numbers
+    /// from `variants.<variant>`. A key that is both a library game and a
+    /// custom game is refused, since nothing could say which one the run
+    /// meant.
     pub fn build(&self, key: &str, settings: &Settings) -> Result<Game> {
-        let entry = self.entry(key)?;
-        let declared = settings.entry("games", key)?;
-        let mut game = (entry.build)(&declared)?;
+        let custom = settings.declares("custom_games", key);
+        let (declared, mut game) = match (self.entries.get(key), custom) {
+            (Some(_), true) => {
+                return Err(Error::Usage(format!(
+                    "{key} is a library game and custom_games declares it too; rename the custom game"
+                )))
+            }
+            (Some(entry), false) => {
+                let declared = settings.entry("games", key)?;
+                let game = (entry.build)(&declared)?;
+                (declared, game)
+            }
+            (None, true) => {
+                let declared = settings.entry("custom_games", key)?;
+                let game = families::made::custom::build(key, &declared)?;
+                (declared, game)
+            }
+            (None, false) => return self.composed(key, settings),
+        };
         game.key = key.to_owned();
         if game.base.is_empty() {
             game.base = key.to_owned();
@@ -197,6 +235,35 @@ impl Library {
         game.parameters = declared.values().clone();
         Ok(game)
     }
+
+    fn unknown(&self, key: &str) -> Error {
+        Error::UnknownGame {
+            key: key.to_owned(),
+            known: self.entries.keys().copied().collect::<Vec<_>>().join(", "),
+        }
+    }
+
+    fn composed(&self, key: &str, settings: &Settings) -> Result<Game> {
+        let Some((variant, inner)) = crate::variant::outermost(key) else {
+            return Err(self.unknown(key));
+        };
+        let base = self.build(inner, settings)?;
+        let mut game = crate::variant::apply(base, variant, &|| settings.entry("variants", variant))?;
+        if variant == "free_chat" {
+            game.name = format!("Free-chat {}", game.name);
+            game.description = format!(
+                "{} In this variant each player additionally sends a free-form natural-language message to the opponent before acting; the opponent sees the verbatim message. Messages are non-binding cheap talk and do not affect payoff.",
+                game.description
+            );
+        }
+        game.key = key.to_owned();
+        Ok(game)
+    }
+}
+
+/// The mean of some values: an equal split, a midpoint. Nothing has no mean.
+pub fn mean(values: &[f64]) -> f64 {
+    values.iter().sum::<f64>() / values.len() as f64
 }
 
 // The smallest amount a contribution, offer or investment can be: the
@@ -204,6 +271,10 @@ impl Library {
 // `x ∈ [0, E]`:
 // https://github.com/wisent-ai/OpenEnv/blob/main/paper/sections/games/library.tex
 pub const NOTHING: u64 = 0;
+
+/// The same nothing as a payoff: what a rejected offer pays, what a cost is
+/// before it accrues.
+pub const NONE: f64 = NOTHING as f64;
 
 /// The moves `<prefix>_<amount>` for every amount from nothing to `most`.
 pub fn amounts(prefix: &str, most: u64) -> Vec<String> {

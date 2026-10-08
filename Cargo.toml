@@ -21,3 +21,7 @@ uuid = { version = "1", features = ["v4"] }
 [[test]]
 name = "play_episode"
 path = "tests/play/episode.rs"
+
+[[test]]
+name = "play_composed"
+path = "tests/play/composed.rs"

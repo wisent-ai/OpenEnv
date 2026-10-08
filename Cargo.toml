@@ -1,0 +1,23 @@
+[package]
+name = "kantbench"
+version = "0.2.0"
+description = "KantBench: game-theory environments, opponents and evaluation for language-model agents"
+license-file = "LICENSE"
+readme = "README.md"
+repository = "https://github.com/wisent-ai/OpenEnv"
+
+[[bin]]
+name = "kant"
+path = "src/main.rs"
+
+[dependencies]
+rand = "0.8"
+rand_distr = "0.4"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+thiserror = "2"
+uuid = { version = "1", features = ["v4"] }
+
+[[test]]
+name = "play_episode"
+path = "tests/play/episode.rs"

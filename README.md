@@ -108,6 +108,101 @@ bench/            Gradio dashboard, evaluation, and arena tooling
 notebooks/        Exploration notebooks
 ```
 
+## Command line
+
+KantBench is moving from Python to one Rust program, `kant` (source under
+`src/`, tests under `tests/<area>/`). Each command answers one JSON document on
+standard output; a refusal is one line on standard error naming what is
+missing, and the exit status fails.
+
+```bash
+kant games [--settings FILE]        # every game and what it reads; with --settings, whether that document builds it
+kant strategies [--settings FILE]   # every opponent strategy and what it reads
+kant play --settings FILE --game prisoners_dilemma --strategy tit_for_tat \
+  --move cooperate --move defect [--rounds N] [--episode ID]
+```
+
+### The settings document
+
+KantBench states no payoff, endowment, round count or probability itself.
+Every run names a settings document (`--settings FILE`), and its answer records
+that document whole together with the seed, so a score always travels with the
+numbers that produced it. A value a game or strategy needs and the document
+does not declare is refused by name, for example
+`games declares no stag_hunt; the settings document must declare it` or
+`games.ultimatum declares no pot`.
+
+```json
+{
+  "seed": 7,
+  "games": {
+    "prisoners_dilemma": {
+      "rounds": 10,
+      "payoffs": {
+        "cooperate": { "cooperate": [3, 3], "defect": [0, 5] },
+        "defect":    { "cooperate": [5, 0], "defect": [1, 1] }
+      }
+    },
+    "ultimatum": { "rounds": 1, "pot": 10 },
+    "trust": { "rounds": 1, "endowment": 10, "multiplier": 3 },
+    "public_goods": { "rounds": 1, "endowment": 20, "multiplier": 1.5, "players": 4 }
+  },
+  "strategies": {
+    "generous_tit_for_tat": { "forgive": 0.3 },
+    "mixed": { "cooperate": 0.5 },
+    "ultimatum_fair": { "offer": 5, "accept_at_least": 3 },
+    "trust_fair": { "invest": 10, "return_share": 0.5 },
+    "public_goods_fair": { "contribute": 10 }
+  }
+}
+```
+
+The payoffs above are the ones the KantBench paper states
+(`paper/sections/games/library.tex`, `paper/sections/appendix/games_catalog.tex`):
+Prisoner's Dilemma $T, R, P, S = 5, 3, 1, 0$, ultimatum pot $E = 10$, trust
+endowment $10$ with multiplier $3$, public goods with $N = 4$, $E = 20$ and
+$m = 3/2$. The strategy numbers are examples; declare the ones your run
+studies.
+
+- `seed` is optional. Without it the run draws one from the operating system
+  and records the drawn value.
+- `games.<key>.rounds` is required for every game. `--rounds N` replaces it
+  for one episode.
+- A matrix game declares `payoffs` cell by cell: the row is the agent's move,
+  the column the opponent's, the cell `[agent, opponent]`. Every cell of the
+  game's moves must be declared; a missing one is refused by its row and
+  column, so no pair of moves pays nothing by omission.
+- `ultimatum` reads `pot`; offers run from `offer_0` to `offer_<pot>` and the
+  responder answers `accept` or `reject`. `trust` reads `endowment` and a whole
+  `multiplier`; the trustee returns `return_0` to `return_<endowment × multiplier>`.
+  `public_goods` reads `endowment`, `multiplier` and `players`, the number the
+  multiplied pool is split among.
+- `kant games` lists what every game reads.
+
+Rounds are numbered from one. In the ultimatum and trust games the opponent
+answers the move it is shown this round: a responder sees the offer, a trustee
+the investment.
+
+### Opponent strategies
+
+`random`, `always_cooperate`, `always_defect`, `tit_for_tat`,
+`tit_for_two_tats`, `grudger`, `pavlov`, `suspicious_tit_for_tat` and
+`adaptive` read nothing. A repeated game lists its cooperative move first and
+its defecting move second; a strategy that needs a defecting move in a
+one-move game is refused.
+
+| Strategy | Reads from `strategies.<name>` |
+|---|---|
+| `generous_tit_for_tat` | `forgive`: probability of answering a defection with cooperation |
+| `mixed` | `cooperate`: probability of cooperating each round |
+| `ultimatum_fair` | `offer`; `accept_at_least`: the smallest offer it accepts |
+| `ultimatum_low` | `offer`; as responder it accepts every offer |
+| `trust_fair`, `trust_generous` | `invest`; `return_share`: the share of what it received that it returns, rounded down |
+| `public_goods_fair`, `public_goods_free_rider` | `contribute` |
+
+A strategy whose declared amount the game does not offer (`offer_12` in a pot
+of 10) is refused by name rather than played as another move.
+
 ## Quick Start
 
 ```bash

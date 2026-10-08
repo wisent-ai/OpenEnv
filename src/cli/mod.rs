@@ -2,10 +2,8 @@
 //! one JSON document on standard output; a refusal is one line on standard
 //! error naming what is missing, with a failing exit status.
 
-pub mod catalog;
-pub mod group;
-pub mod play;
-pub mod serve;
+pub mod episodes;
+pub mod services;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;

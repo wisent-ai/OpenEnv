@@ -351,6 +351,48 @@ The observation is the KantBench document clients already read:
 group games add `num_players`, `player_index` and `all_scores`. The move and
 payoff fields are absent until a round has been played, rather than zero.
 
+## Tournaments
+
+`kant tournament` plays the agent against every named strategy in every named
+game, `evaluation.episodes` times each, and scores the results:
+
+```bash
+kant tournament --settings settings.json --game prisoners_dilemma --game stag_hunt \
+  --strategy always_defect --strategy tit_for_tat --agent-route <brama route>
+```
+
+The agent's seat is a model (`--agent-route R`) or a library strategy
+(`--agent-strategy S`); naming both or neither is refused. A game marked for
+self-play (`self_play_<game>`) puts the agent's own kind in the opponent's
+seat; one marked cross-model (`cross_model_<game>`) needs `--opponent-route R`.
+
+A model seat talks to Brama only: the environment carries `BRAMA_URL` and
+`BRAMA_API_KEY`, and `WISENT_APP_AGENT_ID` with `WISENT_APP_AGENT_AUTH_SECRET`
+when the route requires a signed agent; a missing one is refused by name. The
+settings document's `agent` section declares `history_rounds` (how many past
+rounds the prompt shows) and optionally `temperature`, `top_p` and
+`max_tokens`, sent only when declared. The prompt never names the opponent's
+strategy. An answer that names none of the moves, or several unrelated ones,
+stops the run with what the model said; it is never replaced by a move
+nobody chose.
+
+The answer records the seed, the settings document, every episode's rounds,
+and the metrics:
+
+| Metric | What it measures |
+|---|---|
+| `mean_self_payoff_per_game` | the agent's payoff per round, per game (games pay in different units, so they are not averaged together) |
+| `cooperation_rate` | the share of the agent's moves that cooperate: the base game's first move, or in an amount game a move at or above the middle of the list |
+| `exploitation_resistance` | where the agent's score against `always_defect` sits between its worst and best scores in the game |
+| `pareto_efficiency` | the share of pairings that reached the game's best joint score |
+| `fairness_index` | one minus the payoff gap's share of the payoffs' size |
+| `adaptability` | the variance of the cooperation rate across opponents, scaled by the largest variance a rate can have (Popoviciu's bound, 1/4) |
+| `strategic_reasoning` | the mean of the five above |
+
+A metric the results cannot measure is absent rather than zero: there is no
+exploitation resistance without an `always_defect` opponent, no adaptability
+with one opponent, and no `strategic_reasoning` unless all five are present.
+
 ## Training
 
 KantBench uses a composite reward signal combining:

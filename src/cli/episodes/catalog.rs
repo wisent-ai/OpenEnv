@@ -9,7 +9,7 @@ use crate::game::Library;
 use crate::settings::Settings;
 use crate::strategy;
 
-use super::Words;
+use crate::cli::Words;
 
 fn optional_settings(words: &Words) -> Result<Option<Settings>> {
     match words.one("settings")? {

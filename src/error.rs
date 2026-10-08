@@ -61,6 +61,12 @@ pub enum Error {
     NoMoves { strategy: String, game: String },
     #[error("{0}")]
     Usage(String),
+    #[error("{0}")]
+    Config(String),
+    #[error("{0}")]
+    Model(String),
+    #[error("the model answered {answer:?}, which names none of the moves {moves}")]
+    Unparsed { answer: String, moves: String },
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

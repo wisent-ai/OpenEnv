@@ -11,7 +11,7 @@ use crate::env::{Environment, GameAction, Reset};
 use crate::error::{Error, Result};
 use crate::game::Library;
 
-use super::Words;
+use crate::cli::Words;
 
 pub fn run(words: &Words) -> Result<Value> {
     let settings = words.settings()?;

@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::error::{Error, Result};
 
-use super::Words;
+use crate::cli::Words;
 
 pub fn run(words: &Words) -> Result<Value> {
     let settings = words.settings()?;

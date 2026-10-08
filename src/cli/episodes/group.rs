@@ -15,7 +15,7 @@ use crate::error::{Error, Result};
 use crate::group::environment::{GroupEnvironment, Seat};
 use crate::group::{GroupLibrary, AGENT_SEATS};
 
-use super::Words;
+use crate::cli::Words;
 
 fn document<T: serde::Serialize>(value: &T, what: &str) -> Result<Value> {
     serde_json::to_value(value).map_err(|source| Error::Json { origin: what.to_owned(), source })

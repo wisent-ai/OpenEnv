@@ -26,7 +26,11 @@ const USAGE: &str = "usage (command first, then options):
   kant serve --settings FILE --listen ADDRESS
                     (the OpenEnv server: /ws sessions, /reset, /web explorer; at most
                      server.sessions sessions open at once; announces its bound
-                     address on standard error)";
+                     address on standard error)
+  kant tournament --settings FILE --game G [--game G]... --strategy S [--strategy S]...
+                  (--agent-route R | --agent-strategy S) [--opponent-route R]
+                    (the agent against every strategy in every game, evaluation.episodes
+                     times each, with the metrics; a model seat goes through Brama)";
 
 fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
     let words = Words::parse(args);
@@ -34,12 +38,13 @@ fn dispatch(args: &[String]) -> Result<serde_json::Value, Error> {
         return Err(Error::Usage(USAGE.to_owned()));
     };
     match command.as_str() {
-        "games" => cli::catalog::games(&words),
-        "strategies" => cli::catalog::strategies(&words),
-        "play" => cli::play::run(&words),
-        "group" => cli::group::group(&words),
-        "coalition" => cli::group::coalition(&words),
-        "serve" => cli::serve::run(&words),
+        "games" => cli::episodes::catalog::games(&words),
+        "strategies" => cli::episodes::catalog::strategies(&words),
+        "play" => cli::episodes::play::run(&words),
+        "group" => cli::episodes::group::group(&words),
+        "coalition" => cli::episodes::group::coalition(&words),
+        "serve" => cli::services::serve::run(&words),
+        "tournament" => cli::services::tournament::run(&words),
         other => Err(Error::Usage(format!("unknown command {other}\n{USAGE}"))),
     }
 }

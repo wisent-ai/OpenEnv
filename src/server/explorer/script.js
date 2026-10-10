@@ -2,6 +2,7 @@
 // and play it move by move.
 const byId = (id) => document.getElementById(id);
 let socket = null;
+let connecting = null;
 let catalog = null;
 
 function fill(select, names) {
@@ -19,8 +20,28 @@ function strategiesFor(game) {
   fill(select, catalog.group.includes(game) ? catalog.group_strategies : catalog.strategies);
 }
 
+async function requestJSON(url, options) {
+  let response;
+  let body;
+  try {
+    response = await fetch(url, options);
+    body = await response.text();
+  } catch (error) {
+    throw new Error("Request " + url + " failed: " + error.message);
+  }
+  if (!response.ok) {
+    throw new Error("Request " + url + " returned HTTP " + response.status + ": " + body);
+  }
+  try {
+    return JSON.parse(body);
+  } catch (error) {
+    throw new Error("Request " + url + " returned invalid JSON at HTTP "
+      + response.status + ": " + error.message + "; body: " + body);
+  }
+}
+
 async function load() {
-  catalog = await (await fetch("/games")).json();
+  catalog = await requestJSON("/games");
   fill(byId("game"), catalog.pair.concat(catalog.group));
   fill(byId("variant"), catalog.variants);
   fill(byId("agent-strategy"), catalog.strategies);
@@ -42,12 +63,7 @@ async function showPayoffs() {
   const table = byId("payoffs");
   table.innerHTML = "";
   byId("payoff-refusal").textContent = "";
-  const response = await fetch("/game/" + encodeURIComponent(byId("game").value));
-  if (!response.ok) {
-    byId("payoff-refusal").textContent = (await response.json()).detail;
-    return;
-  }
-  const built = await response.json();
+  const built = await requestJSON("/game/" + encodeURIComponent(byId("game").value));
   const head = document.createElement("tr");
   cell(head, "you \\ opponent");
   for (const column of built.columns) cell(head, column);
@@ -70,16 +86,11 @@ async function runTournament() {
   byId("tournament-status").textContent = "Running...";
   const table = byId("metrics");
   table.innerHTML = "";
-  const response = await fetch("/tournament", {
+  const result = await requestJSON("/tournament", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(request),
   });
-  const result = await response.json();
-  if (!response.ok) {
-    byId("tournament-status").textContent = result.detail;
-    return;
-  }
   byId("tournament-status").textContent = result.total_episodes + " episodes, seed " + result.seed;
   for (const [name, value] of Object.entries(result.metrics)) {
     const row = document.createElement("tr");
@@ -106,7 +117,7 @@ function show(result) {
     for (const played of seen.available_moves) {
       const button = document.createElement("button");
       button.textContent = played;
-      button.addEventListener("click", () => step(played));
+      button.addEventListener("click", perform(() => step(played), "refusal"));
       moves.appendChild(button);
     }
   }
@@ -123,26 +134,47 @@ function show(result) {
 }
 
 function connect() {
-  return new Promise((resolve) => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      resolve(socket);
-      return;
-    }
-    const scheme = location.protocol === "https:" ? "wss" : "ws";
-    socket = new WebSocket(scheme + "://" + location.host + "/ws");
-    socket.addEventListener("open", () => resolve(socket));
-    socket.addEventListener("message", (event) => {
-      const reply = JSON.parse(event.data);
-      if (reply.type === "observation") {
-        show(reply.data);
-      } else if (reply.type === "error") {
-        byId("refusal").textContent = reply.data.code + ": " + reply.data.message;
+  if (socket && socket.readyState === WebSocket.OPEN) return Promise.resolve(socket);
+  if (connecting) return connecting;
+  const scheme = location.protocol === "https:" ? "wss" : "ws";
+  const connection = new WebSocket(scheme + "://" + location.host + "/ws");
+  socket = connection;
+  let opened = false;
+  connecting = new Promise((resolve, reject) => {
+    connection.addEventListener("open", () => {
+      opened = true;
+      resolve(connection);
+    });
+    connection.addEventListener("message", (event) => {
+      if (socket !== connection) return;
+      try {
+        const reply = JSON.parse(event.data);
+        if (reply.type === "observation") {
+          show(reply.data);
+        } else if (reply.type === "error") {
+          byId("refusal").textContent = reply.data.code + ": " + reply.data.message;
+        }
+      } catch (error) {
+        byId("refusal").textContent = "Cannot read session response: " + error.message;
       }
     });
-    socket.addEventListener("close", () => {
-      byId("status").textContent = "Session closed.";
+    connection.addEventListener("error", () => {
+      const error = new Error("WebSocket failed at " + connection.url
+        + "; state " + connection.readyState + ". The browser did not expose a transport cause.");
+      if (!opened) reject(error);
+      if (socket === connection) byId("refusal").textContent = error.message;
     });
-  });
+    connection.addEventListener("close", (event) => {
+      const detail = "Session closed at " + connection.url + "; code " + event.code
+        + "; clean " + event.wasClean + "; reason " + JSON.stringify(event.reason);
+      if (!opened) reject(new Error(detail));
+      if (socket === connection) {
+        socket = null;
+        byId("status").textContent = detail;
+      }
+    });
+  }).finally(() => { connecting = null; });
+  return connecting;
 }
 
 async function reset() {
@@ -164,7 +196,13 @@ async function step(played) {
   (await connect()).send(JSON.stringify({ type: "step", data }));
 }
 
-byId("reset").addEventListener("click", reset);
-byId("show-payoffs").addEventListener("click", showPayoffs);
-byId("run-tournament").addEventListener("click", runTournament);
-load();
+function perform(operation, output) {
+  return () => Promise.resolve().then(operation).catch((error) => {
+    byId(output).textContent = error.message;
+  });
+}
+
+byId("reset").addEventListener("click", perform(reset, "refusal"));
+byId("show-payoffs").addEventListener("click", perform(showPayoffs, "payoff-refusal"));
+byId("run-tournament").addEventListener("click", perform(runTournament, "tournament-status"));
+perform(load, "refusal")();

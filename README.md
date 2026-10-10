@@ -364,6 +364,15 @@ A refusal is `{"type": "error", "data": {"code": ..., "message": ...}}` with
 move, a finished episode), `UNKNOWN_TYPE`, or `CAPACITY_REACHED` (every
 session place is taken; the socket is closed).
 
+The explorer shows catalog, payoff and tournament request failures in their
+corresponding refusal/status areas, including the requested path, HTTP status
+and complete refusal body when a response arrives. Invalid JSON is named rather
+than leaving a tournament at “Running...”. Concurrent connection requests share
+the pending WebSocket handshake. A failed or closed handshake rejects waiting
+actions; close diagnostics retain the observed code, clean flag and reason.
+Browsers do not expose the underlying transport cause of a WebSocket error;
+the explorer states that limit with the endpoint and observed socket state.
+
 The observation is the KantBench document clients already read:
 `game_name`, `game_description`, `available_moves`, `your_move`,
 `opponent_move`, `your_payoff`, `opponent_payoff`, `cumulative_score`,

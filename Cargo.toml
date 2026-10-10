@@ -1,6 +1,7 @@
 [package]
 name = "kantbench"
 version = "0.2.0"
+edition = "2021"
 description = "KantBench: game-theory environments, opponents and evaluation for language-model agents"
 license-file = "LICENSE"
 readme = "README.md"

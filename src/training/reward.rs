@@ -70,9 +70,26 @@ impl Scorer {
     /// declared `training.unparsed_reward`.
     pub fn new(settings: std::sync::Arc<Settings>, states: Vec<State>) -> Result<Self> {
         let unparsed = settings.section("training")?.number("unparsed_reward")?;
+        let mut indexed: BTreeMap<String, State> = BTreeMap::new();
+        for state in states {
+            match indexed.entry(state.prompt.clone()) {
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert(state);
+                }
+                std::collections::btree_map::Entry::Occupied(entry) => {
+                    let previous = entry.get();
+                    if previous.game != state.game || previous.history != state.history || previous.seed != state.seed {
+                        return Err(Error::Usage(format!(
+                            "training dataset repeats a prompt with different replay state: games {:?} and {:?}, seeds {} and {}; a reward request cannot identify which state to score",
+                            previous.game, state.game, previous.seed, state.seed
+                        )));
+                    }
+                }
+            }
+        }
         Ok(Self {
             library: Library::standard(),
-            states: states.into_iter().map(|state| (state.prompt.clone(), state)).collect(),
+            states: indexed,
             settings,
             unparsed,
         })

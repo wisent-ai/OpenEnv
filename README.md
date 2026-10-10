@@ -477,6 +477,12 @@ no move earns the declared `training.unparsed_reward`; a prompt the dataset
 does not hold is refused with 422, and a server started without `--states`
 refuses `/reward` with 409.
 
+Loading scorer states refuses a repeated prompt if its game, replay history or
+seed differs from the earlier state. A reward request carries only the prompt
+and answer, so it cannot choose between conflicting states; loading must not
+silently keep whichever row happened to come last. Repeated identical states
+share the same scoring entry.
+
 ## License
 
 BSD-3-Clause

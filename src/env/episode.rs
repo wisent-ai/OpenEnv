@@ -159,6 +159,21 @@ impl Episode {
         rng: &mut dyn RngCore,
     ) -> Result<RoundResult> {
         let (player_payoff, opponent_payoff) = self.game.pay(player_action, opponent_action, rng)?;
+        if !player_payoff.is_finite() || !opponent_payoff.is_finite() {
+            return Err(Error::Usage(format!(
+                "game {} produced non-finite round payoffs for {player_action:?} against {opponent_action:?}: player={player_payoff}, opponent={opponent_payoff}",
+                self.state.game_name
+            )));
+        }
+        let player_score = self.state.player_score + player_payoff;
+        let opponent_score = self.state.opponent_score + opponent_payoff;
+        if !player_score.is_finite() || !opponent_score.is_finite() {
+            return Err(Error::Usage(format!(
+                "game {} cumulative scores cannot be represented after {} recorded rounds: player={} + {player_payoff}, opponent={} + {opponent_payoff}",
+                self.state.game_name, self.state.history.len(),
+                self.state.player_score, self.state.opponent_score
+            )));
+        }
         let result = RoundResult {
             round_number: round_after(self.state.history.len()),
             player_action: player_action.to_owned(),
@@ -172,8 +187,8 @@ impl Episode {
         self.steps.push("action");
         self.state.step_count = self.steps.len();
         self.state.current_round = self.state.history.len();
-        self.state.player_score += player_payoff;
-        self.state.opponent_score += opponent_payoff;
+        self.state.player_score = player_score;
+        self.state.opponent_score = opponent_score;
         self.state.is_done = self.state.current_round >= self.state.total_rounds;
         Ok(result)
     }

@@ -222,6 +222,13 @@ Rounds are numbered from one. In the ultimatum and trust games the opponent
 answers the move it is shown this round: a responder sees the offer, a trustee
 the investment.
 
+Two-seat settlement refuses non-finite round payoffs and cumulative-score
+overflow before appending the round or replacing the recorded scores. The
+error names the game and observed payoff or accumulation, rather than returning
+a JSON null as a valid result. The same settlement path serves CLI play and
+the explorer's persistent session; this refusal does not roll back randomness
+or a stateful payoff function already evaluated.
+
 ### Opponent strategies
 
 `random`, `always_cooperate`, `always_defect`, `tit_for_tat`,

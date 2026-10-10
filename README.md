@@ -482,6 +482,9 @@ seed differs from the earlier state. A reward request carries only the prompt
 and answer, so it cannot choose between conflicting states; loading must not
 silently keep whichever row happened to come last. Repeated identical states
 share the same scoring entry.
+Training payoff evaluation also refuses a non-finite game payoff or an
+unrepresentable payoff sum, naming the game and move pair where it occurred.
+Such a value is not serialized as a missing reward or ranked as a valid score.
 
 ## License
 

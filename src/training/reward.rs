@@ -32,7 +32,19 @@ pub fn expected(library: &Library, settings: &Settings, state: &State, played: &
             game.pay(mine, theirs, &mut rng)?;
         }
         let (paid, _) = game.pay(played, answer, &mut rng)?;
+        if !paid.is_finite() {
+            return Err(Error::Usage(format!(
+                "game {} produced a non-finite training payoff for {played:?} against {answer:?}: {paid}",
+                state.game
+            )));
+        }
         total += paid;
+        if !total.is_finite() {
+            return Err(Error::Usage(format!(
+                "game {} training payoff sum cannot be represented for {played:?} after opponent move {answer:?}",
+                state.game
+            )));
+        }
     }
     Ok(total / support.len() as f64)
 }

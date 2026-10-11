@@ -1,8 +1,8 @@
 //! The reward of an answer to a training prompt: the move it names, paid in
 //! the state the prompt shows, averaged over every move the opponent could
 //! answer with. A game whose payoffs move with the episode (an adaptive game)
-//! is replayed through the state's earlier rounds first, on the state's own
-//! seed, so the move is paid as it would be at that point.
+//! is replayed using each recorded round's payoff seed, independently of the
+//! random draws that selected opponents' moves or belonged to earlier episodes.
 
 use std::collections::BTreeMap;
 
@@ -27,10 +27,11 @@ pub fn expected(library: &Library, settings: &Settings, state: &State, played: &
     let mut total = NONE;
     for answer in &support {
         let game = library.build(&state.game, settings)?;
-        let mut rng = StdRng::seed_from_u64(state.seed);
-        for (mine, theirs) in &state.history {
-            game.pay(mine, theirs, &mut rng)?;
+        for round in &state.history {
+            let mut rng = StdRng::seed_from_u64(round.payoff_seed);
+            game.pay(&round.player_action, &round.opponent_action, &mut rng)?;
         }
+        let mut rng = StdRng::seed_from_u64(state.payoff_seed);
         let (paid, _) = game.pay(played, answer, &mut rng)?;
         if !paid.is_finite() {
             return Err(Error::Usage(format!(
@@ -90,10 +91,15 @@ impl Scorer {
                 }
                 std::collections::btree_map::Entry::Occupied(entry) => {
                     let previous = entry.get();
-                    if previous.game != state.game || previous.history != state.history || previous.seed != state.seed {
+                    if previous.game != state.game
+                        || previous.history != state.history
+                        || previous.seed != state.seed
+                        || previous.payoff_seed != state.payoff_seed
+                    {
                         return Err(Error::Usage(format!(
-                            "training dataset repeats a prompt with different replay state: games {:?} and {:?}, seeds {} and {}; a reward request cannot identify which state to score",
-                            previous.game, state.game, previous.seed, state.seed
+                            "training dataset repeats a prompt with different replay state: games {:?} and {:?}, environment seeds {} and {}, payoff seeds {} and {}; a reward request cannot identify which state to score",
+                            previous.game, state.game, previous.seed, state.seed,
+                            previous.payoff_seed, state.payoff_seed
                         )));
                     }
                 }

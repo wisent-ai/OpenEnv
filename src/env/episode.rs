@@ -1,7 +1,7 @@
 //! One running episode: the game, who holds the opponent's seat, the state so
 //! far, and the free-chat phase when the game has one.
 
-use rand::RngCore;
+use rand::{rngs::StdRng, RngCore, SeedableRng};
 use serde_json::{Map, Value};
 
 use crate::error::{Error, Result};
@@ -52,10 +52,11 @@ pub(super) struct Episode {
     pub pending_opponent: String,
     /// One entry per step taken, naming its kind; the state's step count.
     pub steps: Vec<&'static str>,
+    pub payoff_seed: u64,
 }
 
 impl Episode {
-    pub fn start(game: Game, opponent: Opponent, game_key: &str, episode_id: String, rounds: usize) -> Self {
+    pub fn start(game: Game, opponent: Opponent, game_key: &str, episode_id: String, rounds: usize, payoff_seed: u64) -> Self {
         let opponent_name = match &opponent {
             Opponent::Strategy { name, .. } => name.clone(),
             Opponent::Agent(_) => "agent".to_owned(),
@@ -76,6 +77,7 @@ impl Episode {
             pending_player: String::new(),
             pending_opponent: String::new(),
             steps: Vec::new(),
+            payoff_seed,
         }
     }
 
@@ -158,7 +160,8 @@ impl Episode {
         opponent_message: String,
         rng: &mut dyn RngCore,
     ) -> Result<RoundResult> {
-        let (player_payoff, opponent_payoff) = self.game.pay(player_action, opponent_action, rng)?;
+        let mut payoff_rng = StdRng::seed_from_u64(self.payoff_seed);
+        let (player_payoff, opponent_payoff) = self.game.pay(player_action, opponent_action, &mut payoff_rng)?;
         if !player_payoff.is_finite() || !opponent_payoff.is_finite() {
             return Err(Error::Usage(format!(
                 "game {} produced non-finite round payoffs for {player_action:?} against {opponent_action:?}: player={player_payoff}, opponent={opponent_payoff}",
@@ -182,6 +185,7 @@ impl Episode {
             opponent_payoff,
             player_message,
             opponent_message,
+            payoff_seed: self.payoff_seed,
         };
         self.state.history.push(result.clone());
         self.steps.push("action");
@@ -190,6 +194,9 @@ impl Episode {
         self.state.player_score = player_score;
         self.state.opponent_score = opponent_score;
         self.state.is_done = self.state.current_round >= self.state.total_rounds;
+        if !self.state.is_done {
+            self.payoff_seed = rng.next_u64();
+        }
         Ok(result)
     }
 

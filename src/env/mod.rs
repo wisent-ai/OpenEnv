@@ -10,7 +10,7 @@ pub mod models;
 use std::sync::Arc;
 
 use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::{RngCore, SeedableRng};
 
 pub use episode::Opponent;
 pub use models::{round_after, GameAction, GameObservation, GameState, RoundResult};
@@ -69,6 +69,14 @@ impl Environment {
         self.seed
     }
 
+    /// The next round's payoff stream, fixed before either seat acts.
+    pub fn payoff_seed(&self) -> Result<u64> {
+        self.episode
+            .as_ref()
+            .map(|episode| episode.payoff_seed)
+            .ok_or(Error::NotStarted)
+    }
+
     pub fn settings(&self) -> &Settings {
         &self.settings
     }
@@ -101,7 +109,14 @@ impl Environment {
             Some(id) => id.clone(),
             None => uuid::Uuid::new_v4().to_string(),
         };
-        let episode = Episode::start(game, opponent, &request.game, episode_id, rounds);
+        let episode = Episode::start(
+            game,
+            opponent,
+            &request.game,
+            episode_id,
+            rounds,
+            self.rng.next_u64(),
+        );
         let observation = episode.observation(Default::default(), None);
         self.episode = Some(episode);
         Ok(observation)

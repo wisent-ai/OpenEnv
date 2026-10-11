@@ -129,6 +129,7 @@ function show(result) {
     cell(row, round.round);
     cell(row, round.actions ? round.actions.join(", ") : round.your_move + " / " + round.opponent_move);
     cell(row, round.payoffs ? round.payoffs.join(", ") : round.your_payoff + " / " + round.opponent_payoff);
+    cell(row, round.payoff_seed === undefined ? "Not recorded for this game" : round.payoff_seed);
     rows.appendChild(row);
   }
 }

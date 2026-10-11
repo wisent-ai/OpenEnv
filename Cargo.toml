@@ -64,3 +64,7 @@ path = "tests/evaluation/matchups.rs"
 [[test]]
 name = "evaluation_group_tournament"
 path = "tests/evaluation/group_tournament.rs"
+
+[[test]]
+name = "training_replay"
+path = "tests/training/replay.rs"

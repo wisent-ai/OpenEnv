@@ -4,8 +4,8 @@
 //!
 //! - `prompts.json`, `{"prompts": [...]}`, the game states an agent meets,
 //!   each rendered as the prompt a model seat reads;
-//! - `states.json`, each prompt with the game, the rounds played before it
-//!   and the seed, so a reward can be computed for an answer to it;
+//! - `states.json`, each prompt with the game, prior move pairs and their
+//!   payoff seeds, plus the next payoff seed and the environment's initial seed;
 //! - `pairs.json`, a Ster pair set: for each state the move with the highest
 //!   expected payoff (positive) against the one with the lowest (negative),
 //!   each written after the prompt, when they differ by at least the declared
@@ -30,14 +30,22 @@ use crate::error::{Error, Result};
 use crate::game::Library;
 use crate::settings::Settings;
 
-/// One state an agent meets: its prompt, the game, the rounds before it as
-/// `[agent move, opponent move]`, and the seed the episode ran on.
+/// A historical settlement with its own reproducible random stream.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReplayRound {
+    pub player_action: String,
+    pub opponent_action: String,
+    pub payoff_seed: u64,
+}
+
+/// One state an agent meets, with complete historical and next-payoff provenance.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
     pub prompt: String,
     pub game: String,
-    pub history: Vec<(String, String)>,
+    pub history: Vec<ReplayRound>,
     pub seed: u64,
+    pub payoff_seed: u64,
 }
 
 /// Play `training.episodes` episodes of each game against each strategy with
@@ -66,9 +74,14 @@ pub fn states(settings: &Arc<Settings>, games: &[String], strategies: &[String],
                         history: observation
                             .history
                             .iter()
-                            .map(|round| (round.player_action.clone(), round.opponent_action.clone()))
+                            .map(|round| ReplayRound {
+                                player_action: round.player_action.clone(),
+                                opponent_action: round.opponent_action.clone(),
+                                payoff_seed: round.payoff_seed,
+                            })
                             .collect(),
                         seed,
+                        payoff_seed: environment.payoff_seed()?,
                     });
                     observation = environment.step(&seat.act(&observation)?)?;
                 }

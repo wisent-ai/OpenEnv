@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 // Rounds are numbered from one, as the environment's observation states:
-// https://github.com/wisent-ai/OpenEnv/blob/main/README.md#environment-api
+// https://github.com/wisent-ai/OpenEnv/blob/main/README.md#composed-and-declared-games
 const FIRST_ROUND: usize = 1;
 
 /// The number of the round that follows `played` finished rounds.
@@ -22,6 +22,8 @@ pub struct RoundResult {
     pub opponent_action: String,
     pub player_payoff: f64,
     pub opponent_payoff: f64,
+    /// The exact random stream used to settle this round.
+    pub payoff_seed: u64,
     /// The free-form message the agent sent this round (free-chat games).
     #[serde(default)]
     pub player_message: String,
@@ -39,6 +41,7 @@ impl RoundResult {
             opponent_action: self.player_action.clone(),
             player_payoff: self.opponent_payoff,
             opponent_payoff: self.player_payoff,
+            payoff_seed: self.payoff_seed,
             player_message: self.opponent_message.clone(),
             opponent_message: self.player_message.clone(),
         }

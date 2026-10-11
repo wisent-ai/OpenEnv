@@ -83,6 +83,7 @@ pub fn pair(observation: &GameObservation) -> KantBenchObservation {
                     "opponent_move": round.opponent_action,
                     "your_payoff": round.player_payoff,
                     "opponent_payoff": round.opponent_payoff,
+                    "payoff_seed": round.payoff_seed.to_string(),
                 })
             })
             .collect(),

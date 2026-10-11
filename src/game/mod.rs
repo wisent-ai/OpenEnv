@@ -20,8 +20,8 @@ pub use matrix::{declared_matrix, matrix_between, matrix_entry, matrix_payoff, m
 use crate::error::{Error, Result};
 use crate::settings::{Declared, Settings};
 
-/// How a pair of moves pays: `(player, opponent)`. The random source is the
-/// episode's own, so a variant that adds noise draws from the seeded stream.
+/// How a pair of moves pays: `(player, opponent)`. The caller owns the random
+/// source; two-seat settlements initialize it from the round's recorded seed.
 pub type Payoff = Arc<dyn Fn(&str, &str, &mut dyn RngCore) -> Result<(f64, f64)> + Send + Sync>;
 
 /// Who plays a game: an agent and one opponent, or a group of a declared size.

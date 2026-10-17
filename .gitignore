@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+/.build/
 .pytest_cache/
 .env
 node_modules/
@@ -16,3 +17,4 @@ node_modules/
 *.snm
 *.toc
 *.pdf
+.DS_Store

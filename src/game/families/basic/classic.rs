@@ -8,7 +8,9 @@ use std::sync::Arc;
 use crate::error::Result;
 use crate::settings::Declared;
 
-use crate::game::{amount, amounts, matrix_entry, moves, Entry, Game, Library, OpponentMoves, NOTHING};
+use crate::game::{
+    amount, amounts, matrix_entry, moves, Entry, Game, Library, OpponentMoves, NOTHING,
+};
 
 pub(super) fn register(library: &mut Library) {
     library.add(matrix_entry(
@@ -35,7 +37,12 @@ pub(super) fn register(library: &mut Library) {
         "Two players choose between aggressive (hawk) and passive (dove) strategies over a shared resource. Two hawks suffer mutual harm; a hawk facing a dove claims the resource; two doves share it.",
     ));
     library.add(Entry::new("ultimatum", "classic", &["pot"], ultimatum));
-    library.add(Entry::new("trust", "classic", &["endowment", "multiplier"], trust));
+    library.add(Entry::new(
+        "trust",
+        "classic",
+        &["endowment", "multiplier"],
+        trust,
+    ));
     library.add(Entry::new(
         "public_goods",
         "classic",
@@ -48,13 +55,15 @@ pub(super) fn register(library: &mut Library) {
 /// `(pot − offer, offer)`, a rejected one pays both nothing.
 fn ultimatum(declared: &Declared<'_>) -> Result<Game> {
     let pot = declared.whole("pot")?;
-    let payoff = Arc::new(move |player: &str, opponent: &str, _: &mut dyn rand::RngCore| {
-        let offer = amount(player)?;
-        if opponent == "reject" {
-            return Ok((NOTHING as f64, NOTHING as f64));
-        }
-        Ok(((pot - offer) as f64, offer as f64))
-    });
+    let payoff = Arc::new(
+        move |player: &str, opponent: &str, _: &mut dyn rand::RngCore| {
+            let offer = amount(player)?;
+            if opponent == "reject" {
+                return Ok((NOTHING as f64, NOTHING as f64));
+            }
+            Ok(((pot - offer) as f64, offer as f64))
+        },
+    );
     let mut game = Game::new(
         "Ultimatum Game",
         "The proposer offers a split of a fixed pot. The responder either accepts (both receive their shares) or rejects (both receive nothing).",
@@ -72,14 +81,16 @@ fn ultimatum(declared: &Declared<'_>) -> Result<Game> {
 fn trust(declared: &Declared<'_>) -> Result<Game> {
     let endowment = declared.whole("endowment")?;
     let multiplier = declared.whole("multiplier")?;
-    let payoff = Arc::new(move |player: &str, opponent: &str, _: &mut dyn rand::RngCore| {
-        let invested = amount(player)? as f64;
-        let returned = amount(opponent)? as f64;
-        Ok((
-            endowment as f64 - invested + returned,
-            invested * multiplier as f64 - returned,
-        ))
-    });
+    let payoff = Arc::new(
+        move |player: &str, opponent: &str, _: &mut dyn rand::RngCore| {
+            let invested = amount(player)? as f64;
+            let returned = amount(opponent)? as f64;
+            Ok((
+                endowment as f64 - invested + returned,
+                invested * multiplier as f64 - returned,
+            ))
+        },
+    );
     let mut game = Game::new(
         "Trust Game",
         "The investor sends part of an endowment; the amount is multiplied and given to the trustee, who then decides how much to return.",
@@ -99,12 +110,17 @@ fn public_goods(declared: &Declared<'_>) -> Result<Game> {
     let endowment = declared.whole("endowment")?;
     let multiplier = declared.number("multiplier")?;
     let players = declared.count("players")?;
-    let payoff = Arc::new(move |player: &str, opponent: &str, _: &mut dyn rand::RngCore| {
-        let mine = amount(player)? as f64;
-        let theirs = amount(opponent)? as f64;
-        let share = (mine + theirs) * multiplier / players as f64;
-        Ok((endowment as f64 - mine + share, endowment as f64 - theirs + share))
-    });
+    let payoff = Arc::new(
+        move |player: &str, opponent: &str, _: &mut dyn rand::RngCore| {
+            let mine = amount(player)? as f64;
+            let theirs = amount(opponent)? as f64;
+            let share = (mine + theirs) * multiplier / players as f64;
+            Ok((
+                endowment as f64 - mine + share,
+                endowment as f64 - theirs + share,
+            ))
+        },
+    );
     Ok(Game::new(
         "Public Goods Game",
         "Each participant decides how much of their endowment to contribute to a common pool. The pool is multiplied and distributed equally, creating tension between individual free-riding and collective benefit.",

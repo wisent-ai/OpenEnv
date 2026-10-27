@@ -13,7 +13,10 @@ use super::Agent;
 
 /// Who holds the opponent's seat.
 pub enum Opponent {
-    Strategy { name: String, strategy: Box<dyn Strategy> },
+    Strategy {
+        name: String,
+        strategy: Box<dyn Strategy>,
+    },
     Agent(Box<dyn Agent>),
 }
 
@@ -56,7 +59,14 @@ pub(super) struct Episode {
 }
 
 impl Episode {
-    pub fn start(game: Game, opponent: Opponent, game_key: &str, episode_id: String, rounds: usize, payoff_seed: u64) -> Self {
+    pub fn start(
+        game: Game,
+        opponent: Opponent,
+        game_key: &str,
+        episode_id: String,
+        rounds: usize,
+        payoff_seed: u64,
+    ) -> Self {
         let opponent_name = match &opponent {
             Opponent::Strategy { name, .. } => name.clone(),
             Opponent::Agent(_) => "agent".to_owned(),
@@ -161,7 +171,9 @@ impl Episode {
         rng: &mut dyn RngCore,
     ) -> Result<RoundResult> {
         let mut payoff_rng = StdRng::seed_from_u64(self.payoff_seed);
-        let (player_payoff, opponent_payoff) = self.game.pay(player_action, opponent_action, &mut payoff_rng)?;
+        let (player_payoff, opponent_payoff) =
+            self.game
+                .pay(player_action, opponent_action, &mut payoff_rng)?;
         if !player_payoff.is_finite() || !opponent_payoff.is_finite() {
             return Err(Error::Usage(format!(
                 "game {} produced non-finite round payoffs for {player_action:?} against {opponent_action:?}: player={player_payoff}, opponent={opponent_payoff}",
@@ -209,7 +221,10 @@ impl Episode {
         let mut metadata = Map::new();
         if self.game.has_variant("free_chat") {
             metadata.insert("free_chat".to_owned(), Value::Bool(true));
-            metadata.insert("phase".to_owned(), Value::String(self.phase.name().to_owned()));
+            metadata.insert(
+                "phase".to_owned(),
+                Value::String(self.phase.name().to_owned()),
+            );
         }
         metadata
     }
@@ -218,10 +233,16 @@ impl Episode {
         let mut metadata = self.chat_metadata();
         if let Some(round) = &last_round {
             if !round.opponent_message.is_empty() {
-                metadata.insert("last_opp_message".to_owned(), Value::String(round.opponent_message.clone()));
+                metadata.insert(
+                    "last_opp_message".to_owned(),
+                    Value::String(round.opponent_message.clone()),
+                );
             }
             if !round.player_message.is_empty() {
-                metadata.insert("last_player_message".to_owned(), Value::String(round.player_message.clone()));
+                metadata.insert(
+                    "last_player_message".to_owned(),
+                    Value::String(round.player_message.clone()),
+                );
             }
         }
         GameObservation {
@@ -244,22 +265,42 @@ impl Episode {
     /// The episode from the opponent's seat: history, scores and messages
     /// swapped so the opponent sees itself as the player.
     fn opponent_observation(&self, chat: Option<Chat<'_>>) -> GameObservation {
-        let history: Vec<RoundResult> = self.state.history.iter().map(RoundResult::flipped).collect();
+        let history: Vec<RoundResult> = self
+            .state
+            .history
+            .iter()
+            .map(RoundResult::flipped)
+            .collect();
         let mut metadata = Map::new();
         if let Some(last) = history.last() {
             if !last.opponent_message.is_empty() {
-                metadata.insert("last_opp_message".to_owned(), Value::String(last.opponent_message.clone()));
+                metadata.insert(
+                    "last_opp_message".to_owned(),
+                    Value::String(last.opponent_message.clone()),
+                );
             }
             if !last.player_message.is_empty() {
-                metadata.insert("last_player_message".to_owned(), Value::String(last.player_message.clone()));
+                metadata.insert(
+                    "last_player_message".to_owned(),
+                    Value::String(last.player_message.clone()),
+                );
             }
         }
         if let Some(chat) = chat {
             metadata.insert("free_chat".to_owned(), Value::Bool(true));
-            metadata.insert("phase".to_owned(), Value::String(chat.phase.name().to_owned()));
+            metadata.insert(
+                "phase".to_owned(),
+                Value::String(chat.phase.name().to_owned()),
+            );
             if chat.phase == Phase::Action {
-                metadata.insert("last_opp_message".to_owned(), Value::String(chat.heard.to_owned()));
-                metadata.insert("last_player_message".to_owned(), Value::String(chat.said.to_owned()));
+                metadata.insert(
+                    "last_opp_message".to_owned(),
+                    Value::String(chat.heard.to_owned()),
+                );
+                metadata.insert(
+                    "last_player_message".to_owned(),
+                    Value::String(chat.said.to_owned()),
+                );
             }
         }
         GameObservation {

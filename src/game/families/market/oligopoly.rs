@@ -10,9 +10,24 @@ use crate::game::{amount, amounts, matrix_between, mean, Entry, Game, Library, N
 use crate::settings::Declared;
 
 pub(super) fn register(library: &mut Library) {
-    library.add(Entry::new("cournot", "market", &["intercept", "slope", "cost", "most"], cournot));
-    library.add(Entry::new("bertrand", "market", &["most", "cost", "market_size"], bertrand));
-    library.add(Entry::new("hotelling", "market", &["line", "transport", "market_value"], hotelling));
+    library.add(Entry::new(
+        "cournot",
+        "market",
+        &["intercept", "slope", "cost", "most"],
+        cournot,
+    ));
+    library.add(Entry::new(
+        "bertrand",
+        "market",
+        &["most", "cost", "market_size"],
+        bertrand,
+    ));
+    library.add(Entry::new(
+        "hotelling",
+        "market",
+        &["line", "transport", "market_value"],
+        hotelling,
+    ));
     library.add(matrix_between(
         "entry_deterrence",
         "market",
@@ -21,7 +36,12 @@ pub(super) fn register(library: &mut Library) {
         "Entry Deterrence",
         "A potential entrant decides whether to enter a market; the incumbent decides whether to fight or accommodate. Tests credible commitment and limit pricing reasoning.",
     ));
-    library.add(Entry::new("nash_demand", "market", &["surplus"], nash_demand));
+    library.add(Entry::new(
+        "nash_demand",
+        "market",
+        &["surplus"],
+        nash_demand,
+    ));
     library.add(Entry::new(
         "double_auction",
         "market",
@@ -42,7 +62,11 @@ fn priced(name: &str, description: &str, kind: &str, moves: Vec<String>, pay: Ar
 
 /// Price `intercept − slope · (q₁ + q₂)`; each firm earns `(price − cost) · q`.
 fn cournot(declared: &Declared<'_>) -> Result<Game> {
-    let (intercept, slope, cost) = (declared.number("intercept")?, declared.number("slope")?, declared.number("cost")?);
+    let (intercept, slope, cost) = (
+        declared.number("intercept")?,
+        declared.number("slope")?,
+        declared.number("cost")?,
+    );
     let most = declared.whole("most")?;
     Ok(priced(
         "Cournot Duopoly",
@@ -85,7 +109,10 @@ fn bertrand(declared: &Declared<'_>) -> Result<Game> {
 /// same spot split `market_value` equally.
 fn hotelling(declared: &Declared<'_>) -> Result<Game> {
     let line = declared.whole("line")?;
-    let (transport, value) = (declared.number("transport")?, declared.number("market_value")?);
+    let (transport, value) = (
+        declared.number("transport")?,
+        declared.number("market_value")?,
+    );
     let length = line as f64;
     Ok(priced(
         "Hotelling Location Game",
@@ -127,7 +154,10 @@ fn nash_demand(declared: &Declared<'_>) -> Result<Game> {
 /// midpoint, paying the buyer `buyer_value − price` and the seller
 /// `price − seller_cost`.
 fn double_auction(declared: &Declared<'_>) -> Result<Game> {
-    let (value, cost) = (declared.number("buyer_value")?, declared.number("seller_cost")?);
+    let (value, cost) = (
+        declared.number("buyer_value")?,
+        declared.number("seller_cost")?,
+    );
     let most = declared.whole("most")?;
     Ok(priced(
         "Double Auction",

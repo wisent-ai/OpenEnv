@@ -33,7 +33,13 @@ pub fn declared_matrix(
     actions: Vec<String>,
 ) -> Result<Game> {
     let matrix = Matrix::declared(declared, &actions, &actions)?;
-    Ok(Game::new(name, description, "matrix", actions, matrix_payoff(name, matrix)))
+    Ok(Game::new(
+        name,
+        description,
+        "matrix",
+        actions,
+        matrix_payoff(name, matrix),
+    ))
 }
 
 /// A library entry for a normal-form game: it reads `payoffs` and nothing
@@ -64,7 +70,13 @@ pub fn matrix_between(
     Entry::new(key, family, &["payoffs"], move |declared| {
         let (rows, columns) = (moves(rows), moves(columns));
         let matrix = Matrix::declared(declared, &rows, &columns)?;
-        let mut game = Game::new(name, description, "matrix", rows, matrix_payoff(name, matrix));
+        let mut game = Game::new(
+            name,
+            description,
+            "matrix",
+            rows,
+            matrix_payoff(name, matrix),
+        );
         game.opponent_actions = super::OpponentMoves::Own(columns);
         Ok(game)
     })

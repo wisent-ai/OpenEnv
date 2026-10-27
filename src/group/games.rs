@@ -57,14 +57,24 @@ fn public_goods(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
 /// When anyone volunteers every seat gets `benefit` and each volunteer pays
 /// `cost`; when nobody does every seat gets `nobody`.
 fn volunteer(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
-    let (benefit, cost, nobody) = (declared.number("benefit")?, declared.number("cost")?, declared.number("nobody")?);
+    let (benefit, cost, nobody) = (
+        declared.number("benefit")?,
+        declared.number("cost")?,
+        declared.number("nobody")?,
+    );
     let payoff = Arc::new(move |moves: &[String]| -> Result<Vec<f64>> {
         if !moves.iter().any(|played| played == "volunteer") {
             return Ok(moves.iter().map(|_| nobody).collect());
         }
         Ok(moves
             .iter()
-            .map(|played| if played == "volunteer" { benefit - cost } else { benefit })
+            .map(|played| {
+                if played == "volunteer" {
+                    benefit - cost
+                } else {
+                    benefit
+                }
+            })
             .collect())
     });
     Ok(GroupGame::new(
@@ -81,7 +91,11 @@ fn volunteer(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
 /// `crowded` once it passes it; staying home pays `home`.
 fn el_farol(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
     let capacity = declared.whole("capacity")?;
-    let (attend, crowded, home) = (declared.number("attend")?, declared.number("crowded")?, declared.number("home")?);
+    let (attend, crowded, home) = (
+        declared.number("attend")?,
+        declared.number("crowded")?,
+        declared.number("home")?,
+    );
     let payoff = Arc::new(move |moves: &[String]| -> Result<Vec<f64>> {
         let over = count(moves, "attend") as u64 > capacity;
         Ok(moves

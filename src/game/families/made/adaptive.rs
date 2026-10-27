@@ -33,10 +33,22 @@ pub(super) fn register(library: &mut Library) {
     library.add(Entry::new(
         "market_dynamics",
         "adaptive",
-        &["outputs", "costs", "intercept", "floor", "crowded_above", "shift"],
+        &[
+            "outputs",
+            "costs",
+            "intercept",
+            "floor",
+            "crowded_above",
+            "shift",
+        ],
         market_dynamics,
     ));
-    library.add(Entry::new("reputation_payoffs", "adaptive", &["payoffs", "bonus"], reputation_payoffs));
+    library.add(Entry::new(
+        "reputation_payoffs",
+        "adaptive",
+        &["payoffs", "bonus"],
+        reputation_payoffs,
+    ));
 }
 
 fn poisoned(game: &str) -> Error {
@@ -70,7 +82,11 @@ fn adaptive_dilemma(declared: &Declared<'_>) -> Result<Game> {
     let actions = cooperation_moves();
     let base = Matrix::declared(declared, &actions, &actions)?;
     let start = declared.number("start")?;
-    let (lowest, highest, step) = (declared.number("lowest")?, declared.number("highest")?, declared.number("step")?);
+    let (lowest, highest, step) = (
+        declared.number("lowest")?,
+        declared.number("highest")?,
+        declared.number("step")?,
+    );
     let name = "Adaptive Prisoner's Dilemma";
     let payoff = stateful(name, start, move |multiplier, player, opponent| {
         let (mine, theirs) = base.cell(name, player, opponent)?;
@@ -143,7 +159,10 @@ fn market_dynamics(declared: &Declared<'_>) -> Result<Game> {
     let costs = declared.nested("costs")?;
     let mut levels = BTreeMap::new();
     for level in &actions {
-        levels.insert(level.clone(), (outputs.number(level)?, costs.number(level)?));
+        levels.insert(
+            level.clone(),
+            (outputs.number(level)?, costs.number(level)?),
+        );
     }
     let start = declared.number("intercept")?;
     let floor = declared.number("floor")?;

@@ -29,7 +29,14 @@ async fn send(socket: &mut WebSocket, value: &Value) -> bool {
 
 async fn run(mut socket: WebSocket, shared: Shared) {
     let Ok(_place) = shared.places.clone().try_acquire_owned() else {
-        send(&mut socket, &error("CAPACITY_REACHED", "every session place of this server is taken; close another session first")).await;
+        send(
+            &mut socket,
+            &error(
+                "CAPACITY_REACHED",
+                "every session place of this server is taken; close another session first",
+            ),
+        )
+        .await;
         let _ = socket.close().await;
         return;
     };
@@ -56,7 +63,12 @@ async fn run(mut socket: WebSocket, shared: Shared) {
 fn answer(session: &mut Session, text: &str) -> Option<Value> {
     let message: Value = match serde_json::from_str(text) {
         Ok(message) => message,
-        Err(refusal) => return Some(error("INVALID_JSON", format!("the message is not JSON: {refusal}"))),
+        Err(refusal) => {
+            return Some(error(
+                "INVALID_JSON",
+                format!("the message is not JSON: {refusal}"),
+            ))
+        }
     };
     let data = message.get("data").cloned();
     let observed = |result: crate::error::Result<super::session::StepResult>| match result {
@@ -67,7 +79,10 @@ fn answer(session: &mut Session, text: &str) -> Option<Value> {
         Some("reset") => match data.map(serde_json::from_value::<ResetRequest>) {
             Some(Ok(request)) => observed(session.reset(&request)),
             Some(Err(refusal)) => error("VALIDATION_ERROR", format!("reset data: {refusal}")),
-            None => error("VALIDATION_ERROR", "reset needs data naming the game and strategy"),
+            None => error(
+                "VALIDATION_ERROR",
+                "reset needs data naming the game and strategy",
+            ),
         },
         Some("step") => match data.map(serde_json::from_value::<KantBenchAction>) {
             Some(Ok(action)) => observed(session.step(&action)),
@@ -79,7 +94,10 @@ fn answer(session: &mut Session, text: &str) -> Option<Value> {
             Err(refusal) => error("EXECUTION_ERROR", refusal),
         },
         Some("close") => return None,
-        Some(other) => error("UNKNOWN_TYPE", format!("unknown message type {other}; send reset, step, state or close")),
+        Some(other) => error(
+            "UNKNOWN_TYPE",
+            format!("unknown message type {other}; send reset, step, state or close"),
+        ),
         None => error("VALIDATION_ERROR", "the message has no string field type"),
     })
 }

@@ -17,7 +17,9 @@ pub fn run(words: &Words) -> Result<Value> {
     let settings = words.settings()?;
     let moves = words.all("move");
     if moves.is_empty() {
-        return Err(Error::Usage("give the agent's moves in order with --move M".to_owned()));
+        return Err(Error::Usage(
+            "give the agent's moves in order with --move M".to_owned(),
+        ));
     }
     let request = Reset {
         game: words.required("game")?.to_owned(),
@@ -26,13 +28,19 @@ pub fn run(words: &Words) -> Result<Value> {
         episode_id: words.one("episode")?.map(str::to_owned),
     };
     let mut environment = Environment::new(Arc::new(Library::standard()), settings.clone())?;
-    let mut observations = vec![serde_json::to_value(environment.reset(&request, None)?)
-        .map_err(|source| Error::Json { origin: "observation".to_owned(), source })?];
+    let mut observations = vec![
+        serde_json::to_value(environment.reset(&request, None)?).map_err(|source| Error::Json {
+            origin: "observation".to_owned(),
+            source,
+        })?,
+    ];
     for action in moves {
         let observation = environment.step(&GameAction::new(action))?;
         observations.push(
-            serde_json::to_value(observation)
-                .map_err(|source| Error::Json { origin: "observation".to_owned(), source })?,
+            serde_json::to_value(observation).map_err(|source| Error::Json {
+                origin: "observation".to_owned(),
+                source,
+            })?,
         );
     }
     Ok(json!({

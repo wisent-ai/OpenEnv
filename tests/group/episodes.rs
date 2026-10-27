@@ -39,7 +39,11 @@ fn kant(args: &[&str]) -> Output {
 }
 
 fn answer(output: &Output) -> Value {
-    assert!(output.status.success(), "kant refused: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "kant refused: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     serde_json::from_slice(&output.stdout).expect("one JSON document")
 }
 
@@ -55,25 +59,47 @@ fn number(value: &Value) -> f64 {
 fn a_free_rider_keeps_its_endowment_and_shares_the_others_pool() {
     let settings = scratch("group-public-goods", "settings.json", SETTINGS);
     let played = answer(&kant(&[
-        "group", "--settings", &settings, "--game", "nplayer_public_goods", "--strategy", "always_cooperate",
-        "--move", "contribute_0",
+        "group",
+        "--settings",
+        &settings,
+        "--game",
+        "nplayer_public_goods",
+        "--strategy",
+        "always_cooperate",
+        "--move",
+        "contribute_0",
     ]));
     let game = &declared()["games"]["nplayer_public_goods"];
-    let round = played["state"]["history"].as_array().and_then(|rounds| rounds.first()).cloned().expect("a round");
+    let round = played["state"]["history"]
+        .as_array()
+        .and_then(|rounds| rounds.first())
+        .cloned()
+        .expect("a round");
     let moves = round["actions"].as_array().expect("moves").clone();
-    assert_eq!(moves.len() as f64, number(&game["players"]), "every declared seat moved");
+    assert_eq!(
+        moves.len() as f64,
+        number(&game["players"]),
+        "every declared seat moved"
+    );
     let pool: f64 = moves
         .iter()
         .map(|played| {
-            played
-                .as_str()
-                .and_then(|text| text.rsplit_once('_'))
-                .and_then(|(_, amount)| amount.parse::<f64>().ok())
-                .expect("an amount")
+            let text = played.as_str().expect("a move is text");
+            let (_, amount) = text
+                .rsplit_once('_')
+                .expect("a move carries an amount after its last underscore");
+            match amount.parse::<f64>() {
+                Ok(amount) => amount,
+                Err(cause) => panic!("{text} carries no readable amount: {cause}"),
+            }
         })
         .sum();
     let share = pool * number(&game["multiplier"]) / number(&game["players"]);
-    let agent = round["payoffs"].as_array().and_then(|paid| paid.first()).cloned().expect("the agent's payoff");
+    let agent = round["payoffs"]
+        .as_array()
+        .and_then(|paid| paid.first())
+        .cloned()
+        .expect("the agent's payoff");
     assert_eq!(agent.as_f64(), Some(number(&game["endowment"]) + share));
 }
 
@@ -82,19 +108,57 @@ fn breaking_a_cartel_agreement_under_penalty_enforcement_costs_the_declared_shar
     let settings = scratch("coalition-cartel", "settings.json", SETTINGS);
     let script = scratch("coalition-cartel", "script.json", SCRIPT);
     let played = answer(&kant(&[
-        "coalition", "--settings", &settings, "--game", "coalition_cartel", "--strategy", "coalition_loyal",
-        "--governance", "governance_passive", "--script", &script,
+        "coalition",
+        "--settings",
+        &settings,
+        "--game",
+        "coalition_cartel",
+        "--strategy",
+        "coalition_loyal",
+        "--governance",
+        "governance_passive",
+        "--script",
+        &script,
     ]));
-    let last = played["observations"].as_array().and_then(|seen| seen.last()).cloned().expect("observations");
-    let round = last["coalition_history"].as_array().and_then(|rounds| rounds.first()).cloned().expect("a coalition round");
-    let defectors: Vec<u64> = round["defectors"].as_array().expect("defectors").iter().filter_map(Value::as_u64).collect();
-    assert_eq!(defectors.len(), defectors.iter().filter(|seat| **seat == crate_agent()).count(), "only the agent defected");
-    assert!(!defectors.is_empty(), "the agent's broken agreement is recorded");
+    let last = played["observations"]
+        .as_array()
+        .and_then(|seen| seen.last())
+        .cloned()
+        .expect("observations");
+    let round = last["coalition_history"]
+        .as_array()
+        .and_then(|rounds| rounds.first())
+        .cloned()
+        .expect("a coalition round");
+    let defectors: Vec<u64> = round["defectors"]
+        .as_array()
+        .expect("defectors")
+        .iter()
+        .filter_map(Value::as_u64)
+        .collect();
+    assert_eq!(
+        defectors.len(),
+        defectors
+            .iter()
+            .filter(|seat| **seat == crate_agent())
+            .count(),
+        "only the agent defected"
+    );
+    assert!(
+        !defectors.is_empty(),
+        "the agent's broken agreement is recorded"
+    );
     let game = &declared()["games"]["coalition_cartel"];
     let competing = number(&game["competing_held"]);
-    let fine = round["penalties"].as_array().and_then(|fines| fines.first()).and_then(Value::as_f64);
+    let fine = round["penalties"]
+        .as_array()
+        .and_then(|fines| fines.first())
+        .and_then(Value::as_f64);
     assert_eq!(fine, Some(competing * number(&game["penalty"])));
-    assert_eq!(last["base"]["reward"].as_f64(), Some(competing - competing * number(&game["penalty"])));
+    assert_eq!(
+        last["base"]["reward"].as_f64(),
+        Some(competing - competing * number(&game["penalty"]))
+    );
 }
 
 /// The agent's seat, as the README states it: seat zero.
@@ -106,10 +170,24 @@ fn crate_agent() -> u64 {
 fn a_strategy_list_that_fits_no_seat_count_is_refused() {
     let settings = scratch("group-refusal", "settings.json", SETTINGS);
     let output = kant(&[
-        "group", "--settings", &settings, "--game", "nplayer_public_goods", "--strategy", "random", "--strategy",
-        "random", "--strategy", "random", "--move", "contribute_0",
+        "group",
+        "--settings",
+        &settings,
+        "--game",
+        "nplayer_public_goods",
+        "--strategy",
+        "random",
+        "--strategy",
+        "random",
+        "--strategy",
+        "random",
+        "--move",
+        "contribute_0",
     ]);
     assert!(!output.status.success());
     let said = String::from_utf8_lossy(&output.stderr);
-    assert!(said.contains("name one strategy for every other seat"), "{said}");
+    assert!(
+        said.contains("name one strategy for every other seat"),
+        "{said}"
+    );
 }

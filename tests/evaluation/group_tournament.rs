@@ -35,7 +35,11 @@ fn kant(args: &[&str]) -> Output {
 }
 
 fn answer(output: &Output) -> Value {
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     serde_json::from_slice(&output.stdout).expect("one JSON document")
 }
 
@@ -43,19 +47,39 @@ fn answer(output: &Output) -> Value {
 fn an_always_cooperating_agent_cooperates_every_round_of_a_group_game() {
     let settings = settings_file("group-tournament");
     let result = answer(&kant(&[
-        "group-tournament", "--settings", &settings, "--game", "nplayer_volunteer_dilemma", "--strategy", "always_defect",
-        "--agent-strategy", "always_cooperate",
+        "group-tournament",
+        "--settings",
+        &settings,
+        "--game",
+        "nplayer_volunteer_dilemma",
+        "--strategy",
+        "always_defect",
+        "--agent-strategy",
+        "always_cooperate",
     ]));
     let declared: Value = serde_json::from_str(SETTINGS).expect("settings parse");
-    let episodes = result["games"]["nplayer_volunteer_dilemma"]["always_defect"].as_array().expect("episodes").clone();
-    assert_eq!(episodes.len() as u64, declared["evaluation"]["episodes"].as_u64().expect("episodes"));
+    let episodes = result["games"]["nplayer_volunteer_dilemma"]["always_defect"]
+        .as_array()
+        .expect("episodes")
+        .clone();
+    assert_eq!(
+        episodes.len() as u64,
+        declared["evaluation"]["episodes"]
+            .as_u64()
+            .expect("episodes")
+    );
     for episode in &episodes {
         let rate = episode["cooperation_rate"].as_f64().expect("a rate");
-        let all_rounds = episode["rounds_played"].as_f64().expect("rounds") / episode["rounds_played"].as_f64().expect("rounds");
+        let all_rounds = episode["rounds_played"].as_f64().expect("rounds")
+            / episode["rounds_played"].as_f64().expect("rounds");
         assert_eq!(rate, all_rounds, "{episode}");
         let game = &declared["games"]["nplayer_volunteer_dilemma"];
-        let per_round = game["benefit"].as_f64().expect("benefit") - game["cost"].as_f64().expect("cost");
-        assert_eq!(episode["player_score"].as_f64(), Some(per_round * episode["rounds_played"].as_f64().expect("rounds")));
+        let per_round =
+            game["benefit"].as_f64().expect("benefit") - game["cost"].as_f64().expect("cost");
+        assert_eq!(
+            episode["player_score"].as_f64(),
+            Some(per_round * episode["rounds_played"].as_f64().expect("rounds"))
+        );
     }
 }
 
@@ -63,8 +87,17 @@ fn an_always_cooperating_agent_cooperates_every_round_of_a_group_game() {
 fn a_coalition_game_reports_formation_and_needs_a_governance_strategy() {
     let settings = settings_file("coalition-tournament");
     let result = answer(&kant(&[
-        "group-tournament", "--settings", &settings, "--game", "coalition_cartel", "--strategy", "coalition_loyal",
-        "--agent-strategy", "coalition_loyal", "--governance", "governance_passive",
+        "group-tournament",
+        "--settings",
+        &settings,
+        "--game",
+        "coalition_cartel",
+        "--strategy",
+        "coalition_loyal",
+        "--agent-strategy",
+        "coalition_loyal",
+        "--governance",
+        "governance_passive",
     ]));
     let episode = result["games"]["coalition_cartel"]["coalition_loyal"]
         .as_array()
@@ -75,10 +108,20 @@ fn a_coalition_game_reports_formation_and_needs_a_governance_strategy() {
     assert!(episode["defection_rate"].is_number(), "{episode}");
 
     let refused = kant(&[
-        "group-tournament", "--settings", &settings, "--game", "coalition_cartel", "--strategy", "coalition_loyal",
-        "--agent-strategy", "coalition_loyal",
+        "group-tournament",
+        "--settings",
+        &settings,
+        "--game",
+        "coalition_cartel",
+        "--strategy",
+        "coalition_loyal",
+        "--agent-strategy",
+        "coalition_loyal",
     ]);
     assert!(!refused.status.success());
     let said = String::from_utf8_lossy(&refused.stderr);
-    assert!(said.contains("name the other seats' governance strategy"), "{said}");
+    assert!(
+        said.contains("name the other seats' governance strategy"),
+        "{said}"
+    );
 }

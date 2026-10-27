@@ -52,20 +52,35 @@ fn fairness(mine: f64, theirs: f64) -> f64 {
     WHOLE - (mine - theirs).abs() / size
 }
 
-pub fn run(settings: Arc<Settings>, seats: BTreeMap<String, SeatSpec>, games: &[String]) -> Result<Matchups> {
+pub fn run(
+    settings: Arc<Settings>,
+    seats: BTreeMap<String, SeatSpec>,
+    games: &[String],
+) -> Result<Matchups> {
     if seats.is_empty() || games.is_empty() {
-        return Err(Error::Usage("matchups need at least one seat and one game".to_owned()));
+        return Err(Error::Usage(
+            "matchups need at least one seat and one game".to_owned(),
+        ));
     }
     let episodes = settings.section("evaluation")?.count("episodes")?;
     let library = Arc::new(Library::standard());
     let mut environment = Environment::new(library.clone(), settings.clone())?;
     let seed = environment.seed();
-    let needs_brama = seats.values().any(|spec| matches!(spec, SeatSpec::Model(_)));
+    let needs_brama = seats
+        .values()
+        .any(|spec| matches!(spec, SeatSpec::Model(_)));
     let probe = match needs_brama {
-        true => seats.values().find(|spec| matches!(spec, SeatSpec::Model(_))).cloned(),
+        true => seats
+            .values()
+            .find(|spec| matches!(spec, SeatSpec::Model(_)))
+            .cloned(),
         false => seats.values().next().cloned(),
     };
-    let runner = Runner::new(settings.clone(), probe.ok_or_else(|| Error::Usage("matchups need a seat".to_owned()))?, None)?;
+    let runner = Runner::new(
+        settings.clone(),
+        probe.ok_or_else(|| Error::Usage("matchups need a seat".to_owned()))?,
+        None,
+    )?;
     let mut matchups = Vec::new();
     for key in games {
         let game = library.build(key, &settings)?;
@@ -74,14 +89,24 @@ pub fn run(settings: Arc<Settings>, seats: BTreeMap<String, SeatSpec>, games: &[
                 for _ in std::iter::repeat(()).take(episodes) {
                     let opponent = runner.seat(second_spec, &game, seed)?;
                     let mut agent = runner.seat(first_spec, &game, seed)?;
-                    let request = Reset { game: key.clone(), strategy: None, rounds: None, episode_id: None };
+                    let request = Reset {
+                        game: key.clone(),
+                        strategy: None,
+                        rounds: None,
+                        episode_id: None,
+                    };
                     let mut observation = environment.reset(&request, Some(opponent))?;
                     while !observation.done {
                         observation = environment.step(&agent.act(&observation)?)?;
                     }
                     let rounds = observation.history.len() as f64;
                     let rate = |pick: fn(&RoundResult) -> &String| {
-                        observation.history.iter().filter(|round| cooperated(&game, pick(round))).count() as f64 / rounds
+                        observation
+                            .history
+                            .iter()
+                            .filter(|round| cooperated(&game, pick(round)))
+                            .count() as f64
+                            / rounds
                     };
                     matchups.push(Matchup {
                         game: key.clone(),
@@ -101,20 +126,36 @@ pub fn run(settings: Arc<Settings>, seats: BTreeMap<String, SeatSpec>, games: &[
         None => None,
         Some(_) => Some(reputations(&settings, &seats, &matchups)?),
     };
-    Ok(Matchups { seed, seats, matchups, reputation })
+    Ok(Matchups {
+        seed,
+        seats,
+        matchups,
+        reputation,
+    })
 }
 
-fn reputations(settings: &Settings, seats: &BTreeMap<String, SeatSpec>, matchups: &[Matchup]) -> Result<BTreeMap<String, f64>> {
+fn reputations(
+    settings: &Settings,
+    seats: &BTreeMap<String, SeatSpec>,
+    matchups: &[Matchup],
+) -> Result<BTreeMap<String, f64>> {
     let arena = settings.section("arena")?;
     let prior = arena.number("prior")?;
     let decay = arena.number("decay")?;
     let weights = arena.nested("weights")?;
-    let (cooperation_weight, fairness_weight) = (weights.number("cooperation")?, weights.number("fairness")?);
+    let (cooperation_weight, fairness_weight) =
+        (weights.number("cooperation")?, weights.number("fairness")?);
     let blend = |old: f64, new: f64| old * decay + new * (WHOLE - decay);
-    let mut signals: BTreeMap<&str, (f64, f64)> = seats.keys().map(|name| (name.as_str(), (prior, prior))).collect();
+    let mut signals: BTreeMap<&str, (f64, f64)> = seats
+        .keys()
+        .map(|name| (name.as_str(), (prior, prior)))
+        .collect();
     for matchup in matchups {
         let fair = fairness(matchup.first_score, matchup.second_score);
-        for (name, rate) in [(&matchup.first, matchup.first_cooperation), (&matchup.second, matchup.second_cooperation)] {
+        for (name, rate) in [
+            (&matchup.first, matchup.first_cooperation),
+            (&matchup.second, matchup.second_cooperation),
+        ] {
             if let Some((cooperation, fairness_signal)) = signals.get_mut(name.as_str()) {
                 *cooperation = blend(*cooperation, rate);
                 *fairness_signal = blend(*fairness_signal, fair);
@@ -123,6 +164,11 @@ fn reputations(settings: &Settings, seats: &BTreeMap<String, SeatSpec>, matchups
     }
     Ok(signals
         .into_iter()
-        .map(|(name, (cooperation, fair))| (name.to_owned(), cooperation * cooperation_weight + fair * fairness_weight))
+        .map(|(name, (cooperation, fair))| {
+            (
+                name.to_owned(),
+                cooperation * cooperation_weight + fair * fairness_weight,
+            )
+        })
         .collect())
 }

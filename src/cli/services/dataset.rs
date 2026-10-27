@@ -14,7 +14,11 @@ use crate::training;
 pub fn run(words: &Words) -> Result<Value> {
     let settings = words.settings()?;
     let games: Vec<String> = words.all("game").into_iter().map(str::to_owned).collect();
-    let strategies: Vec<String> = words.all("strategy").into_iter().map(str::to_owned).collect();
+    let strategies: Vec<String> = words
+        .all("strategy")
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
     let agent = words.required("agent-strategy")?;
     let directory = PathBuf::from(words.required("output")?);
     let found = training::states(&settings, &games, &strategies, agent)?;

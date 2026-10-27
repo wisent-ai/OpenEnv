@@ -56,7 +56,17 @@ fn declared() -> Value {
 /// A move's mean payoff against every opponent move, from the declared cells.
 fn expected(played: &str) -> f64 {
     let row = declared()["games"]["prisoners_dilemma"]["payoffs"][played].clone();
-    let cells = row.as_object().expect("a row").values().map(|pair| pair.as_array().and_then(|pair| pair.first()).and_then(Value::as_f64).expect("a payoff")).collect::<Vec<_>>();
+    let cells = row
+        .as_object()
+        .expect("a row")
+        .values()
+        .map(|pair| {
+            pair.as_array()
+                .and_then(|pair| pair.first())
+                .and_then(Value::as_f64)
+                .expect("a payoff")
+        })
+        .collect::<Vec<_>>();
     cells.iter().sum::<f64>() / cells.len() as f64
 }
 
@@ -85,44 +95,102 @@ fn the_dataset_feeds_ster_and_the_server_pays_answers_to_it() {
     let written = Command::new(BINARY)
         .args(["dataset", "--settings"])
         .arg(&settings)
-        .args(["--game", "prisoners_dilemma", "--strategy", "tit_for_tat", "--agent-strategy", "always_cooperate", "--output"])
+        .args([
+            "--game",
+            "prisoners_dilemma",
+            "--strategy",
+            "tit_for_tat",
+            "--agent-strategy",
+            "always_cooperate",
+            "--output",
+        ])
         .arg(&output_directory)
         .output()
         .expect("kant runs");
-    assert!(written.status.success(), "{}", String::from_utf8_lossy(&written.stderr));
+    assert!(
+        written.status.success(),
+        "{}",
+        String::from_utf8_lossy(&written.stderr)
+    );
 
-    let rounds = declared()["games"]["prisoners_dilemma"]["rounds"].as_u64().expect("rounds") as usize;
+    let rounds = declared()["games"]["prisoners_dilemma"]["rounds"]
+        .as_u64()
+        .expect("rounds") as usize;
     let prompts = read(output_directory.join("prompts.json"));
     let states = read(output_directory.join("states.json"));
     let pairs = read(output_directory.join("pairs.json"));
     let prompt_list = prompts["prompts"].as_array().expect("prompts").clone();
-    assert_eq!(prompt_list.len(), rounds, "one prompt per round the agent played");
+    assert_eq!(
+        prompt_list.len(),
+        rounds,
+        "one prompt per round the agent played"
+    );
     assert_eq!(states["states"].as_array().map(Vec::len), Some(rounds));
-    let first_pair = pairs["pairs"].as_array().and_then(|pairs| pairs.first()).cloned().expect("a pair");
-    assert!(first_pair["positive"].as_str().is_some_and(|side| side.ends_with("\ndefect")), "{first_pair}");
-    assert!(first_pair["negative"].as_str().is_some_and(|side| side.ends_with("\ncooperate")), "{first_pair}");
+    let first_pair = pairs["pairs"]
+        .as_array()
+        .and_then(|pairs| pairs.first())
+        .cloned()
+        .expect("a pair");
+    assert!(
+        first_pair["positive"]
+            .as_str()
+            .is_some_and(|side| side.ends_with("\ndefect")),
+        "{first_pair}"
+    );
+    assert!(
+        first_pair["negative"]
+            .as_str()
+            .is_some_and(|side| side.ends_with("\ncooperate")),
+        "{first_pair}"
+    );
 
     let mut child = Command::new(BINARY)
         .args(["serve", "--settings"])
         .arg(&settings)
-        .args(["--listen", &SocketAddr::from((Ipv4Addr::LOCALHOST, Default::default())).to_string(), "--states"])
+        .args([
+            "--listen",
+            &SocketAddr::from((Ipv4Addr::LOCALHOST, Default::default())).to_string(),
+            "--states",
+        ])
         .arg(output_directory.join("states.json"))
         .stderr(Stdio::piped())
         .spawn()
         .expect("kant serve starts");
     let mut announced = String::new();
-    BufReader::new(child.stderr.take().expect("stderr")).read_line(&mut announced).expect("announcement");
+    BufReader::new(child.stderr.take().expect("stderr"))
+        .read_line(&mut announced)
+        .expect("announcement");
     let _served = Served(child);
-    let address = announced.rsplit("http://").next().expect("address").trim().to_owned();
+    let address = announced
+        .rsplit("http://")
+        .next()
+        .expect("address")
+        .trim()
+        .to_owned();
     let prompt = prompt_list.first().cloned().expect("a prompt");
 
     let (_, paid) = post(&address, &json!({ "prompt": prompt, "text": "defect" }));
     assert_eq!(paid["reward"].as_f64(), Some(expected("defect")), "{paid}");
     assert_eq!(paid["move"], "defect");
-    let (_, unparsed) = post(&address, &json!({ "prompt": prompt, "text": "I would rather not say" }));
-    assert_eq!(unparsed["reward"].as_f64(), declared()["training"]["unparsed_reward"].as_f64(), "{unparsed}");
+    let (_, unparsed) = post(
+        &address,
+        &json!({ "prompt": prompt, "text": "I would rather not say" }),
+    );
+    assert_eq!(
+        unparsed["reward"].as_f64(),
+        declared()["training"]["unparsed_reward"].as_f64(),
+        "{unparsed}"
+    );
 
-    let (status, unknown) = post(&address, &json!({ "prompt": "a prompt nobody wrote", "text": "defect" }));
+    let (status, unknown) = post(
+        &address,
+        &json!({ "prompt": "a prompt nobody wrote", "text": "defect" }),
+    );
     assert!(status.contains("422"), "{status}");
-    assert!(unknown["detail"].as_str().is_some_and(|said| said.contains("not one of this dataset's states")), "{unknown}");
+    assert!(
+        unknown["detail"]
+            .as_str()
+            .is_some_and(|said| said.contains("not one of this dataset's states")),
+        "{unknown}"
+    );
 }

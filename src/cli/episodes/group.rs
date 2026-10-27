@@ -18,7 +18,10 @@ use crate::group::{GroupLibrary, AGENT_SEATS};
 use crate::cli::Words;
 
 fn document<T: serde::Serialize>(value: &T, what: &str) -> Result<Value> {
-    serde_json::to_value(value).map_err(|source| Error::Json { origin: what.to_owned(), source })
+    serde_json::to_value(value).map_err(|source| Error::Json {
+        origin: what.to_owned(),
+        source,
+    })
 }
 
 pub fn group(words: &Words) -> Result<Value> {
@@ -26,16 +29,33 @@ pub fn group(words: &Words) -> Result<Value> {
     let library = Arc::new(GroupLibrary::standard());
     let key = words.required("game")?;
     let players = library.build(key, &settings)?.players;
-    let names: Vec<String> = words.all("strategy").into_iter().map(str::to_owned).collect();
+    let names: Vec<String> = words
+        .all("strategy")
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
     let seats = Seat::strategies(&names, players.saturating_sub(AGENT_SEATS))?;
     let moves = words.all("move");
     if moves.is_empty() {
-        return Err(Error::Usage("give the agent's moves in order with --move M".to_owned()));
+        return Err(Error::Usage(
+            "give the agent's moves in order with --move M".to_owned(),
+        ));
     }
     let mut environment = GroupEnvironment::new(library, settings.clone())?;
-    let mut observations = vec![document(&environment.reset(key, seats, words.count("rounds")?, words.one("episode")?.map(str::to_owned))?, "observation")?];
+    let mut observations = vec![document(
+        &environment.reset(
+            key,
+            seats,
+            words.count("rounds")?,
+            words.one("episode")?.map(str::to_owned),
+        )?,
+        "observation",
+    )?];
     for played in moves {
-        observations.push(document(&environment.step(&GameAction::new(played))?, "observation")?);
+        observations.push(document(
+            &environment.step(&GameAction::new(played))?,
+            "observation",
+        )?);
     }
     Ok(json!({
         "seed": environment.seed(),
@@ -55,19 +75,31 @@ enum Step {
 pub fn coalition(words: &Words) -> Result<Value> {
     let settings = words.settings()?;
     let script_path = std::path::PathBuf::from(words.required("script")?);
-    let text = std::fs::read_to_string(&script_path).map_err(|source| Error::Io { path: script_path.clone(), source })?;
+    let text = std::fs::read_to_string(&script_path).map_err(|source| Error::Io {
+        path: script_path.clone(),
+        source,
+    })?;
     let steps: Vec<Step> = serde_json::from_str(&text).map_err(|source| Error::Json {
         origin: script_path.display().to_string(),
         source,
     })?;
     let request = CoalitionReset {
         game: words.required("game")?.to_owned(),
-        strategies: words.all("strategy").into_iter().map(str::to_owned).collect(),
-        governance: words.all("governance").into_iter().map(str::to_owned).collect(),
+        strategies: words
+            .all("strategy")
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        governance: words
+            .all("governance")
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
         rounds: words.count("rounds")?,
         episode_id: words.one("episode")?.map(str::to_owned),
     };
-    let mut environment = CoalitionEnvironment::new(Arc::new(GroupLibrary::standard()), settings.clone())?;
+    let mut environment =
+        CoalitionEnvironment::new(Arc::new(GroupLibrary::standard()), settings.clone())?;
     let mut observations = vec![document(&environment.reset(&request)?, "observation")?];
     for step in steps {
         let observation = match step {

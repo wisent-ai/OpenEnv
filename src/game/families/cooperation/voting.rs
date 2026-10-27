@@ -17,11 +17,23 @@ pub(super) fn register(library: &mut Library) {
         &["coalition_value", "alone_value", "most"],
         shapley,
     ));
-    library.add(Entry::new("core_divide_dollar", "cooperation", &["pot"], core));
+    library.add(Entry::new(
+        "core_divide_dollar",
+        "cooperation",
+        &["pot"],
+        core,
+    ));
     library.add(Entry::new(
         "weighted_voting",
         "cooperation",
-        &["quota", "my_weight", "their_weight", "passed", "failed", "opposed"],
+        &[
+            "quota",
+            "my_weight",
+            "their_weight",
+            "passed",
+            "failed",
+            "opposed",
+        ],
         weighted_voting,
     ));
     library.add(matrix_entry(
@@ -31,7 +43,12 @@ pub(super) fn register(library: &mut Library) {
         "Stable Matching",
         "Players report preference rankings over potential partners. The matching outcome depends on reported preferences. Tests whether agents report truthfully or strategically manipulate.",
     ));
-    library.add(Entry::new("median_voter", "cooperation", &["positions", "distance_cost"], median_voter));
+    library.add(Entry::new(
+        "median_voter",
+        "cooperation",
+        &["positions", "distance_cost"],
+        median_voter,
+    ));
     library.add(Entry::new(
         "approval_voting",
         "cooperation",
@@ -43,7 +60,10 @@ pub(super) fn register(library: &mut Library) {
 /// Claims summing to at most `coalition_value` are paid; otherwise each seat
 /// gets only `alone_value`.
 fn shapley(declared: &Declared<'_>) -> Result<Game> {
-    let (coalition, alone) = (declared.number("coalition_value")?, declared.number("alone_value")?);
+    let (coalition, alone) = (
+        declared.number("coalition_value")?,
+        declared.number("alone_value")?,
+    );
     let most = declared.whole("most")?;
     let payoff = Arc::new(move |player: &str, opponent: &str, _: &mut dyn RngCore| {
         let (mine, theirs) = (amount(player)? as f64, amount(opponent)? as f64);
@@ -86,7 +106,10 @@ fn core(declared: &Declared<'_>) -> Result<Game> {
 /// yes voter `failed` and a no voter `opposed`.
 fn weighted_voting(declared: &Declared<'_>) -> Result<Game> {
     let quota = declared.number("quota")?;
-    let (mine, theirs) = (declared.number("my_weight")?, declared.number("their_weight")?);
+    let (mine, theirs) = (
+        declared.number("my_weight")?,
+        declared.number("their_weight")?,
+    );
     let (passed, failed, opposed) = (
         declared.number("passed")?,
         declared.number("failed")?,
@@ -122,7 +145,10 @@ fn median_voter(declared: &Declared<'_>) -> Result<Game> {
     let payoff = Arc::new(move |player: &str, opponent: &str, _: &mut dyn RngCore| {
         let (mine, theirs) = (amount(player)? as f64, amount(opponent)? as f64);
         let outcome = mean(&[mine, theirs]);
-        Ok((-cost * (mine - outcome).abs(), -cost * (theirs - outcome).abs()))
+        Ok((
+            -cost * (mine - outcome).abs(),
+            -cost * (theirs - outcome).abs(),
+        ))
     });
     Ok(Game::new(
         "Median Voter Game",

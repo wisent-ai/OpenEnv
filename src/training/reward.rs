@@ -18,11 +18,19 @@ use crate::settings::Settings;
 use super::State;
 
 /// The expected self-payoff of `played` in `state`.
-pub fn expected(library: &Library, settings: &Settings, state: &State, played: &str) -> Result<f64> {
+pub fn expected(
+    library: &Library,
+    settings: &Settings,
+    state: &State,
+    played: &str,
+) -> Result<f64> {
     let probe = library.build(&state.game, settings)?;
     let support = probe.opponent_moves().to_vec();
     if support.is_empty() {
-        return Err(Error::NoMoves { strategy: "the opponent".to_owned(), game: state.game.clone() });
+        return Err(Error::NoMoves {
+            strategy: "the opponent".to_owned(),
+            game: state.game.clone(),
+        });
     }
     let mut total = NONE;
     for answer in &support {
@@ -125,7 +133,10 @@ impl Scorer {
                 reward: expected(&self.library, &self.settings, state, &played)?,
                 played: Some(played),
             }),
-            Err(Error::Unparsed { .. }) => Ok(Scored { reward: self.unparsed, played: None }),
+            Err(Error::Unparsed { .. }) => Ok(Scored {
+                reward: self.unparsed,
+                played: None,
+            }),
             Err(other) => Err(other),
         }
     }

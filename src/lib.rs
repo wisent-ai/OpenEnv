@@ -4,17 +4,17 @@
 //! declares (`settings`), never from this crate.
 
 pub mod agent;
-pub mod coalition;
 pub mod cli;
+pub mod coalition;
 pub mod env;
 pub mod error;
 pub mod evaluation;
 pub mod game;
 pub mod governance;
 pub mod group;
-pub mod settings;
 pub mod reputation;
 pub mod server;
+pub mod settings;
 pub mod strategy;
 pub mod training;
 pub mod variant;

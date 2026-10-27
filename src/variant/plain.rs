@@ -53,10 +53,14 @@ pub(super) fn exit(base: Game, declared: &Declared<'_>) -> Result<Game> {
 /// form.
 pub(super) fn binding_commitment(base: Game, declared: &Declared<'_>) -> Result<Game> {
     let cost = declared.number("cost")?;
-    let committed = base.actions.first().cloned().ok_or_else(|| Error::Unsupported {
-        game: base.key.clone(),
-        reason: "binding_commitment needs a game with moves".to_owned(),
-    })?;
+    let committed = base
+        .actions
+        .first()
+        .cloned()
+        .ok_or_else(|| Error::Unsupported {
+            game: base.key.clone(),
+            reason: "binding_commitment needs a game with moves".to_owned(),
+        })?;
     let mut parts = BTreeMap::new();
     let mut actions = vec![format!("commit_{committed}")];
     parts.insert(format!("commit_{committed}"), (committed.clone(), true));
@@ -69,11 +73,14 @@ pub(super) fn binding_commitment(base: Game, declared: &Declared<'_>) -> Result<
     let mut game = base;
     game.payoff = Arc::new(move |player: &str, opponent: &str, rng: &mut dyn RngCore| {
         let read = |action: &str| {
-            parts.get(action).cloned().ok_or_else(|| Error::InvalidAction {
-                game: name.clone(),
-                action: action.to_owned(),
-                allowed: parts.keys().cloned().collect::<Vec<_>>().join(", "),
-            })
+            parts
+                .get(action)
+                .cloned()
+                .ok_or_else(|| Error::InvalidAction {
+                    game: name.clone(),
+                    action: action.to_owned(),
+                    allowed: parts.keys().cloned().collect::<Vec<_>>().join(", "),
+                })
         };
         let ((mine, my_lock), (theirs, their_lock)) = (read(player)?, read(opponent)?);
         let (mut paid_mine, mut paid_theirs) = inner(&mine, &theirs, rng)?;

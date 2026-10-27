@@ -101,21 +101,26 @@ impl<'a> Declared<'a> {
     /// A count that must be at least one: rounds, players, episodes.
     pub fn count(&self, name: &str) -> Result<usize> {
         let value = self.value(name)?;
-        value
+        let expected = "a whole number above zero";
+        let count = value
             .as_u64()
-            .and_then(|count| usize::try_from(count).ok())
-            .and_then(NonZeroUsize::new)
+            .ok_or_else(|| self.malformed(name, expected, value))?;
+        let count = usize::try_from(count)
+            .map_err(|cause| self.malformed(name, &format!("{expected} ({cause})"), value))?;
+        NonZeroUsize::new(count)
             .map(NonZeroUsize::get)
-            .ok_or_else(|| self.malformed(name, "a whole number above zero", value))
+            .ok_or_else(|| self.malformed(name, expected, value))
     }
 
     /// A probability from zero to one, as a draw that can be taken.
     pub fn probability(&self, name: &str) -> Result<Bernoulli> {
         let value = self.value(name)?;
-        value
+        let expected = "a probability from zero to one";
+        let chance = value
             .as_f64()
-            .and_then(|chance| Bernoulli::new(chance).ok())
-            .ok_or_else(|| self.malformed(name, "a probability from zero to one", value))
+            .ok_or_else(|| self.malformed(name, expected, value))?;
+        Bernoulli::new(chance)
+            .map_err(|cause| self.malformed(name, &format!("{expected} ({cause})"), value))
     }
 
     pub fn text(&self, name: &str) -> Result<&'a str> {

@@ -39,22 +39,31 @@ pub struct Brama {
     agent: Option<(String, String)>,
 }
 
-fn setting(name: &str) -> Option<String> {
-    std::env::var(name)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
+/// A setting the environment names; unset or blank is none, and one that is
+/// set but not Unicode is refused naming it rather than read as unset.
+fn setting(name: &str) -> Result<Option<String>> {
+    match std::env::var(name) {
+        Ok(value) if !value.trim().is_empty() => Ok(Some(value.trim().to_owned())),
+        Ok(_) | Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(Error::Config(format!("{name} cannot be read: {error}"))),
+    }
 }
 
 impl Brama {
     /// The gateway the environment names, or a refusal naming what is missing.
     pub fn from_env() -> Result<Self> {
-        let url = setting(URL).ok_or_else(|| Error::Config(format!("{URL} is not set; a model seat needs Brama")))?;
-        let api_key = setting(KEY).ok_or_else(|| Error::Config(format!("{KEY} is not set; a model seat needs Brama")))?;
-        let agent = match (setting(AGENT), setting(SECRET)) {
+        let url = setting(URL)?
+            .ok_or_else(|| Error::Config(format!("{URL} is not set; a model seat needs Brama")))?;
+        let api_key = setting(KEY)?
+            .ok_or_else(|| Error::Config(format!("{KEY} is not set; a model seat needs Brama")))?;
+        let agent = match (setting(AGENT)?, setting(SECRET)?) {
             (Some(id), Some(secret)) => Some((id, secret)),
             (None, None) => None,
-            _ => return Err(Error::Config(format!("{AGENT} and {SECRET} are set together or not at all"))),
+            _ => {
+                return Err(Error::Config(format!(
+                    "{AGENT} and {SECRET} are set together or not at all"
+                )))
+            }
         };
         Ok(Self {
             url: url.trim_end_matches('/').to_owned(),
@@ -64,9 +73,18 @@ impl Brama {
     }
 
     /// `system` and `text` as the conversation to `route`; the answer's text.
-    pub fn chat(&self, route: &str, system: &str, text: &str, sampling: &Sampling) -> Result<String> {
-        let mut body = serde_json::to_value(sampling)
-            .map_err(|error| Error::Model(format!("the request to {route} could not be written: {error}")))?;
+    pub fn chat(
+        &self,
+        route: &str,
+        system: &str,
+        text: &str,
+        sampling: &Sampling,
+    ) -> Result<String> {
+        let mut body = serde_json::to_value(sampling).map_err(|error| {
+            Error::Model(format!(
+                "the request to {route} could not be written: {error}"
+            ))
+        })?;
         body["model"] = json!(route);
         body["messages"] = json!([
             { "role": "system", "content": system },
@@ -84,8 +102,9 @@ impl Brama {
                 .as_secs()
                 .to_string();
             let digest = hex::encode(Sha256::digest(body.as_bytes()));
-            let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
-                .map_err(|error| Error::Config(format!("{SECRET} cannot key a signature: {error}")))?;
+            let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|error| {
+                Error::Config(format!("{SECRET} cannot key a signature: {error}"))
+            })?;
             mac.update(format!("{id}:{timestamp}:{digest}").as_bytes());
             let signature = hex::encode(mac.finalize().into_bytes());
             request = request
@@ -94,25 +113,42 @@ impl Brama {
                 .set("x-agent-signature", &signature);
         }
         let raw = match request.send_string(&body) {
-            Ok(response) => response
-                .into_string()
-                .map_err(|error| Error::Model(format!("{endpoint}: the answer of {route} could not be read: {error}")))?,
+            Ok(response) => response.into_string().map_err(|error| {
+                Error::Model(format!(
+                    "{endpoint}: the answer of {route} could not be read: {error}"
+                ))
+            })?,
             Err(ureq::Error::Status(status, response)) => {
                 let said = response.into_string().map_err(|error| {
-                    Error::Model(format!("{endpoint} answered HTTP {status} for {route}, unreadably: {error}"))
+                    Error::Model(format!(
+                        "{endpoint} answered HTTP {status} for {route}, unreadably: {error}"
+                    ))
                 })?;
-                return Err(Error::Model(format!("{endpoint} answered HTTP {status} for {route}: {said}")));
+                return Err(Error::Model(format!(
+                    "{endpoint} answered HTTP {status} for {route}: {said}"
+                )));
             }
-            Err(error) => return Err(Error::Model(format!("{endpoint} could not be reached for {route}: {error}"))),
+            Err(error) => {
+                return Err(Error::Model(format!(
+                    "{endpoint} could not be reached for {route}: {error}"
+                )))
+            }
         };
-        let answer: Value = serde_json::from_str(&raw)
-            .map_err(|error| Error::Model(format!("{endpoint} answered {route} with no JSON ({error}): {raw}")))?;
+        let answer: Value = serde_json::from_str(&raw).map_err(|error| {
+            Error::Model(format!(
+                "{endpoint} answered {route} with no JSON ({error}): {raw}"
+            ))
+        })?;
         answer["choices"]
             .as_array()
             .and_then(|choices| choices.first())
             .and_then(|choice| choice["message"]["content"].as_str())
             .filter(|content| !content.trim().is_empty())
             .map(str::to_owned)
-            .ok_or_else(|| Error::Model(format!("{endpoint} answered {route} without message content: {raw}")))
+            .ok_or_else(|| {
+                Error::Model(format!(
+                    "{endpoint} answered {route} without message content: {raw}"
+                ))
+            })
     }
 }

@@ -53,6 +53,9 @@ pub fn answer(output: &Output) -> Value {
 }
 
 pub fn refusal(output: &Output) -> String {
-    assert!(!output.status.success(), "kant answered where it must refuse");
+    assert!(
+        !output.status.success(),
+        "kant answered where it must refuse"
+    );
     String::from_utf8_lossy(&output.stderr).into_owned()
 }

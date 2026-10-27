@@ -8,7 +8,9 @@ use std::sync::Arc;
 use rand::RngCore;
 
 use crate::error::Result;
-use crate::game::{amount, amounts, matrix_between, moves, Entry, Game, Library, OpponentMoves, NONE};
+use crate::game::{
+    amount, amounts, matrix_between, moves, Entry, Game, Library, OpponentMoves, NONE,
+};
 use crate::settings::Declared;
 
 pub(super) fn register(library: &mut Library) {

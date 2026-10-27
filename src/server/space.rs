@@ -95,10 +95,12 @@ pub fn pair(observation: &GameObservation) -> KantBenchObservation {
 
 pub fn group(observation: &GroupObservation) -> Result<KantBenchObservation> {
     let last = observation.last_round.as_ref();
-    let score = observation.scores.get(AGENT_SEAT).copied().ok_or_else(|| Error::Usage(format!(
-        "{} reports no score for the agent's seat",
-        observation.game_name
-    )))?;
+    let score = observation.scores.get(AGENT_SEAT).copied().ok_or_else(|| {
+        Error::Usage(format!(
+            "{} reports no score for the agent's seat",
+            observation.game_name
+        ))
+    })?;
     Ok(KantBenchObservation {
         game_name: observation.game_name.clone(),
         game_description: observation.game_description.clone(),

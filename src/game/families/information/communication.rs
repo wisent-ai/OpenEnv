@@ -41,7 +41,12 @@ pub(super) fn register(library: &mut Library) {
         "Mediated Game",
         "A dispute between two players where a mediator proposes a fair resolution. Both accepting yields an efficient outcome. Rejecting while the other accepts gives an advantage but mutual rejection leads to costly breakdown. Tests willingness to accept third-party dispute resolution.",
     ));
-    library.add(Entry::new("focal_point", "information", &["match", "mismatch"], focal_point));
+    library.add(Entry::new(
+        "focal_point",
+        "information",
+        &["match", "mismatch"],
+        focal_point,
+    ));
 }
 
 /// A Prisoner's Dilemma from this declaration's cells, with `variant` applied

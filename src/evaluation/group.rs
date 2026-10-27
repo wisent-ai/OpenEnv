@@ -18,8 +18,10 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::Serialize;
 
-use crate::coalition::{CoalitionAction, CoalitionEnvironment, CoalitionReset, CoalitionResponse, Phase};
 use crate::coalition::strategies::CoalitionStrategy;
+use crate::coalition::{
+    CoalitionAction, CoalitionEnvironment, CoalitionReset, CoalitionResponse, Phase,
+};
 use crate::env::GameAction;
 use crate::error::{Error, Result};
 use crate::group::environment::{GroupEnvironment, Seat};
@@ -57,9 +59,18 @@ fn share(count: usize, of: usize) -> f64 {
     count as f64 / of as f64
 }
 
-pub fn run(settings: Arc<Settings>, agent: &str, games: &[String], strategies: &[String], governance: Option<&str>) -> Result<GroupTournament> {
+pub fn run(
+    settings: Arc<Settings>,
+    agent: &str,
+    games: &[String],
+    strategies: &[String],
+    governance: Option<&str>,
+) -> Result<GroupTournament> {
     if games.is_empty() || strategies.is_empty() {
-        return Err(Error::Usage("a group tournament needs at least one game and one strategy for the other seats".to_owned()));
+        return Err(Error::Usage(
+            "a group tournament needs at least one game and one strategy for the other seats"
+                .to_owned(),
+        ));
     }
     let episodes = settings.section("evaluation")?.count("episodes")?;
     let library = Arc::new(GroupLibrary::standard());
@@ -78,7 +89,9 @@ pub fn run(settings: Arc<Settings>, agent: &str, games: &[String], strategies: &
                         })?;
                         coalition_episode(&library, &settings, key, agent, strategy, governance)?
                     }
-                    false => group_episode(&library, &settings, key, agent, strategy, probe.players)?,
+                    false => {
+                        group_episode(&library, &settings, key, agent, strategy, probe.players)?
+                    }
                 };
                 seed = Some(used);
                 played.push(episode);
@@ -94,7 +107,14 @@ pub fn run(settings: Arc<Settings>, agent: &str, games: &[String], strategies: &
     })
 }
 
-fn group_episode(library: &Arc<GroupLibrary>, settings: &Arc<Settings>, key: &str, agent: &str, strategy: &str, players: usize) -> Result<(GroupEpisode, u64)> {
+fn group_episode(
+    library: &Arc<GroupLibrary>,
+    settings: &Arc<Settings>,
+    key: &str,
+    agent: &str,
+    strategy: &str,
+    players: usize,
+) -> Result<(GroupEpisode, u64)> {
     let mut environment = GroupEnvironment::new(library.clone(), settings.clone())?;
     let seed = environment.seed();
     let seats = Seat::strategies(&[strategy.to_owned()], players.saturating_sub(AGENT_SEATS))?;
@@ -103,15 +123,27 @@ fn group_episode(library: &Arc<GroupLibrary>, settings: &Arc<Settings>, key: &st
     let mut observation = environment.reset(key, seats, None, None)?;
     while !observation.done {
         let game = environment.game().ok_or(Error::NotStarted)?.clone();
-        let view = GroupView { game: &game, seat: AGENT_SEAT, history: &observation.history };
+        let view = GroupView {
+            game: &game,
+            seat: AGENT_SEAT,
+            history: &observation.history,
+        };
         let played = own.choose(&view, &mut rng)?;
         observation = environment.step(&GameAction::new(&played))?;
     }
     let game = environment.game().ok_or(Error::NotStarted)?;
     let first = game.actions.first().cloned().ok_or(Error::NotStarted)?;
     let rounds = observation.history.len();
-    let cooperated = observation.history.iter().filter(|round| round.actions.get(AGENT_SEAT) == Some(&first)).count();
-    let player_score = observation.scores.get(AGENT_SEAT).copied().ok_or(Error::NotStarted)?;
+    let cooperated = observation
+        .history
+        .iter()
+        .filter(|round| round.actions.get(AGENT_SEAT) == Some(&first))
+        .count();
+    let player_score = observation
+        .scores
+        .get(AGENT_SEAT)
+        .copied()
+        .ok_or(Error::NotStarted)?;
     Ok((
         GroupEpisode {
             player_score,
@@ -127,7 +159,14 @@ fn group_episode(library: &Arc<GroupLibrary>, settings: &Arc<Settings>, key: &st
     ))
 }
 
-fn coalition_episode(library: &Arc<GroupLibrary>, settings: &Arc<Settings>, key: &str, agent: &str, strategy: &str, governance: &str) -> Result<(GroupEpisode, u64)> {
+fn coalition_episode(
+    library: &Arc<GroupLibrary>,
+    settings: &Arc<Settings>,
+    key: &str,
+    agent: &str,
+    strategy: &str,
+    governance: &str,
+) -> Result<(GroupEpisode, u64)> {
     let mut environment = CoalitionEnvironment::new(library.clone(), settings.clone())?;
     let seed = environment.seed();
     let mut own = CoalitionStrategy::named(agent)?;
@@ -152,25 +191,62 @@ fn coalition_episode(library: &Arc<GroupLibrary>, settings: &Arc<Settings>, key:
                 accepted: own.respond(&observation, proposal, &mut rng),
             })
             .collect();
-        let negotiated = environment.negotiate(&CoalitionAction { responses, ..CoalitionAction::default() })?;
+        let negotiated = environment.negotiate(&CoalitionAction {
+            responses,
+            ..CoalitionAction::default()
+        })?;
         let played = own.choose(&negotiated, &mut rng)?;
         observation = environment.act(&GameAction::new(&played))?;
     }
     let history = &observation.coalition_history;
     let rounds = history.len();
-    let first = observation.base.available_actions.first().cloned().ok_or(Error::NotStarted)?;
-    let cooperated = observation.base.history.iter().filter(|round| round.actions.get(AGENT_SEAT) == Some(&first)).count();
-    let proposed = observation.governance_history.iter().map(|round| round.proposals.len()).sum();
-    let adopted = observation.governance_history.iter().map(|round| round.adopted.len()).sum();
-    let player_score = observation.adjusted_scores.get(AGENT_SEAT).copied().ok_or(Error::NotStarted)?;
+    let first = observation
+        .base
+        .available_actions
+        .first()
+        .cloned()
+        .ok_or(Error::NotStarted)?;
+    let cooperated = observation
+        .base
+        .history
+        .iter()
+        .filter(|round| round.actions.get(AGENT_SEAT) == Some(&first))
+        .count();
+    let proposed = observation
+        .governance_history
+        .iter()
+        .map(|round| round.proposals.len())
+        .sum();
+    let adopted = observation
+        .governance_history
+        .iter()
+        .map(|round| round.adopted.len())
+        .sum();
+    let player_score = observation
+        .adjusted_scores
+        .get(AGENT_SEAT)
+        .copied()
+        .ok_or(Error::NotStarted)?;
     Ok((
         GroupEpisode {
             player_score,
             all_scores: observation.adjusted_scores.clone(),
             rounds_played: rounds,
             cooperation_rate: share(cooperated, rounds),
-            coalition_rate: Some(share(history.iter().filter(|round| !round.active_coalitions.is_empty()).count(), rounds)),
-            defection_rate: Some(share(history.iter().filter(|round| !round.defectors.is_empty()).count(), rounds)),
+            coalition_rate: Some(share(
+                history
+                    .iter()
+                    .filter(|round| !round.active_coalitions.is_empty())
+                    .count(),
+                rounds,
+            )),
+            defection_rate: Some(share(
+                history
+                    .iter()
+                    .filter(|round| !round.defectors.is_empty())
+                    .count(),
+                rounds,
+            )),
             governance_proposed: Some(proposed),
             governance_adopted: Some(adopted),
         },

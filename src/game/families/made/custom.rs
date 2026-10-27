@@ -35,11 +35,21 @@ pub(crate) fn build(key: &str, declared: &Declared<'_>) -> Result<Game> {
                 scope: declared.scope().to_owned(),
                 name: "payoffs".to_owned(),
                 expected: "exactly one of payoffs or symmetric".to_owned(),
-                found: format!("payoffs: {}, symmetric: {}", declared.has("payoffs"), declared.has("symmetric")),
+                found: format!(
+                    "payoffs: {}, symmetric: {}",
+                    declared.has("payoffs"),
+                    declared.has("symmetric")
+                ),
             })
         }
     };
-    let mut game = Game::new(name, description, "matrix", actions, matrix_payoff(key, matrix));
+    let mut game = Game::new(
+        name,
+        description,
+        "matrix",
+        actions,
+        matrix_payoff(key, matrix),
+    );
     game.base = key.to_owned();
     Ok(game)
 }

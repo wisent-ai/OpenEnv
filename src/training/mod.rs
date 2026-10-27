@@ -50,9 +50,16 @@ pub struct State {
 
 /// Play `training.episodes` episodes of each game against each strategy with
 /// `agent` holding the agent's seat, and record every state before a move.
-pub fn states(settings: &Arc<Settings>, games: &[String], strategies: &[String], agent: &str) -> Result<Vec<State>> {
+pub fn states(
+    settings: &Arc<Settings>,
+    games: &[String],
+    strategies: &[String],
+    agent: &str,
+) -> Result<Vec<State>> {
     if games.is_empty() || strategies.is_empty() {
-        return Err(Error::Usage("training data needs at least one game and one opponent strategy".to_owned()));
+        return Err(Error::Usage(
+            "training data needs at least one game and one opponent strategy".to_owned(),
+        ));
     }
     let episodes = settings.section("training")?.count("episodes")?;
     let rounds_shown = settings.section("agent")?.whole("history_rounds")? as usize;
@@ -65,7 +72,12 @@ pub fn states(settings: &Arc<Settings>, games: &[String], strategies: &[String],
         for strategy in strategies {
             for _ in std::iter::repeat(()).take(episodes) {
                 let mut seat = StrategyAgent::new(agent, game.clone(), settings, seed)?;
-                let request = Reset { game: key.clone(), strategy: Some(strategy.clone()), rounds: None, episode_id: None };
+                let request = Reset {
+                    game: key.clone(),
+                    strategy: Some(strategy.clone()),
+                    rounds: None,
+                    episode_id: None,
+                };
                 let mut observation = environment.reset(&request, None)?;
                 while !observation.done {
                     found.push(State {
@@ -92,20 +104,31 @@ pub fn states(settings: &Arc<Settings>, games: &[String], strategies: &[String],
 }
 
 fn write(path: &Path, value: &Value) -> Result<()> {
-    let text = serde_json::to_string_pretty(value).map_err(|source| Error::Json { origin: path.display().to_string(), source })?;
-    std::fs::write(path, text).map_err(|source| Error::Io { path: path.to_path_buf(), source })
+    let text = serde_json::to_string_pretty(value).map_err(|source| Error::Json {
+        origin: path.display().to_string(),
+        source,
+    })?;
+    std::fs::write(path, text).map_err(|source| Error::Io {
+        path: path.to_path_buf(),
+        source,
+    })
 }
 
 /// Write `prompts.json`, `states.json` and `pairs.json` into `directory`;
 /// the answer counts what each holds.
 pub fn write_dataset(settings: &Arc<Settings>, found: &[State], directory: &Path) -> Result<Value> {
-    std::fs::create_dir_all(directory).map_err(|source| Error::Io { path: directory.to_path_buf(), source })?;
+    std::fs::create_dir_all(directory).map_err(|source| Error::Io {
+        path: directory.to_path_buf(),
+        source,
+    })?;
     let margin = settings.section("training")?.number("pair_margin")?;
     let library = Library::standard();
     let mut pairs = Vec::new();
     for state in found {
         let ranked = reward::ranked(&library, settings, state)?;
-        if let (Some((best_move, best)), Some((worst_move, worst))) = (ranked.first(), ranked.last()) {
+        if let (Some((best_move, best)), Some((worst_move, worst))) =
+            (ranked.first(), ranked.last())
+        {
             if best - worst >= margin {
                 pairs.push(json!({
                     "positive": format!("{}\n{best_move}", state.prompt),
@@ -115,9 +138,15 @@ pub fn write_dataset(settings: &Arc<Settings>, found: &[State], directory: &Path
         }
     }
     let prompts: Vec<&str> = found.iter().map(|state| state.prompt.as_str()).collect();
-    write(&directory.join("prompts.json"), &json!({ "prompts": prompts }))?;
+    write(
+        &directory.join("prompts.json"),
+        &json!({ "prompts": prompts }),
+    )?;
     write(&directory.join("states.json"), &json!({ "states": found }))?;
-    write(&directory.join("pairs.json"), &json!({ "trait_name": "kantbench_payoff", "pairs": pairs }))?;
+    write(
+        &directory.join("pairs.json"),
+        &json!({ "trait_name": "kantbench_payoff", "pairs": pairs }),
+    )?;
     Ok(json!({
         "directory": directory,
         "prompts": prompts.len(),
@@ -133,7 +162,13 @@ pub fn read_states(path: &Path) -> Result<Vec<State>> {
     struct File {
         states: Vec<State>,
     }
-    let text = std::fs::read_to_string(path).map_err(|source| Error::Io { path: path.to_path_buf(), source })?;
-    let file: File = serde_json::from_str(&text).map_err(|source| Error::Json { origin: path.display().to_string(), source })?;
+    let text = std::fs::read_to_string(path).map_err(|source| Error::Io {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let file: File = serde_json::from_str(&text).map_err(|source| Error::Json {
+        origin: path.display().to_string(),
+        source,
+    })?;
     Ok(file.states)
 }

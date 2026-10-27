@@ -201,20 +201,45 @@ fn finite_payoffs_that_overflow_cumulative_scores_are_refused() {
     let mut settings = declared();
     settings["games"]["prisoners_dilemma"]["payoffs"]["cooperate"]["cooperate"] =
         serde_json::json!([f64::MAX, f64::MAX]);
-    std::fs::write(&path, serde_json::to_vec(&settings).expect("settings encode"))
-        .expect("overflow settings written");
+    std::fs::write(
+        &path,
+        serde_json::to_vec(&settings).expect("settings encode"),
+    )
+    .expect("overflow settings written");
     let first = answer(&kant(&[
-        "play", "--settings", &path, "--game", "prisoners_dilemma",
-        "--strategy", "tit_for_tat", "--move", "cooperate",
+        "play",
+        "--settings",
+        &path,
+        "--game",
+        "prisoners_dilemma",
+        "--strategy",
+        "tit_for_tat",
+        "--move",
+        "cooperate",
     ]));
     assert_eq!(first["state"]["player_score"].as_f64(), Some(f64::MAX));
     assert_eq!(first["state"]["opponent_score"].as_f64(), Some(f64::MAX));
     let overflow = kant(&[
-        "play", "--settings", &path, "--game", "prisoners_dilemma",
-        "--strategy", "tit_for_tat", "--move", "cooperate", "--move", "cooperate",
+        "play",
+        "--settings",
+        &path,
+        "--game",
+        "prisoners_dilemma",
+        "--strategy",
+        "tit_for_tat",
+        "--move",
+        "cooperate",
+        "--move",
+        "cooperate",
     ]);
     let diagnostic = refusal(&overflow);
     assert!(diagnostic.contains("prisoners_dilemma"), "{diagnostic}");
-    assert!(diagnostic.contains("cumulative scores cannot be represented"), "{diagnostic}");
-    assert!(overflow.stdout.is_empty(), "an invalid score must not be a JSON result");
+    assert!(
+        diagnostic.contains("cumulative scores cannot be represented"),
+        "{diagnostic}"
+    );
+    assert!(
+        overflow.stdout.is_empty(),
+        "an invalid score must not be a JSON result"
+    );
 }

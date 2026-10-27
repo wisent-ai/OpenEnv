@@ -59,7 +59,10 @@ impl CoalitionStrategy {
                 })
             }
         };
-        Ok(Self { kind, triggered: false })
+        Ok(Self {
+            kind,
+            triggered: false,
+        })
     }
 
     fn others_defected_last(observation: &CoalitionObservation) -> bool {
@@ -78,7 +81,12 @@ impl CoalitionStrategy {
             .any(|round| round.defectors.iter().any(|defector| *defector != seat))
     }
 
-    pub fn respond(&mut self, observation: &CoalitionObservation, _proposal: &CoalitionProposal, rng: &mut dyn RngCore) -> bool {
+    pub fn respond(
+        &mut self,
+        observation: &CoalitionObservation,
+        _proposal: &CoalitionProposal,
+        rng: &mut dyn RngCore,
+    ) -> bool {
         match self.kind {
             Kind::Random => rng.gen::<bool>(),
             Kind::Loyal | Kind::Betrayer | Kind::Conditional => true,
@@ -90,7 +98,11 @@ impl CoalitionStrategy {
         }
     }
 
-    pub fn choose(&mut self, observation: &CoalitionObservation, rng: &mut dyn RngCore) -> Result<String> {
+    pub fn choose(
+        &mut self,
+        observation: &CoalitionObservation,
+        rng: &mut dyn RngCore,
+    ) -> Result<String> {
         let moves = &observation.base.available_actions;
         let first = moves.first().cloned().ok_or_else(|| Error::NoMoves {
             strategy: "coalition strategy".to_owned(),
@@ -120,7 +132,9 @@ impl CoalitionStrategy {
             })?,
             Kind::Loyal => keeping,
             Kind::Betrayer => breaking,
-            Kind::Conditional | Kind::TitForTat if Self::others_defected_last(observation) => breaking,
+            Kind::Conditional | Kind::TitForTat if Self::others_defected_last(observation) => {
+                breaking
+            }
             Kind::Conditional | Kind::TitForTat => keeping,
             Kind::GrimTrigger => {
                 self.triggered |= Self::others_ever_defected(observation);

@@ -150,7 +150,9 @@ seat; one marked cross-model (`cross_model_<game>`) needs `--opponent-route R`.
 
 A model seat talks to Brama only: the environment carries `BRAMA_URL` and
 `BRAMA_API_KEY`, and `WISENT_APP_AGENT_ID` with `WISENT_APP_AGENT_AUTH_SECRET`
-when the route requires a signed agent; a missing one is refused by name. The
+when the route requires a signed agent; a missing one is refused by name, and
+one that is set but is not Unicode is refused by name with the reason it cannot
+be read, never taken as unset. The
 settings document's `agent` section declares `history_rounds` (how many past
 rounds the prompt shows) and optionally `temperature`, `top_p` and
 `max_tokens`, sent only when declared. The prompt never names the opponent's

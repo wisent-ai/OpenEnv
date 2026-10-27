@@ -53,7 +53,12 @@ impl ReputationStore {
                 source,
             })?,
             Err(missing) if missing.kind() == std::io::ErrorKind::NotFound => BTreeMap::new(),
-            Err(source) => return Err(Error::Io { path: path.to_path_buf(), source }),
+            Err(source) => {
+                return Err(Error::Io {
+                    path: path.to_path_buf(),
+                    source,
+                })
+            }
         };
         Ok(Self {
             path: path.to_path_buf(),
@@ -79,7 +84,10 @@ impl ReputationStore {
 
     pub fn record_gossip(&mut self, rater: &str, target: &str, rating: &str) {
         let mut known = self.get(target);
-        known.gossip_history.push(Gossip { rater: rater.to_owned(), rating: rating.to_owned() });
+        known.gossip_history.push(Gossip {
+            rater: rater.to_owned(),
+            rating: rating.to_owned(),
+        });
         self.known.insert(target.to_owned(), known);
     }
 
@@ -100,7 +108,10 @@ impl ReputationStore {
             origin: self.path.display().to_string(),
             source,
         })?;
-        std::fs::write(&self.path, text).map_err(|source| Error::Io { path: self.path.clone(), source })
+        std::fs::write(&self.path, text).map_err(|source| Error::Io {
+            path: self.path.clone(),
+            source,
+        })
     }
 }
 
@@ -119,19 +130,37 @@ pub struct ReputationEnvironment {
 
 impl ReputationEnvironment {
     pub fn new(env: Environment, store: ReputationStore) -> Self {
-        Self { env, store, agent: String::new(), opponent: String::new() }
+        Self {
+            env,
+            store,
+            agent: String::new(),
+            opponent: String::new(),
+        }
     }
 
     fn with_reputation(&self, mut observation: GameObservation) -> Result<GameObservation> {
         let known = self.store.get(&self.opponent);
-        observation.metadata.insert("interaction_count".to_owned(), Value::from(known.interaction_count));
-        let value = serde_json::to_value(known).map_err(|source| Error::Json { origin: "reputation".to_owned(), source })?;
-        observation.metadata.insert("opponent_reputation".to_owned(), value);
+        observation.metadata.insert(
+            "interaction_count".to_owned(),
+            Value::from(known.interaction_count),
+        );
+        let value = serde_json::to_value(known).map_err(|source| Error::Json {
+            origin: "reputation".to_owned(),
+            source,
+        })?;
+        observation
+            .metadata
+            .insert("opponent_reputation".to_owned(), value);
         Ok(observation)
     }
 
     /// Start an episode as `agent`; the opponent is known by its strategy name.
-    pub fn reset(&mut self, request: &Reset, agent: &str, opponent: Option<Box<dyn Agent>>) -> Result<GameObservation> {
+    pub fn reset(
+        &mut self,
+        request: &Reset,
+        agent: &str,
+        opponent: Option<Box<dyn Agent>>,
+    ) -> Result<GameObservation> {
         self.agent = agent.to_owned();
         self.opponent = match &request.strategy {
             Some(name) => name.clone(),
@@ -143,16 +172,25 @@ impl ReputationEnvironment {
 
     pub fn step(&mut self, action: &GameAction) -> Result<GameObservation> {
         let game = self.env.game().cloned().ok_or(Error::NotStarted)?;
-        if let (Some(tagged), Some(base)) = (action.action.strip_prefix("gossip_"), game.base_move(&action.action)) {
+        if let (Some(tagged), Some(base)) = (
+            action.action.strip_prefix("gossip_"),
+            game.base_move(&action.action),
+        ) {
             if let Some(rating) = tagged.strip_suffix(&format!("_{base}")) {
-                self.store.record_gossip(&self.agent, &self.opponent, rating);
+                self.store
+                    .record_gossip(&self.agent, &self.opponent, rating);
             }
         }
         let observation = self.env.step(action)?;
         if observation.done {
             let rounds = observation.history.len();
-            let cooperated = observation.history.iter().filter(|round| game.cooperated(&round.player_action)).count();
-            self.store.record_episode(&self.opponent, cooperated as f64 / rounds as f64);
+            let cooperated = observation
+                .history
+                .iter()
+                .filter(|round| game.cooperated(&round.player_action))
+                .count();
+            self.store
+                .record_episode(&self.opponent, cooperated as f64 / rounds as f64);
             self.store.save()?;
         }
         self.with_reputation(observation)

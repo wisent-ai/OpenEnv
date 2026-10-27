@@ -14,10 +14,13 @@ pub struct Random;
 
 impl Strategy for Random {
     fn choose(&mut self, view: &View<'_>, rng: &mut dyn RngCore) -> Result<String> {
-        view.moves.choose(rng).cloned().ok_or_else(|| Error::NoMoves {
-            strategy: "random".to_owned(),
-            game: view.game.key.clone(),
-        })
+        view.moves
+            .choose(rng)
+            .cloned()
+            .ok_or_else(|| Error::NoMoves {
+                strategy: "random".to_owned(),
+                game: view.game.key.clone(),
+            })
     }
 }
 
@@ -134,7 +137,11 @@ impl Strategy for Adaptive {
         if view.history.is_empty() {
             return Ok(cooperate);
         }
-        let cooperations = view.history.iter().filter(|turn| turn.agent == cooperate).count();
+        let cooperations = view
+            .history
+            .iter()
+            .filter(|turn| turn.agent == cooperate)
+            .count();
         if cooperations > view.history.len() - cooperations {
             return Ok(cooperate);
         }

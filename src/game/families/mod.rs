@@ -2,10 +2,10 @@
 //! with the names they read from a settings document.
 
 pub(crate) mod basic;
+mod cooperation;
 mod information;
 pub(crate) mod made;
 mod market;
-mod cooperation;
 
 use crate::game::Library;
 

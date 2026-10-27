@@ -20,7 +20,13 @@ pub trait GroupStrategy: Send {
     fn choose(&mut self, view: &GroupView<'_>, rng: &mut dyn RngCore) -> Result<String>;
 }
 
-pub const NAMES: &[&str] = &["random", "always_cooperate", "always_defect", "tit_for_tat", "adaptive"];
+pub const NAMES: &[&str] = &[
+    "random",
+    "always_cooperate",
+    "always_defect",
+    "tit_for_tat",
+    "adaptive",
+];
 
 pub fn named(name: &str) -> Result<Box<dyn GroupStrategy>> {
     Ok(match name {
@@ -39,10 +45,14 @@ pub fn named(name: &str) -> Result<Box<dyn GroupStrategy>> {
 }
 
 fn cooperative(view: &GroupView<'_>) -> Result<String> {
-    view.game.actions.first().cloned().ok_or_else(|| Error::NoMoves {
-        strategy: "group strategy".to_owned(),
-        game: view.game.key.clone(),
-    })
+    view.game
+        .actions
+        .first()
+        .cloned()
+        .ok_or_else(|| Error::NoMoves {
+            strategy: "group strategy".to_owned(),
+            game: view.game.key.clone(),
+        })
 }
 
 fn defecting(view: &GroupView<'_>) -> Result<String> {
@@ -68,10 +78,14 @@ struct Random;
 
 impl GroupStrategy for Random {
     fn choose(&mut self, view: &GroupView<'_>, rng: &mut dyn RngCore) -> Result<String> {
-        view.game.actions.choose(rng).cloned().ok_or_else(|| Error::NoMoves {
-            strategy: "random".to_owned(),
-            game: view.game.key.clone(),
-        })
+        view.game
+            .actions
+            .choose(rng)
+            .cloned()
+            .ok_or_else(|| Error::NoMoves {
+                strategy: "random".to_owned(),
+                game: view.game.key.clone(),
+            })
     }
 }
 
@@ -99,7 +113,9 @@ impl GroupStrategy for Majority {
             return Ok(cooperate);
         };
         let defect = defecting(view)?;
-        let defections = others(last, view.seat).filter(|played| **played == defect).count();
+        let defections = others(last, view.seat)
+            .filter(|played| **played == defect)
+            .count();
         let cooperations = others(last, view.seat).count() - defections;
         if cooperations >= defections {
             return Ok(cooperate);
@@ -118,7 +134,11 @@ impl GroupStrategy for Adaptive {
         if view.history.is_empty() {
             return Ok(cooperate);
         }
-        let seen: Vec<&String> = view.history.iter().flat_map(|round| others(round, view.seat)).collect();
+        let seen: Vec<&String> = view
+            .history
+            .iter()
+            .flat_map(|round| others(round, view.seat))
+            .collect();
         let cooperations = seen.iter().filter(|played| ***played == cooperate).count();
         if cooperations > seen.len() - cooperations {
             return Ok(cooperate);

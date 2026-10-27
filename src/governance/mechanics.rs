@@ -27,7 +27,12 @@ fn mean_of(payoffs: &[f64], active: &BTreeSet<usize>) -> f64 {
     active.iter().map(|seat| payoffs[*seat]).sum::<f64>() / active.len() as f64
 }
 
-fn one(mechanic: Mechanic, payoffs: &[f64], active: &BTreeSet<usize>, config: &Declared<'_>) -> Result<Vec<f64>> {
+fn one(
+    mechanic: Mechanic,
+    payoffs: &[f64],
+    active: &BTreeSet<usize>,
+    config: &Declared<'_>,
+) -> Result<Vec<f64>> {
     let mut result = payoffs.to_vec();
     if active.is_empty() {
         return Ok(result);
@@ -35,7 +40,8 @@ fn one(mechanic: Mechanic, payoffs: &[f64], active: &BTreeSet<usize>, config: &D
     match mechanic {
         Mechanic::Taxation => {
             let rate = config.number("tax_rate")?;
-            let share = active.iter().map(|seat| payoffs[*seat] * rate).sum::<f64>() / active.len() as f64;
+            let share =
+                active.iter().map(|seat| payoffs[*seat] * rate).sum::<f64>() / active.len() as f64;
             for seat in active {
                 result[*seat] = payoffs[*seat] - payoffs[*seat] * rate + share;
             }
@@ -46,7 +52,9 @@ fn one(mechanic: Mechanic, payoffs: &[f64], active: &BTreeSet<usize>, config: &D
                 "equal" => active.iter().for_each(|seat| result[*seat] = mean),
                 "proportional" => {
                     let damping = config.number("damping")?;
-                    active.iter().for_each(|seat| result[*seat] += damping * (mean - result[*seat]));
+                    active
+                        .iter()
+                        .for_each(|seat| result[*seat] += damping * (mean - result[*seat]));
                 }
                 other => {
                     return Err(Error::Malformed {
@@ -67,7 +75,11 @@ fn one(mechanic: Mechanic, payoffs: &[f64], active: &BTreeSet<usize>, config: &D
                 pool += paid;
                 result[*seat] -= paid;
             }
-            let claimants: Vec<usize> = active.iter().copied().filter(|seat| payoffs[*seat] < threshold).collect();
+            let claimants: Vec<usize> = active
+                .iter()
+                .copied()
+                .filter(|seat| payoffs[*seat] < threshold)
+                .collect();
             for seat in &claimants {
                 result[*seat] += pool / claimants.len() as f64;
             }
@@ -101,7 +113,11 @@ fn one(mechanic: Mechanic, payoffs: &[f64], active: &BTreeSet<usize>, config: &D
                     result[*seat] -= paid;
                 }
             }
-            let below: Vec<usize> = active.iter().copied().filter(|seat| payoffs[*seat] < floor).collect();
+            let below: Vec<usize> = active
+                .iter()
+                .copied()
+                .filter(|seat| payoffs[*seat] < floor)
+                .collect();
             let needed: f64 = below.iter().map(|seat| floor - payoffs[*seat]).sum();
             if pool > NONE && needed > NONE {
                 for seat in below {
@@ -111,11 +127,12 @@ fn one(mechanic: Mechanic, payoffs: &[f64], active: &BTreeSet<usize>, config: &D
             }
         }
         Mechanic::Veto => {
-            let holder = usize::try_from(config.whole("veto_player")?).map_err(|_| Error::Malformed {
+            let declared = config.whole("veto_player")?;
+            let holder = usize::try_from(declared).map_err(|error| Error::Malformed {
                 scope: config.scope().to_owned(),
                 name: "veto_player".to_owned(),
                 expected: "a seat".to_owned(),
-                found: "a number past every seat".to_owned(),
+                found: format!("{declared}, which is no seat number: {error}"),
             })?;
             let mean = mean_of(payoffs, active);
             if active.contains(&holder) && payoffs[holder] < mean {

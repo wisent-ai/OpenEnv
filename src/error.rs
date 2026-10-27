@@ -49,11 +49,20 @@ pub enum Error {
     },
     #[error("{action} carries no amount after its last underscore")]
     NoAmount { action: String },
+    #[error("{action} carries {amount:?} where a whole amount belongs: {source}")]
+    UnreadableAmount {
+        action: String,
+        amount: String,
+        #[source]
+        source: std::num::ParseIntError,
+    },
     #[error("{game}: {reason}")]
     Unsupported { game: String, reason: String },
     #[error("no episode is running: reset the environment before stepping it")]
     NotStarted,
-    #[error("episode {episode} is over after {rounds} rounds: reset the environment to play again")]
+    #[error(
+        "episode {episode} is over after {rounds} rounds: reset the environment to play again"
+    )]
     Finished { episode: String, rounds: usize },
     #[error("the opponent agent failed: {reason}")]
     Opponent { reason: String },

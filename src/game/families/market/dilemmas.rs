@@ -11,9 +11,24 @@ use crate::game::{amount, amounts, matrix_entry, mean, moves, Entry, Game, Libra
 use crate::settings::Declared;
 
 pub(super) fn register(library: &mut Library) {
-    library.add(Entry::new("travelers_dilemma", "market", &["lowest", "highest", "bonus"], travelers));
-    library.add(Entry::new("dollar_auction", "market", &["prize", "most"], dollar_auction));
-    library.add(Entry::new("penalty_shootout", "market", &["save", "score", "center_bonus"], penalty));
+    library.add(Entry::new(
+        "travelers_dilemma",
+        "market",
+        &["lowest", "highest", "bonus"],
+        travelers,
+    ));
+    library.add(Entry::new(
+        "dollar_auction",
+        "market",
+        &["prize", "most"],
+        dollar_auction,
+    ));
+    library.add(Entry::new(
+        "penalty_shootout",
+        "market",
+        &["save", "score", "center_bonus"],
+        penalty,
+    ));
     for entry in [
         matrix_entry(
             "unscrupulous_diner",
@@ -134,7 +149,11 @@ fn penalty(declared: &Declared<'_>) -> Result<Game> {
         if player == opponent {
             return Ok((-save, save));
         }
-        let scored = if player == "center" { score + bonus } else { score };
+        let scored = if player == "center" {
+            score + bonus
+        } else {
+            score
+        };
         Ok((scored, -scored))
     });
     Ok(Game::new(

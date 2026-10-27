@@ -19,15 +19,21 @@ pub const NONE: f64 = NOTHING as f64;
 
 /// The moves `<prefix>_<amount>` for every amount from nothing to `most`.
 pub fn amounts(prefix: &str, most: u64) -> Vec<String> {
-    (NOTHING..=most).map(|amount| format!("{prefix}_{amount}")).collect()
+    (NOTHING..=most)
+        .map(|amount| format!("{prefix}_{amount}"))
+        .collect()
 }
 
-/// The amount a move like `offer_5` carries after its last underscore.
+/// The amount a move like `offer_5` carries after its last underscore; a
+/// move with no underscore, or one whose amount is not a whole number, is
+/// refused naming what it carries and why it is not an amount.
 pub fn amount(action: &str) -> Result<u64> {
-    action
-        .rsplit_once('_')
-        .and_then(|(_, amount)| amount.parse().ok())
-        .ok_or_else(|| Error::NoAmount {
-            action: action.to_owned(),
-        })
+    let (_, amount) = action.rsplit_once('_').ok_or_else(|| Error::NoAmount {
+        action: action.to_owned(),
+    })?;
+    amount.parse().map_err(|source| Error::UnreadableAmount {
+        action: action.to_owned(),
+        amount: amount.to_owned(),
+        source,
+    })
 }

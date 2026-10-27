@@ -5,7 +5,12 @@
 use crate::game::{declared_matrix, matrix_entry, moves, Entry, Library};
 use crate::variant;
 
-type Row = (&'static str, &'static [&'static str], &'static str, &'static str);
+type Row = (
+    &'static str,
+    &'static [&'static str],
+    &'static str,
+    &'static str,
+);
 
 pub(super) fn register(library: &mut Library) {
     let table: Vec<Row> = vec![

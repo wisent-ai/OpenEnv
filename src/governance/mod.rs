@@ -37,7 +37,10 @@ impl Governance {
                 enforcement: game.enforcement,
                 penalty: game.penalty,
                 side_payments: game.side_payments,
-                mechanics: Mechanic::ALL.iter().map(|mechanic| (*mechanic, false)).collect(),
+                mechanics: Mechanic::ALL
+                    .iter()
+                    .map(|mechanic| (*mechanic, false))
+                    .collect(),
                 mechanic_config: config,
                 custom_modifiers: Vec::new(),
                 history: Vec::new(),
@@ -71,7 +74,11 @@ impl Governance {
     /// Queue the proposals of active seats, up to the declared
     /// `most_proposals` a round. A proposal from an inactive seat is passed
     /// over; one that names no change governance can make is refused.
-    pub fn submit(&mut self, proposals: Vec<GovernanceProposal>, active: &BTreeSet<usize>) -> Result<()> {
+    pub fn submit(
+        &mut self,
+        proposals: Vec<GovernanceProposal>,
+        active: &BTreeSet<usize>,
+    ) -> Result<()> {
         if proposals.is_empty() {
             return Ok(());
         }
@@ -90,7 +97,12 @@ impl Governance {
     }
 
     fn validate(&self, proposal: &GovernanceProposal) -> Result<()> {
-        let refuse = |reason: String| Err(Error::Usage(format!("governance proposal by seat {}: {reason}", proposal.proposer)));
+        let refuse = |reason: String| {
+            Err(Error::Usage(format!(
+                "governance proposal by seat {}: {reason}",
+                proposal.proposer
+            )))
+        };
         match &proposal.change {
             Change::Parameter { name, value } => match (name.as_str(), value) {
                 ("enforcement", Value::String(text)) => Enforcement::named(text).map(|_| ()),
@@ -107,7 +119,11 @@ impl Governance {
 
     /// Count the votes of active seats; a pending proposal a strict majority
     /// of the active seats approves takes effect.
-    pub fn tally(&mut self, votes: Vec<GovernanceVote>, active: &BTreeSet<usize>) -> Result<GovernanceResult> {
+    pub fn tally(
+        &mut self,
+        votes: Vec<GovernanceVote>,
+        active: &BTreeSet<usize>,
+    ) -> Result<GovernanceResult> {
         let seats = active.len();
         let mut adopted = Vec::new();
         let mut rejected = Vec::new();
@@ -115,7 +131,9 @@ impl Governance {
         for (index, proposal) in pending.iter().enumerate() {
             let approvals = votes
                 .iter()
-                .filter(|vote| vote.proposal_index == index && vote.approve && active.contains(&vote.voter))
+                .filter(|vote| {
+                    vote.proposal_index == index && vote.approve && active.contains(&vote.voter)
+                })
                 .count();
             if approvals > seats - approvals {
                 self.adopt(proposal)?;
@@ -140,17 +158,27 @@ impl Governance {
     fn adopt(&mut self, proposal: &GovernanceProposal) -> Result<()> {
         match &proposal.change {
             Change::Parameter { name, value } => match (name.as_str(), value) {
-                ("enforcement", Value::String(text)) => self.rules.enforcement = Enforcement::named(text)?,
+                ("enforcement", Value::String(text)) => {
+                    self.rules.enforcement = Enforcement::named(text)?
+                }
                 ("penalty", Value::Number(number)) => {
-                    self.rules.penalty = number.as_f64().ok_or_else(|| Error::Usage(format!("penalty {number} is not a finite number")))?;
+                    self.rules.penalty = number.as_f64().ok_or_else(|| {
+                        Error::Usage(format!("penalty {number} is not a finite number"))
+                    })?;
                 }
                 ("side_payments", Value::Bool(allowed)) => self.rules.side_payments = *allowed,
                 _ => return self.validate(proposal),
             },
-            Change::Mechanic { name, active, params } => {
+            Change::Mechanic {
+                name,
+                active,
+                params,
+            } => {
                 self.rules.mechanics.insert(*name, *active);
                 for (key, value) in params {
-                    self.rules.mechanic_config.insert(key.clone(), value.clone());
+                    self.rules
+                        .mechanic_config
+                        .insert(key.clone(), value.clone());
                 }
             }
             Change::Custom { key, active } => {
@@ -174,7 +202,11 @@ impl Governance {
         }
         let clamp = self.config().number("custom_clamp")?;
         for key in &self.rules.custom_modifiers {
-            let modifier = self.modifiers.get(key).ok_or_else(|| Error::Usage(format!("custom modifier {key} is on but no longer registered")))?;
+            let modifier = self.modifiers.get(key).ok_or_else(|| {
+                Error::Usage(format!(
+                    "custom modifier {key} is on but no longer registered"
+                ))
+            })?;
             let modified = modifier(&result, active)?;
             for (before, after) in result.iter_mut().zip(modified) {
                 let reach = (before.abs() * clamp).max(clamp);

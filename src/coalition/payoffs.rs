@@ -28,7 +28,9 @@ pub fn settle(
     let mut defectors: Vec<usize> = Vec::new();
     for coalition in coalitions {
         for member in &coalition.members {
-            let broke = moves.get(*member).is_some_and(|played| *played != coalition.agreed_action);
+            let broke = moves
+                .get(*member)
+                .is_some_and(|played| *played != coalition.agreed_action);
             if broke && !defectors.contains(member) {
                 defectors.push(*member);
             }
@@ -45,7 +47,11 @@ pub fn settle(
         let Some(payment) = coalition.side_payment.filter(|payment| *payment > NONE) else {
             continue;
         };
-        let mut members = coalition.members.iter().copied().filter(|member| *member < base.len());
+        let mut members = coalition
+            .members
+            .iter()
+            .copied()
+            .filter(|member| *member < base.len());
         let Some(payer) = members.next() else {
             continue;
         };

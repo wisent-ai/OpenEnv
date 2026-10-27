@@ -6,13 +6,31 @@ use std::sync::Arc;
 use rand::RngCore;
 
 use crate::error::{Error, Result};
-use crate::game::{amount, amounts, matrix_between, mean, moves, Entry, Game, Library, OpponentMoves, NONE, NOTHING};
+use crate::game::{
+    amount, amounts, matrix_between, mean, moves, Entry, Game, Library, OpponentMoves, NONE,
+    NOTHING,
+};
 use crate::settings::Declared;
 
 pub(super) fn register(library: &mut Library) {
-    library.add(Entry::new("colonel_blotto", "market", &["battlefields", "troops"], blotto));
-    library.add(Entry::new("war_of_attrition", "market", &["prize", "cost", "most"], attrition));
-    library.add(Entry::new("tullock_contest", "market", &["prize", "most"], tullock));
+    library.add(Entry::new(
+        "colonel_blotto",
+        "market",
+        &["battlefields", "troops"],
+        blotto,
+    ));
+    library.add(Entry::new(
+        "war_of_attrition",
+        "market",
+        &["prize", "cost", "most"],
+        attrition,
+    ));
+    library.add(Entry::new(
+        "tullock_contest",
+        "market",
+        &["prize", "most"],
+        tullock,
+    ));
     library.add(matrix_between(
         "inspection_game",
         "market",
@@ -27,7 +45,12 @@ pub(super) fn register(library: &mut Library) {
         &["surplus", "discount", "grace"],
         rubinstein,
     ));
-    library.add(Entry::new("divide_and_choose", "market", &["endowment"], divide_and_choose));
+    library.add(Entry::new(
+        "divide_and_choose",
+        "market",
+        &["endowment"],
+        divide_and_choose,
+    ));
 }
 
 /// Every way to place exactly `troops` across `fields` battlefields.
@@ -67,11 +90,19 @@ fn blotto(declared: &Declared<'_>) -> Result<Game> {
     let payoff = Arc::new(|player: &str, opponent: &str, _: &mut dyn RngCore| {
         let read = |action: &str| -> Result<Vec<u64>> {
             let Some(placed) = action.strip_prefix("alloc_") else {
-                return Err(Error::NoAmount { action: action.to_owned() });
+                return Err(Error::NoAmount {
+                    action: action.to_owned(),
+                });
             };
             placed
                 .split('_')
-                .map(|troops| troops.parse().map_err(|_| Error::NoAmount { action: action.to_owned() }))
+                .map(|troops| {
+                    troops.parse().map_err(|source| Error::UnreadableAmount {
+                        action: action.to_owned(),
+                        amount: troops.to_owned(),
+                        source,
+                    })
+                })
                 .collect()
         };
         let (mine, theirs) = (read(player)?, read(opponent)?);

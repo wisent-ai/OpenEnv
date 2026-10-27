@@ -54,9 +54,11 @@ enum Shape {
 pub(crate) fn labels(count: usize) -> Vec<String> {
     let alphabet: Vec<char> = ('a'..='z').collect();
     let singles = alphabet.iter().map(|letter| letter.to_string());
-    let pairs = alphabet
-        .iter()
-        .flat_map(|first| alphabet.iter().map(move |second| format!("{first}{second}")));
+    let pairs = alphabet.iter().flat_map(|first| {
+        alphabet
+            .iter()
+            .map(move |second| format!("{first}{second}"))
+    });
     singles.chain(pairs).take(count).collect()
 }
 
@@ -99,9 +101,18 @@ fn generated(declared: &Declared<'_>, shape: Shape) -> Result<Game> {
     }
     let (title, kind) = match shape {
         Shape::Symmetric => ("Symmetric", "symmetric matrix game with payoffs drawn"),
-        Shape::Independent => ("Asymmetric", "asymmetric matrix game with independent payoffs drawn"),
-        Shape::ZeroSum => ("Zero-Sum", "zero-sum game, every outcome summing to zero, with the row payoff drawn"),
-        Shape::Coordination(_) => ("Coordination", "coordination game, matching moves earning a bonus, with payoffs drawn"),
+        Shape::Independent => (
+            "Asymmetric",
+            "asymmetric matrix game with independent payoffs drawn",
+        ),
+        Shape::ZeroSum => (
+            "Zero-Sum",
+            "zero-sum game, every outcome summing to zero, with the row payoff drawn",
+        ),
+        Shape::Coordination(_) => (
+            "Coordination",
+            "coordination game, matching moves earning a bonus, with payoffs drawn",
+        ),
     };
     let name = format!("Random {title} {count}x{count} (seed={seed})");
     let description = format!(

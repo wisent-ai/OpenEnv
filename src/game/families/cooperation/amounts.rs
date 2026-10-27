@@ -16,7 +16,12 @@ pub(super) fn register(library: &mut Library) {
         &["most", "fraction", "win", "lose", "tie"],
         beauty_contest,
     ));
-    library.add(Entry::new("continuous_pd", "cooperation", &["most", "benefit", "cost"], continuous_pd));
+    library.add(Entry::new(
+        "continuous_pd",
+        "cooperation",
+        &["most", "benefit", "cost"],
+        continuous_pd,
+    ));
     library.add(Entry::new(
         "threshold_public_goods",
         "cooperation",
@@ -31,7 +36,11 @@ pub(super) fn register(library: &mut Library) {
 fn beauty_contest(declared: &Declared<'_>) -> Result<Game> {
     let most = declared.whole("most")?;
     let fraction = declared.number("fraction")?;
-    let (win, lose, tie) = (declared.number("win")?, declared.number("lose")?, declared.number("tie")?);
+    let (win, lose, tie) = (
+        declared.number("win")?,
+        declared.number("lose")?,
+        declared.number("tie")?,
+    );
     let payoff = Arc::new(move |player: &str, opponent: &str, _: &mut dyn RngCore| {
         let (mine, theirs) = (amount(player)? as f64, amount(opponent)? as f64);
         let target = mean(&[mine, theirs]) * fraction;
@@ -60,7 +69,10 @@ fn continuous_pd(declared: &Declared<'_>) -> Result<Game> {
     let (benefit, cost) = (declared.number("benefit")?, declared.number("cost")?);
     let payoff = Arc::new(move |player: &str, opponent: &str, _: &mut dyn RngCore| {
         let (mine, theirs) = (amount(player)? as f64, amount(opponent)? as f64);
-        Ok((theirs * benefit - mine * cost, mine * benefit - theirs * cost))
+        Ok((
+            theirs * benefit - mine * cost,
+            mine * benefit - theirs * cost,
+        ))
     });
     Ok(Game::new(
         "Continuous Prisoner's Dilemma",

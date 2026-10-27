@@ -80,7 +80,13 @@ pub struct Game {
 
 impl Game {
     /// A two-seat game played against a strategy, with no variant applied.
-    pub fn new(name: &str, description: &str, kind: &str, actions: Vec<String>, payoff: Payoff) -> Self {
+    pub fn new(
+        name: &str,
+        description: &str,
+        kind: &str,
+        actions: Vec<String>,
+        payoff: Payoff,
+    ) -> Self {
         Self {
             key: String::new(),
             name: name.to_owned(),
@@ -222,8 +228,8 @@ impl Library {
         let (declared, mut game) = match (self.entries.get(key), custom) {
             (Some(_), true) => {
                 return Err(Error::Usage(format!(
-                    "{key} is a library game and custom_games declares it too; rename the custom game"
-                )))
+                "{key} is a library game and custom_games declares it too; rename the custom game"
+            )))
             }
             (Some(entry), false) => {
                 let declared = settings.entry("games", key)?;
@@ -258,7 +264,8 @@ impl Library {
             return Err(self.unknown(key));
         };
         let base = self.build(inner, settings)?;
-        let mut game = crate::variant::apply(base, variant, &|| settings.entry("variants", variant))?;
+        let mut game =
+            crate::variant::apply(base, variant, &|| settings.entry("variants", variant))?;
         if variant == "free_chat" {
             game.name = format!("Free-chat {}", game.name);
             game.description = format!(

@@ -70,7 +70,10 @@ pub struct Tournament {
 /// game's moves lie below it as above it; otherwise it is cooperative when it
 /// carries the base game's first, cooperative move.
 pub fn cooperated(game: &Game, played: &str) -> bool {
-    let amounts = game.base_actions.iter().all(|base| crate::game::amount(base).is_ok());
+    let amounts = game
+        .base_actions
+        .iter()
+        .all(|base| crate::game::amount(base).is_ok());
     if !amounts {
         return game.cooperated(played);
     }
@@ -81,7 +84,8 @@ pub fn cooperated(game: &Game, played: &str) -> bool {
         return false;
     };
     let (below, rest) = game.base_actions.split_at(index);
-    rest.split_first().is_some_and(|(_, above)| below.len() >= above.len())
+    rest.split_first()
+        .is_some_and(|(_, above)| below.len() >= above.len())
 }
 
 pub struct Runner {
@@ -95,7 +99,11 @@ pub struct Runner {
 impl Runner {
     /// A runner for `agent`; `opponent_model` holds the opponent's seat in a
     /// cross-model game. Brama is reached only when a seat is a model.
-    pub fn new(settings: Arc<Settings>, agent: SeatSpec, opponent_model: Option<String>) -> Result<Self> {
+    pub fn new(
+        settings: Arc<Settings>,
+        agent: SeatSpec,
+        opponent_model: Option<String>,
+    ) -> Result<Self> {
         let needs_brama = matches!(agent, SeatSpec::Model(_)) || opponent_model.is_some();
         let brama = match needs_brama {
             true => Some(Arc::new(Brama::from_env()?)),
@@ -113,16 +121,26 @@ impl Runner {
     pub(crate) fn seat(&self, spec: &SeatSpec, game: &Game, seed: u64) -> Result<Box<dyn Agent>> {
         match spec {
             SeatSpec::Model(route) => {
-                let brama = self.brama.clone().ok_or_else(|| Error::Config("a model seat needs Brama".to_owned()))?;
+                let brama = self
+                    .brama
+                    .clone()
+                    .ok_or_else(|| Error::Config("a model seat needs Brama".to_owned()))?;
                 Ok(Box::new(ModelAgent::new(brama, route, &self.settings)?))
             }
-            SeatSpec::Strategy(name) => Ok(Box::new(StrategyAgent::new(name, game.clone(), &self.settings, seed)?)),
+            SeatSpec::Strategy(name) => Ok(Box::new(StrategyAgent::new(
+                name,
+                game.clone(),
+                &self.settings,
+                seed,
+            )?)),
         }
     }
 
     pub fn run(&self, games: &[String], strategies: &[String]) -> Result<Tournament> {
         if games.is_empty() || strategies.is_empty() {
-            return Err(Error::Usage("a tournament needs at least one game and one opponent strategy".to_owned()));
+            return Err(Error::Usage(
+                "a tournament needs at least one game and one opponent strategy".to_owned(),
+            ));
         }
         let episodes = self.settings.section("evaluation")?.count("episodes")?;
         let mut environment = Environment::new(self.library.clone(), self.settings.clone())?;
@@ -136,7 +154,10 @@ impl Runner {
                 for _ in std::iter::repeat(()).take(episodes) {
                     played.push(self.episode(&mut environment, &game, strategy, seed)?);
                 }
-                let rates: Vec<f64> = played.iter().map(|episode| episode.cooperation_rate).collect();
+                let rates: Vec<f64> = played
+                    .iter()
+                    .map(|episode| episode.cooperation_rate)
+                    .collect();
                 let label = match game.opponent_mode {
                     OpponentMode::Strategy => strategy.clone(),
                     OpponentMode::SelfPlay => "self_play".to_owned(),
@@ -146,13 +167,23 @@ impl Runner {
                     label,
                     OpponentResult {
                         total_player_score: played.iter().map(|episode| episode.player_score).sum(),
-                        total_opponent_score: played.iter().map(|episode| episode.opponent_score).sum(),
+                        total_opponent_score: played
+                            .iter()
+                            .map(|episode| episode.opponent_score)
+                            .sum(),
                         mean_cooperation_rate: rates.iter().sum::<f64>() / rates.len() as f64,
                         episodes: played,
                     },
                 );
             }
-            results.insert(key.clone(), GameResult { name: game.name.clone(), opponent_mode: game.opponent_mode, opponents });
+            results.insert(
+                key.clone(),
+                GameResult {
+                    name: game.name.clone(),
+                    opponent_mode: game.opponent_mode,
+                    opponents,
+                },
+            );
         }
         let total_episodes = results
             .values()
@@ -170,13 +201,22 @@ impl Runner {
         })
     }
 
-    fn episode(&self, environment: &mut Environment, game: &Game, strategy: &str, seed: u64) -> Result<EpisodeResult> {
+    fn episode(
+        &self,
+        environment: &mut Environment,
+        game: &Game,
+        strategy: &str,
+        seed: u64,
+    ) -> Result<EpisodeResult> {
         let opponent: Option<Box<dyn Agent>> = match game.opponent_mode {
             OpponentMode::Strategy => None,
             OpponentMode::SelfPlay => Some(self.seat(&self.agent, game, seed)?),
             OpponentMode::CrossModel => {
                 let route = self.opponent_model.clone().ok_or_else(|| {
-                    Error::Usage(format!("{} is played against another model: name it with --opponent-route", game.key))
+                    Error::Usage(format!(
+                        "{} is played against another model: name it with --opponent-route",
+                        game.key
+                    ))
                 })?;
                 Some(self.seat(&SeatSpec::Model(route), game, seed)?)
             }
@@ -194,7 +234,11 @@ impl Runner {
             observation = environment.step(&action)?;
         }
         let rounds = observation.history.len();
-        let cooperative = observation.history.iter().filter(|round| cooperated(game, &round.player_action)).count();
+        let cooperative = observation
+            .history
+            .iter()
+            .filter(|round| cooperated(game, &round.player_action))
+            .count();
         Ok(EpisodeResult {
             player_score: observation.player_score,
             opponent_score: observation.opponent_score,

@@ -23,7 +23,11 @@ pub enum Phase {
 }
 
 pub fn phase(observation: &GameObservation) -> Phase {
-    match observation.metadata.get("phase").and_then(|phase| phase.as_str()) {
+    match observation
+        .metadata
+        .get("phase")
+        .and_then(|phase| phase.as_str())
+    {
         Some("message") => Phase::Message,
         Some("action") => Phase::Action,
         _ => Phase::Plain,
@@ -32,8 +36,15 @@ pub fn phase(observation: &GameObservation) -> Phase {
 
 /// The prompt for `observation`, showing at most `history_rounds` past rounds.
 pub fn build(observation: &GameObservation, history_rounds: usize) -> String {
-    let mut sections = vec![format!("[Game]\n{}\n{}", observation.game_name, observation.game_description)];
-    if let Some(said) = observation.metadata.get("last_opp_message").and_then(|said| said.as_str()) {
+    let mut sections = vec![format!(
+        "[Game]\n{}\n{}",
+        observation.game_name, observation.game_description
+    )];
+    if let Some(said) = observation
+        .metadata
+        .get("last_opp_message")
+        .and_then(|said| said.as_str())
+    {
         if !said.is_empty() {
             sections.push(format!("[Opponent said]\n{said}"));
         }
@@ -53,9 +64,16 @@ pub fn build(observation: &GameObservation, history_rounds: usize) -> String {
     }
     sections.push(format!(
         "[Scores]\nYour score: {}\nOpponent score: {}\nRound: {} of {}",
-        observation.player_score, observation.opponent_score, observation.current_round, observation.total_rounds
+        observation.player_score,
+        observation.opponent_score,
+        observation.current_round,
+        observation.total_rounds
     ));
-    let moves: Vec<String> = observation.available_actions.iter().map(|played| format!("- {played}")).collect();
+    let moves: Vec<String> = observation
+        .available_actions
+        .iter()
+        .map(|played| format!("- {played}"))
+        .collect();
     sections.push(format!("[Available Actions]\n{}", moves.join("\n")));
     let instruction = match phase(observation) {
         Phase::Message => MESSAGE_PHASE,
@@ -79,12 +97,21 @@ pub fn parse(answer: &str, moves: &[String]) -> Result<String> {
     if let Some(same) = moves.iter().find(|played| played.to_lowercase() == lower) {
         return Ok(same.clone());
     }
-    let contained: Vec<&String> = moves.iter().filter(|played| lower.contains(&played.to_lowercase())).collect();
+    let contained: Vec<&String> = moves
+        .iter()
+        .filter(|played| lower.contains(&played.to_lowercase()))
+        .collect();
     // The longest contained move wins when the others are parts of it
     // (`defect` inside `always_defect`).
     let longest = contained.iter().max_by_key(|played| played.len());
     match longest {
-        Some(longest) if contained.iter().all(|played| longest.contains(played.as_str())) => Ok((*longest).clone()),
+        Some(longest)
+            if contained
+                .iter()
+                .all(|played| longest.contains(played.as_str())) =>
+        {
+            Ok((*longest).clone())
+        }
         _ => Err(Error::Unparsed {
             answer: answer.to_owned(),
             moves: moves.join(", "),

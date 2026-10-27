@@ -49,7 +49,11 @@ pub fn parameters(name: &str) -> &'static [&'static str] {
 
 /// `base` with the variant `name` applied. `numbers` yields the declaration
 /// the variant reads; it is asked only by a variant that needs a number.
-pub fn apply<'s>(base: Game, name: &str, numbers: &dyn Fn() -> Result<Declared<'s>>) -> Result<Game> {
+pub fn apply<'s>(
+    base: Game,
+    name: &str,
+    numbers: &dyn Fn() -> Result<Declared<'s>>,
+) -> Result<Game> {
     match name {
         "cheap_talk" => {
             let said = base.actions.clone();
@@ -67,12 +71,24 @@ pub fn apply<'s>(base: Game, name: &str, numbers: &dyn Fn() -> Result<Declared<'
         "rule_proposal" => {
             let offered = rules::declared(&numbers()?)?;
             let names: Vec<String> = offered.keys().cloned().collect();
-            tagged::compose(base, name, "prop", &names, tagged::Settle::Proposal(offered))
+            tagged::compose(
+                base,
+                name,
+                "prop",
+                &names,
+                tagged::Settle::Proposal(offered),
+            )
         }
         "constitutional" => {
             let offered = rules::declared(&numbers()?)?;
             let names: Vec<String> = offered.keys().cloned().collect();
-            tagged::compose(base, name, "const", &names, tagged::Settle::Constitution(offered))
+            tagged::compose(
+                base,
+                name,
+                "const",
+                &names,
+                tagged::Settle::Constitution(offered),
+            )
         }
         "proposer_responder" => tagged::proposer_responder(base, rules::declared(&numbers()?)?),
         "exit" => plain::exit(base, &numbers()?),

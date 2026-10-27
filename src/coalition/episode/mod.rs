@@ -19,7 +19,10 @@ use crate::group::environment::{GroupEnvironment, GroupObservation, Seat};
 use crate::group::{Enforcement, GroupGame, GroupLibrary, AGENT_SEAT, AGENT_SEATS};
 use crate::settings::Settings;
 
-use super::models::{ActiveCoalition, CoalitionObservation, CoalitionProposal, CoalitionResponse, CoalitionRound, Phase};
+use super::models::{
+    ActiveCoalition, CoalitionObservation, CoalitionProposal, CoalitionResponse, CoalitionRound,
+    Phase,
+};
 use super::payoffs::settle;
 use super::strategies::CoalitionStrategy;
 
@@ -99,7 +102,10 @@ impl CoalitionEnvironment {
     pub fn reset(&mut self, request: &CoalitionReset) -> Result<CoalitionObservation> {
         let probe = GroupLibrary::standard().build(&request.game, &self.settings)?;
         if !probe.is_coalition() {
-            return Err(Error::Usage(format!("{} is not a coalition game", request.game)));
+            return Err(Error::Usage(format!(
+                "{} is not a coalition game",
+                request.game
+            )));
         }
         let others = probe.players.saturating_sub(AGENT_SEATS);
         self.strategies = per_seat(&request.strategies, others, "coalition strategy")?
@@ -111,7 +117,12 @@ impl CoalitionEnvironment {
             .map(|name| GovernanceStrategy::named(name))
             .collect::<Result<_>>()?;
         let seats = (AGENT_SEATS..probe.players).map(|_| Seat::Given).collect();
-        let first = self.group.reset(&request.game, seats, request.rounds, request.episode_id.clone())?;
+        let first = self.group.reset(
+            &request.game,
+            seats,
+            request.rounds,
+            request.episode_id.clone(),
+        )?;
         let game = self.group.game().cloned().ok_or(Error::NotStarted)?;
         // Governance numbers are read when a proposal or mechanic needs one,
         // so a run that never governs declares none.
@@ -135,20 +146,29 @@ impl CoalitionEnvironment {
     /// and the round is paid after penalties, side payments and governance.
     pub fn act(&mut self, action: &GameAction) -> Result<CoalitionObservation> {
         if self.phase != Phase::Action {
-            return Err(Error::Usage("the episode is not at its action step: negotiate first".to_owned()));
+            return Err(Error::Usage(
+                "the episode is not at its action step: negotiate first".to_owned(),
+            ));
         }
         let game = self.game.clone().ok_or(Error::NotStarted)?;
-        let rules = self.governance.as_ref().ok_or(Error::NotStarted)?.rules().clone();
+        let rules = self
+            .governance
+            .as_ref()
+            .ok_or(Error::NotStarted)?
+            .rules()
+            .clone();
         let bound = |seat: usize, coalitions: &[ActiveCoalition]| {
             coalitions
                 .iter()
                 .find(|coalition| coalition.members.contains(&seat))
                 .map(|coalition| coalition.agreed_action.clone())
         };
-        let mut moves = vec![match (rules.enforcement, bound(AGENT_SEAT, &self.coalitions)) {
-            (Enforcement::Binding, Some(agreed)) => agreed,
-            _ => action.action.clone(),
-        }];
+        let mut moves = vec![
+            match (rules.enforcement, bound(AGENT_SEAT, &self.coalitions)) {
+                (Enforcement::Binding, Some(agreed)) => agreed,
+                _ => action.action.clone(),
+            },
+        ];
         let first = game.actions.first().cloned().ok_or(Error::NotStarted)?;
         for index in AGENT_SEAT..self.strategies.len() {
             let seat = index + AGENT_SEATS;
@@ -166,7 +186,13 @@ impl CoalitionEnvironment {
         let messages = moves.iter().map(|_| String::new()).collect();
         let played = self.group.play(moves.clone(), messages)?;
         let round = played.last_round.clone().ok_or(Error::NotStarted)?;
-        let settled = settle(&round.payoffs, &moves, &self.coalitions, rules.enforcement, rules.penalty);
+        let settled = settle(
+            &round.payoffs,
+            &moves,
+            &self.coalitions,
+            rules.enforcement,
+            rules.penalty,
+        );
         let governance = self.governance.as_ref().ok_or(Error::NotStarted)?;
         let mut adjusted = governance.apply(&settled.adjusted, &self.active)?;
         for (seat, paid) in adjusted.iter_mut().enumerate() {
@@ -174,7 +200,12 @@ impl CoalitionEnvironment {
                 *paid = crate::game::NONE;
             }
         }
-        for ((adjustment, after), before) in self.adjustments.iter_mut().zip(&adjusted).zip(&round.payoffs) {
+        for ((adjustment, after), before) in self
+            .adjustments
+            .iter_mut()
+            .zip(&adjusted)
+            .zip(&round.payoffs)
+        {
             *adjustment += after - before;
         }
         self.history.push(CoalitionRound {
@@ -202,7 +233,9 @@ impl CoalitionEnvironment {
     /// after an action step.
     pub fn observation(&self, seat: usize, reward: Option<f64>) -> Result<CoalitionObservation> {
         let last = self.last.as_ref().ok_or(Error::NotStarted)?;
-        let mut base = self.group.observation(seat, last.reward, last.last_round.clone())?;
+        let mut base = self
+            .group
+            .observation(seat, last.reward, last.last_round.clone())?;
         if let Some(reward) = reward {
             base.reward = reward;
         }

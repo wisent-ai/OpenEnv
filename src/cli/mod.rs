@@ -34,7 +34,11 @@ impl Words {
                 continue;
             };
             match rest.next_if(|next| !next.starts_with("--")) {
-                Some(value) => parsed.values.entry(name.to_owned()).or_default().push(value.clone()),
+                Some(value) => parsed
+                    .values
+                    .entry(name.to_owned())
+                    .or_default()
+                    .push(value.clone()),
                 None => {
                     parsed.switches.insert(name.to_owned());
                 }
@@ -77,7 +81,11 @@ impl Words {
             Some(text) => text
                 .parse::<std::num::NonZeroUsize>()
                 .map(|count| Some(count.get()))
-                .map_err(|_| Error::Usage(format!("--{name} must be a whole number above zero, not {text}"))),
+                .map_err(|error| {
+                    Error::Usage(format!(
+                        "--{name} must be a whole number above zero, not {text}: {error}"
+                    ))
+                }),
         }
     }
 

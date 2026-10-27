@@ -16,7 +16,14 @@ pub(super) fn register(library: &mut GroupLibrary) {
     library.add(GroupEntry::new(
         "coalition_cartel",
         "coalition",
-        &["penalty", "holds_at", "colluding_held", "colluding_broken", "competing_held", "competing_broken"],
+        &[
+            "penalty",
+            "holds_at",
+            "colluding_held",
+            "colluding_broken",
+            "competing_held",
+            "competing_broken",
+        ],
         cartel,
     ));
     library.add(GroupEntry::new(
@@ -25,7 +32,12 @@ pub(super) fn register(library: &mut GroupLibrary) {
         &["penalty", "pool", "betrayal", "unsupported"],
         alliance,
     ));
-    library.add(GroupEntry::new("coalition_voting", "coalition", &["penalty", "winner", "loser"], voting));
+    library.add(GroupEntry::new(
+        "coalition_voting",
+        "coalition",
+        &["penalty", "winner", "loser"],
+        voting,
+    ));
     library.add(GroupEntry::new(
         "coalition_ostracism",
         "coalition",
@@ -47,7 +59,14 @@ pub(super) fn register(library: &mut GroupLibrary) {
     library.add(GroupEntry::new(
         "coalition_commons",
         "coalition",
-        &["penalty", "sustainable_most", "low_kept", "high_kept", "low_depleted", "high_depleted"],
+        &[
+            "penalty",
+            "sustainable_most",
+            "low_kept",
+            "high_kept",
+            "low_depleted",
+            "high_depleted",
+        ],
         commons,
     ));
 }
@@ -71,8 +90,14 @@ fn coalition(
 /// competitors are paid by whether it held.
 fn cartel(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
     let holds_at = declared.whole("holds_at")?;
-    let (colluding_held, colluding_broken) = (declared.number("colluding_held")?, declared.number("colluding_broken")?);
-    let (competing_held, competing_broken) = (declared.number("competing_held")?, declared.number("competing_broken")?);
+    let (colluding_held, colluding_broken) = (
+        declared.number("colluding_held")?,
+        declared.number("colluding_broken")?,
+    );
+    let (competing_held, competing_broken) = (
+        declared.number("competing_held")?,
+        declared.number("competing_broken")?,
+    );
     let payoff = Arc::new(move |moves: &[String]| -> Result<Vec<f64>> {
         let held = count(moves, "collude") as u64 >= holds_at;
         Ok(moves
@@ -91,7 +116,11 @@ fn cartel(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
 /// Supporters split `pool`; a betrayer takes `betrayal`; with no supporter
 /// every seat gets `unsupported`.
 fn alliance(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
-    let (pool, betrayal, unsupported) = (declared.number("pool")?, declared.number("betrayal")?, declared.number("unsupported")?);
+    let (pool, betrayal, unsupported) = (
+        declared.number("pool")?,
+        declared.number("betrayal")?,
+        declared.number("unsupported")?,
+    );
     let payoff = Arc::new(move |moves: &[String]| -> Result<Vec<f64>> {
         let supporters = count(moves, "support");
         if !moves.iter().any(|played| played == "support") {
@@ -99,7 +128,13 @@ fn alliance(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
         }
         Ok(moves
             .iter()
-            .map(|played| if played == "support" { pool / supporters as f64 } else { betrayal })
+            .map(|played| {
+                if played == "support" {
+                    pool / supporters as f64
+                } else {
+                    betrayal
+                }
+            })
             .collect())
     });
     coalition(declared, ("Alliance Formation", "Form non-binding alliances. Supporters split a shared pool; betrayers take a fixed gain. Cheap-talk: no enforcement."), moves(&["support", "betray"]), players, Enforcement::CheapTalk, payoff)
@@ -111,8 +146,15 @@ fn voting(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
     let (winner, loser) = (declared.number("winner")?, declared.number("loser")?);
     let payoff = Arc::new(move |moves: &[String]| -> Result<Vec<f64>> {
         let for_a = count(moves, "vote_A");
-        let won = if for_a >= moves.len() - for_a { "vote_A" } else { "vote_B" };
-        Ok(moves.iter().map(|played| if played == won { winner } else { loser }).collect())
+        let won = if for_a >= moves.len() - for_a {
+            "vote_A"
+        } else {
+            "vote_B"
+        };
+        Ok(moves
+            .iter()
+            .map(|played| if played == won { winner } else { loser })
+            .collect())
     });
     coalition(declared, ("Coalition Voting", "Form voting blocs bound to vote together. Majority earns a winner payoff. Binding enforcement overrides defectors to their agreed vote."), moves(&["vote_A", "vote_B"]), players, Enforcement::Binding, payoff)
 }
@@ -121,8 +163,14 @@ fn voting(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
 /// strict majority votes against gets `excluded` and the others split
 /// `bonus_pool`; otherwise every seat gets `kept`.
 fn ostracism(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
-    let (pool, excluded_paid, kept) = (declared.number("bonus_pool")?, declared.number("excluded")?, declared.number("kept")?);
-    let mut actions: Vec<String> = (crate::game::NOTHING..players as u64).map(|seat| format!("exclude_{seat}")).collect();
+    let (pool, excluded_paid, kept) = (
+        declared.number("bonus_pool")?,
+        declared.number("excluded")?,
+        declared.number("kept")?,
+    );
+    let mut actions: Vec<String> = (crate::game::NOTHING..players as u64)
+        .map(|seat| format!("exclude_{seat}"))
+        .collect();
     actions.push("exclude_none".to_owned());
     let payoff = Arc::new(move |moves: &[String]| -> Result<Vec<f64>> {
         let targets: BTreeSet<&String> = moves.iter().collect();
@@ -142,7 +190,13 @@ fn ostracism(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
         let everyone = crate::game::NOTHING..seats as u64;
         let remaining = everyone.clone().filter(|seat| *seat != ousted).count() as f64;
         Ok(everyone
-            .map(|seat| if seat == ousted { excluded_paid } else { pool / remaining })
+            .map(|seat| {
+                if seat == ousted {
+                    excluded_paid
+                } else {
+                    pool / remaining
+                }
+            })
             .collect())
     });
     coalition(declared, ("Ostracism", "Vote to exclude a player. Excluded gets zero; others split a bonus. Penalty enforcement fines defectors who break exclusion agreements."), actions, players, Enforcement::Penalty, payoff)
@@ -152,10 +206,15 @@ fn ostracism(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
 /// `diverse`, and producers of the scarcer resource add `minority_bonus`;
 /// when one resource is all that is produced every seat gets `uniform`.
 fn trading(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
-    let (diverse, uniform, bonus) = (declared.number("diverse")?, declared.number("uniform")?, declared.number("minority_bonus")?);
+    let (diverse, uniform, bonus) = (
+        declared.number("diverse")?,
+        declared.number("uniform")?,
+        declared.number("minority_bonus")?,
+    );
     let payoff = Arc::new(move |moves: &[String]| -> Result<Vec<f64>> {
         let (a, b) = (count(moves, "produce_A"), count(moves, "produce_B"));
-        let both = moves.iter().any(|played| played == "produce_A") && moves.iter().any(|played| played == "produce_B");
+        let both = moves.iter().any(|played| played == "produce_A")
+            && moves.iter().any(|played| played == "produce_B");
         if !both {
             return Ok(moves.iter().map(|_| uniform).collect());
         }
@@ -163,7 +222,11 @@ fn trading(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
             .iter()
             .map(|played| {
                 let scarce = (played == "produce_A" && a < b) || (played == "produce_B" && b < a);
-                if scarce { diverse + bonus } else { diverse }
+                if scarce {
+                    diverse + bonus
+                } else {
+                    diverse
+                }
             })
             .collect())
     });
@@ -176,12 +239,19 @@ fn trading(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
 /// equal split every seat gets `equal`; under winner-take-all its voters get
 /// `winner_high` and the others `winner_low`.
 fn rule_voting(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
-    let (equal, high, low) = (declared.number("equal")?, declared.number("winner_high")?, declared.number("winner_low")?);
+    let (equal, high, low) = (
+        declared.number("equal")?,
+        declared.number("winner_high")?,
+        declared.number("winner_low")?,
+    );
     let payoff = Arc::new(move |moves: &[String]| -> Result<Vec<f64>> {
         if count(moves, "rule_winner") <= count(moves, "rule_equal") {
             return Ok(moves.iter().map(|_| equal).collect());
         }
-        Ok(moves.iter().map(|played| if played == "rule_winner" { high } else { low }).collect())
+        Ok(moves
+            .iter()
+            .map(|played| if played == "rule_winner" { high } else { low })
+            .collect())
     });
     coalition(declared, ("Rule Voting", "Vote on payoff rule: equal split or winner-take-all. Binding enforcement locks coalition members to their agreed vote."), moves(&["rule_equal", "rule_winner"]), players, Enforcement::Binding, payoff)
 }
@@ -191,7 +261,10 @@ fn rule_voting(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
 fn commons(declared: &Declared<'_>, players: usize) -> Result<GroupGame> {
     let most = declared.whole("sustainable_most")?;
     let (low_kept, high_kept) = (declared.number("low_kept")?, declared.number("high_kept")?);
-    let (low_depleted, high_depleted) = (declared.number("low_depleted")?, declared.number("high_depleted")?);
+    let (low_depleted, high_depleted) = (
+        declared.number("low_depleted")?,
+        declared.number("high_depleted")?,
+    );
     let payoff = Arc::new(move |moves: &[String]| -> Result<Vec<f64>> {
         let held = count(moves, "extract_high") as u64 <= most;
         Ok(moves

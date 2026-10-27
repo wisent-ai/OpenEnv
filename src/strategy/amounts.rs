@@ -13,7 +13,9 @@ use super::{listed, Strategy, View};
 fn answering<'a>(strategy: &str, view: &View<'a>) -> Result<&'a str> {
     view.answering.ok_or_else(|| Error::Unsupported {
         game: view.game.key.clone(),
-        reason: format!("{strategy} answers the agent's move, and this game does not show it to the opponent"),
+        reason: format!(
+            "{strategy} answers the agent's move, and this game does not show it to the opponent"
+        ),
     })
 }
 

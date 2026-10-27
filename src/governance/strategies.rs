@@ -46,7 +46,12 @@ impl GovernanceStrategy {
         Vec::new()
     }
 
-    pub fn vote(&self, seat: usize, pending: &[GovernanceProposal], rng: &mut dyn RngCore) -> Vec<GovernanceVote> {
+    pub fn vote(
+        &self,
+        seat: usize,
+        pending: &[GovernanceProposal],
+        rng: &mut dyn RngCore,
+    ) -> Vec<GovernanceVote> {
         let decide = |rng: &mut dyn RngCore| match self {
             Self::Passive => None,
             Self::Random => Some(rng.gen::<bool>()),

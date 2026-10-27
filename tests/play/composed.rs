@@ -66,8 +66,15 @@ fn only_round(played: &Value) -> Value {
 fn an_exit_named_in_the_key_pays_its_declared_payoff() {
     let settings = settings_file("composed-exit");
     let round = only_round(&answer(&kant(&[
-        "play", "--settings", &settings, "--game", "exit_prisoners_dilemma", "--strategy", "always_defect",
-        "--move", "exit",
+        "play",
+        "--settings",
+        &settings,
+        "--game",
+        "exit_prisoners_dilemma",
+        "--strategy",
+        "always_defect",
+        "--move",
+        "exit",
     ])));
     let exit = declared()["variants"]["exit"]["payoff"].as_f64();
     assert_eq!(round["player_payoff"].as_f64(), exit);
@@ -78,24 +85,59 @@ fn an_exit_named_in_the_key_pays_its_declared_payoff() {
 fn a_symmetric_custom_game_pays_each_seat_its_own_row() {
     let settings = settings_file("composed-custom");
     let round = only_round(&answer(&kant(&[
-        "play", "--settings", &settings, "--game", "meeting", "--strategy", "always_defect", "--move", "north",
+        "play",
+        "--settings",
+        &settings,
+        "--game",
+        "meeting",
+        "--strategy",
+        "always_defect",
+        "--move",
+        "north",
     ])));
     let table = &declared()["custom_games"]["meeting"]["symmetric"];
-    assert_eq!(round["opponent_action"], "south", "always_defect plays the second move");
-    assert_eq!(round["player_payoff"].as_f64(), table["north"]["south"].as_f64());
-    assert_eq!(round["opponent_payoff"].as_f64(), table["south"]["north"].as_f64());
+    assert_eq!(
+        round["opponent_action"], "south",
+        "always_defect plays the second move"
+    );
+    assert_eq!(
+        round["player_payoff"].as_f64(),
+        table["north"]["south"].as_f64()
+    );
+    assert_eq!(
+        round["opponent_payoff"].as_f64(),
+        table["south"]["north"].as_f64()
+    );
 }
 
 #[test]
 fn a_custom_game_named_like_a_library_game_and_an_undeclared_variant_are_refused() {
     let settings = settings_file("composed-refusals");
     let clash = refusal(&kant(&[
-        "play", "--settings", &settings, "--game", "stag_hunt", "--strategy", "grudger", "--move", "stag",
+        "play",
+        "--settings",
+        &settings,
+        "--game",
+        "stag_hunt",
+        "--strategy",
+        "grudger",
+        "--move",
+        "stag",
     ]));
     assert!(clash.contains("custom_games declares it too"), "{clash}");
     let noisy = refusal(&kant(&[
-        "play", "--settings", &settings, "--game", "noisy_payoffs_prisoners_dilemma", "--strategy", "grudger",
-        "--move", "cooperate",
+        "play",
+        "--settings",
+        &settings,
+        "--game",
+        "noisy_payoffs_prisoners_dilemma",
+        "--strategy",
+        "grudger",
+        "--move",
+        "cooperate",
     ]));
-    assert!(noisy.contains("variants declares no noisy_payoffs"), "{noisy}");
+    assert!(
+        noisy.contains("variants declares no noisy_payoffs"),
+        "{noisy}"
+    );
 }

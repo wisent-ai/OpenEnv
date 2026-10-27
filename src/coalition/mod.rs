@@ -10,4 +10,7 @@ mod payoffs;
 pub mod strategies;
 
 pub use episode::{CoalitionEnvironment, CoalitionReset};
-pub use models::{ActiveCoalition, CoalitionAction, CoalitionObservation, CoalitionProposal, CoalitionResponse, CoalitionRound, Phase};
+pub use models::{
+    ActiveCoalition, CoalitionAction, CoalitionObservation, CoalitionProposal, CoalitionResponse,
+    CoalitionRound, Phase,
+};

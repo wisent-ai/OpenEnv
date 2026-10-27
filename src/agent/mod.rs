@@ -61,7 +61,9 @@ impl ModelAgent {
                 top_p: optional_number("top_p")?,
                 max_tokens,
             },
-            history_rounds: declared.whole("history_rounds").map(|rounds| rounds as usize)?,
+            history_rounds: declared
+                .whole("history_rounds")
+                .map(|rounds| rounds as usize)?,
             transcript: Vec::new(),
         })
     }
@@ -78,21 +80,36 @@ impl ModelAgent {
 impl Agent for ModelAgent {
     fn act(&mut self, observation: &GameObservation) -> Result<GameAction> {
         let asked = prompt::build(observation, self.history_rounds);
-        let answer = self.brama.chat(&self.route, prompt::SYSTEM, &asked, &self.sampling)?;
-        self.transcript.push(Exchange { prompt: asked, answer: answer.clone() });
+        let answer = self
+            .brama
+            .chat(&self.route, prompt::SYSTEM, &asked, &self.sampling)?;
+        self.transcript.push(Exchange {
+            prompt: asked,
+            answer: answer.clone(),
+        });
         match prompt::phase(observation) {
             Phase::Message => {
                 // The message step reads only the message; its action is the
                 // first listed move, which the environment does not play.
-                let first = observation.available_actions.first().ok_or_else(|| Error::NoMoves {
-                    strategy: self.route.clone(),
-                    game: observation.game_name.clone(),
-                })?;
+                let first =
+                    observation
+                        .available_actions
+                        .first()
+                        .ok_or_else(|| Error::NoMoves {
+                            strategy: self.route.clone(),
+                            game: observation.game_name.clone(),
+                        })?;
                 let mut action = GameAction::new(first);
-                action.metadata.insert("message".to_owned(), Value::String(answer.trim().to_owned()));
+                action.metadata.insert(
+                    "message".to_owned(),
+                    Value::String(answer.trim().to_owned()),
+                );
                 Ok(action)
             }
-            Phase::Action | Phase::Plain => Ok(GameAction::new(&prompt::parse(&answer, &observation.available_actions)?)),
+            Phase::Action | Phase::Plain => Ok(GameAction::new(&prompt::parse(
+                &answer,
+                &observation.available_actions,
+            )?)),
         }
     }
 }
@@ -130,6 +147,8 @@ impl Agent for StrategyAgent {
             history: &history,
             answering: None,
         };
-        Ok(GameAction::new(&self.strategy.choose(&view, &mut self.rng)?))
+        Ok(GameAction::new(
+            &self.strategy.choose(&view, &mut self.rng)?,
+        ))
     }
 }

@@ -55,7 +55,12 @@ pub struct Session {
 
 impl Session {
     pub fn new(pairs: Arc<Library>, groups: Arc<GroupLibrary>, settings: Arc<Settings>) -> Self {
-        Self { pairs, groups, settings, running: Running::Idle }
+        Self {
+            pairs,
+            groups,
+            settings,
+            running: Running::Idle,
+        }
     }
 
     pub fn reset(&mut self, request: &ResetRequest) -> Result<StepResult> {
@@ -65,11 +70,20 @@ impl Session {
         };
         if self.groups.entries().any(|entry| entry.key == request.game) {
             let players = self.groups.build(&key, &self.settings)?.players;
-            let seats = Seat::strategies(&[request.strategy.clone()], players.saturating_sub(AGENT_SEATS))?;
-            let mut environment = GroupEnvironment::new(self.groups.clone(), self.settings.clone())?;
-            let observation = environment.reset(&key, seats, request.num_rounds, request.episode_id.clone())?;
+            let seats = Seat::strategies(
+                &[request.strategy.clone()],
+                players.saturating_sub(AGENT_SEATS),
+            )?;
+            let mut environment =
+                GroupEnvironment::new(self.groups.clone(), self.settings.clone())?;
+            let observation =
+                environment.reset(&key, seats, request.num_rounds, request.episode_id.clone())?;
             self.running = Running::Group(environment);
-            return Ok(StepResult { reward: None, done: observation.done, observation: space::group(&observation)? });
+            return Ok(StepResult {
+                reward: None,
+                done: observation.done,
+                observation: space::group(&observation)?,
+            });
         }
         let mut environment = Environment::new(self.pairs.clone(), self.settings.clone())?;
         let observation = environment.reset(
@@ -82,23 +96,37 @@ impl Session {
             None,
         )?;
         self.running = Running::Pair(environment);
-        Ok(StepResult { reward: None, done: observation.done, observation: space::pair(&observation) })
+        Ok(StepResult {
+            reward: None,
+            done: observation.done,
+            observation: space::pair(&observation),
+        })
     }
 
     pub fn step(&mut self, action: &KantBenchAction) -> Result<StepResult> {
         let mut played = GameAction::new(&action.played);
         if let Some(message) = &action.message {
-            played.metadata.insert("message".to_owned(), Value::String(message.clone()));
+            played
+                .metadata
+                .insert("message".to_owned(), Value::String(message.clone()));
         }
         match &mut self.running {
             Running::Idle => Err(Error::NotStarted),
             Running::Pair(environment) => {
                 let observation = environment.step(&played)?;
-                Ok(StepResult { reward: Some(observation.reward), done: observation.done, observation: space::pair(&observation) })
+                Ok(StepResult {
+                    reward: Some(observation.reward),
+                    done: observation.done,
+                    observation: space::pair(&observation),
+                })
             }
             Running::Group(environment) => {
                 let observation = environment.step(&played)?;
-                Ok(StepResult { reward: Some(observation.reward), done: observation.done, observation: space::group(&observation)? })
+                Ok(StepResult {
+                    reward: Some(observation.reward),
+                    done: observation.done,
+                    observation: space::group(&observation)?,
+                })
             }
         }
     }

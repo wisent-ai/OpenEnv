@@ -33,12 +33,19 @@ pub(super) fn tag(prefix: &str, tags: &[String], base: &[String]) -> Tagged {
     Tagged { moves, parts }
 }
 
-fn split(game: &str, parts: &BTreeMap<String, (String, String)>, action: &str) -> Result<(String, String)> {
-    parts.get(action).cloned().ok_or_else(|| Error::InvalidAction {
-        game: game.to_owned(),
-        action: action.to_owned(),
-        allowed: parts.keys().cloned().collect::<Vec<_>>().join(", "),
-    })
+fn split(
+    game: &str,
+    parts: &BTreeMap<String, (String, String)>,
+    action: &str,
+) -> Result<(String, String)> {
+    parts
+        .get(action)
+        .cloned()
+        .ok_or_else(|| Error::InvalidAction {
+            game: game.to_owned(),
+            action: action.to_owned(),
+            allowed: parts.keys().cloned().collect::<Vec<_>>().join(", "),
+        })
 }
 
 /// How a round of tagged moves pays, given both tags and the base payoffs.
@@ -53,16 +60,26 @@ pub(super) enum Settle {
 }
 
 /// `base` with every move tagged by `prefix` and `tags` on both seats.
-pub(super) fn compose(base: Game, variant: &str, prefix: &str, tags: &[String], settle: Settle) -> Result<Game> {
+pub(super) fn compose(
+    base: Game,
+    variant: &str,
+    prefix: &str,
+    tags: &[String],
+    settle: Settle,
+) -> Result<Game> {
     let agent = tag(prefix, tags, &base.actions);
     let opponent = match &base.opponent_actions {
         OpponentMoves::Shared => None,
         OpponentMoves::Own(moves) => Some(tag(prefix, tags, moves)),
     };
-    let cooperative = base.actions.first().cloned().ok_or_else(|| Error::Unsupported {
-        game: base.key.clone(),
-        reason: format!("{variant} needs a game with moves"),
-    })?;
+    let cooperative = base
+        .actions
+        .first()
+        .cloned()
+        .ok_or_else(|| Error::Unsupported {
+            game: base.key.clone(),
+            reason: format!("{variant} needs a game with moves"),
+        })?;
     let name = base.key.clone();
     let agent_parts = agent.parts.clone();
     let opponent_parts = match &opponent {
@@ -86,7 +103,8 @@ pub(super) fn compose(base: Game, variant: &str, prefix: &str, tags: &[String], 
             Settle::Constitution(rules) => {
                 let mut adopted = adopted.lock().map_err(|_| Error::Unsupported {
                     game: name.clone(),
-                    reason: "its adopted rule was left broken by a panic in an earlier round".to_owned(),
+                    reason: "its adopted rule was left broken by a panic in an earlier round"
+                        .to_owned(),
                 })?;
                 if adopted.is_none() && said == heard && said != "none" {
                     *adopted = rules.get(&said).copied();
@@ -123,20 +141,28 @@ pub(super) fn proposer_responder(base: Game, rules: BTreeMap<String, Rule>) -> R
         opponent_moves.push(accept);
         opponent_moves.push(reject);
     }
-    let cooperative = base.actions.first().cloned().ok_or_else(|| Error::Unsupported {
-        game: base.key.clone(),
-        reason: "proposer_responder needs a game with moves".to_owned(),
-    })?;
+    let cooperative = base
+        .actions
+        .first()
+        .cloned()
+        .ok_or_else(|| Error::Unsupported {
+            game: base.key.clone(),
+            reason: "proposer_responder needs a game with moves".to_owned(),
+        })?;
     let name = base.key.clone();
     let parts = agent.parts.clone();
     let inner = base.payoff.clone();
     let payoff = Arc::new(move |player: &str, opponent: &str, rng: &mut dyn RngCore| {
         let (proposed, mine) = split(&name, &parts, player)?;
-        let (accepted, theirs) = answers.get(opponent).cloned().ok_or_else(|| Error::InvalidAction {
-            game: name.clone(),
-            action: opponent.to_owned(),
-            allowed: answers.keys().cloned().collect::<Vec<_>>().join(", "),
-        })?;
+        let (accepted, theirs) =
+            answers
+                .get(opponent)
+                .cloned()
+                .ok_or_else(|| Error::InvalidAction {
+                    game: name.clone(),
+                    action: opponent.to_owned(),
+                    allowed: answers.keys().cloned().collect::<Vec<_>>().join(", "),
+                })?;
         let paid = inner(&mine, &theirs, rng)?;
         Ok(match (accepted, rules.get(&proposed)) {
             (true, Some(rule)) => rule.apply(paid, (&mine, &theirs), &cooperative),

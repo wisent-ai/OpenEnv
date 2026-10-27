@@ -41,10 +41,11 @@ pub enum Enforcement {
 }
 
 impl Enforcement {
+    /// The enforcement `name` declares; serde's refusal lists the declared
+    /// names, so the list is written once, on the enum.
     pub fn named(name: &str) -> Result<Self> {
-        serde_json::from_value(Value::String(name.to_owned())).map_err(|_| {
-            Error::Usage(format!("enforcement {name} is not one of cheap_talk, penalty, binding"))
-        })
+        serde_json::from_value(Value::String(name.to_owned()))
+            .map_err(|error| Error::Usage(format!("enforcement {name}: {error}")))
     }
 }
 
@@ -67,7 +68,14 @@ pub struct GroupGame {
 }
 
 impl GroupGame {
-    pub fn new(name: &str, description: &str, kind: &str, actions: Vec<String>, players: usize, payoff: GroupPayoff) -> Self {
+    pub fn new(
+        name: &str,
+        description: &str,
+        kind: &str,
+        actions: Vec<String>,
+        players: usize,
+        payoff: GroupPayoff,
+    ) -> Self {
         Self {
             key: String::new(),
             name: name.to_owned(),

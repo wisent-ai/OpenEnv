@@ -12,11 +12,22 @@ use crate::settings::Declared;
 use crate::game::{amount, amounts, Entry, Game, Library};
 
 pub(super) fn register(library: &mut Library) {
-    library.add(Entry::new("dictator", "sequential", &["endowment"], dictator));
+    library.add(Entry::new(
+        "dictator",
+        "sequential",
+        &["endowment"],
+        dictator,
+    ));
     library.add(Entry::new(
         "centipede",
         "sequential",
-        &["initial_pot", "growth", "stages", "large_share", "small_share"],
+        &[
+            "initial_pot",
+            "growth",
+            "stages",
+            "large_share",
+            "small_share",
+        ],
         centipede,
     ));
     library.add(Entry::new(

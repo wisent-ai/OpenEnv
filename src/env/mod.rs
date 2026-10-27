@@ -87,7 +87,11 @@ impl Environment {
 
     /// Start an episode. `agent` holds the opponent's seat when given;
     /// otherwise `request.strategy` names the library strategy that does.
-    pub fn reset(&mut self, request: &Reset, agent: Option<Box<dyn Agent>>) -> Result<GameObservation> {
+    pub fn reset(
+        &mut self,
+        request: &Reset,
+        agent: Option<Box<dyn Agent>>,
+    ) -> Result<GameObservation> {
         let game = self.library.build(&request.game, &self.settings)?;
         let opponent = match (agent, &request.strategy) {
             (Some(agent), _) => Opponent::Agent(agent),
@@ -135,8 +139,15 @@ impl Environment {
             return free_chat::step(episode, action, &mut self.rng);
         }
         episode.check_move(&action.action)?;
-        let (opponent_action, opponent_message) = episode.opponent_move(&action.action, None, &mut self.rng)?;
-        let result = episode.settle(&action.action, &opponent_action, action.message(), opponent_message, &mut self.rng)?;
+        let (opponent_action, opponent_message) =
+            episode.opponent_move(&action.action, None, &mut self.rng)?;
+        let result = episode.settle(
+            &action.action,
+            &opponent_action,
+            action.message(),
+            opponent_message,
+            &mut self.rng,
+        )?;
         Ok(episode.after_round(result))
     }
 

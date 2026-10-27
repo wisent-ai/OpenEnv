@@ -17,7 +17,10 @@ pub fn run(words: &Words) -> Result<Value> {
     let listen = words.required("listen")?;
     let sessions = settings.section("server")?.count("sessions")?;
     let scorer = match words.one("states")? {
-        Some(path) => Some(Scorer::new(settings.clone(), training::read_states(Path::new(path))?)?),
+        Some(path) => Some(Scorer::new(
+            settings.clone(),
+            training::read_states(Path::new(path))?,
+        )?),
         None => None,
     };
     crate::server::serve(listen, settings, sessions, scorer)?;

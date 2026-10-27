@@ -56,24 +56,33 @@ pub(super) struct TournamentRequest {
 
 /// A tournament on request; it runs off the request threads, since a model
 /// seat waits on Brama.
-pub(super) async fn tournament(State(shared): State<Shared>, Json(request): Json<TournamentRequest>) -> Response {
+pub(super) async fn tournament(
+    State(shared): State<Shared>,
+    Json(request): Json<TournamentRequest>,
+) -> Response {
     let agent = match (request.agent_route, request.agent_strategy) {
         (Some(route), None) => SeatSpec::Model(route),
         (None, Some(name)) => SeatSpec::Strategy(name),
         _ => {
-            let error = Error::Usage("name the agent's seat with exactly one of agent_route or agent_strategy".to_owned());
+            let error = Error::Usage(
+                "name the agent's seat with exactly one of agent_route or agent_strategy"
+                    .to_owned(),
+            );
             return refused(StatusCode::BAD_REQUEST, &error);
         }
     };
     let settings = shared.settings.clone();
     let ran = tokio::task::spawn_blocking(move || {
-        Runner::new(settings, agent, request.opponent_route)?.run(&request.games, &request.strategies)
+        Runner::new(settings, agent, request.opponent_route)?
+            .run(&request.games, &request.strategies)
     })
     .await;
     match ran {
         Ok(Ok(result)) => Json(result).into_response(),
         Ok(Err(error)) => refused(StatusCode::BAD_REQUEST, &error),
-        Err(join) => refused(StatusCode::INTERNAL_SERVER_ERROR, &Error::Usage(format!("the tournament stopped: {join}"))),
+        Err(join) => refused(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            &Error::Usage(format!("the tournament stopped: {join}")),
+        ),
     }
 }
-

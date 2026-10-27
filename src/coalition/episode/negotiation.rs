@@ -5,7 +5,9 @@
 use crate::error::{Error, Result};
 use crate::group::{AGENT_SEAT, AGENT_SEATS};
 
-use super::super::models::{ActiveCoalition, CoalitionAction, CoalitionObservation, CoalitionProposal, Phase};
+use super::super::models::{
+    ActiveCoalition, CoalitionAction, CoalitionObservation, CoalitionProposal, Phase,
+};
 use super::CoalitionEnvironment;
 
 impl CoalitionEnvironment {
@@ -21,7 +23,8 @@ impl CoalitionEnvironment {
         }
         let mut formed = Vec::new();
         for (index, proposal) in self.pending.iter().enumerate() {
-            let asks_agent = proposal.members.contains(&AGENT_SEAT) && proposal.proposer != AGENT_SEAT;
+            let asks_agent =
+                proposal.members.contains(&AGENT_SEAT) && proposal.proposer != AGENT_SEAT;
             let agent_accepted = action
                 .responses
                 .iter()
@@ -121,11 +124,15 @@ impl CoalitionEnvironment {
 
     fn check_seat(&self, seat: usize) -> Result<()> {
         if self.phase != Phase::Negotiate {
-            return Err(Error::Usage("seats are added and removed only while negotiating".to_owned()));
+            return Err(Error::Usage(
+                "seats are added and removed only while negotiating".to_owned(),
+            ));
         }
         let players = self.game.as_ref().ok_or(Error::NotStarted)?.players;
         if seat >= players {
-            return Err(Error::Usage(format!("seat {seat} is not one of the {players} seats")));
+            return Err(Error::Usage(format!(
+                "seat {seat} is not one of the {players} seats"
+            )));
         }
         Ok(())
     }

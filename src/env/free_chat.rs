@@ -12,7 +12,11 @@ use crate::error::Result;
 use super::episode::{Chat, Episode, Phase};
 use super::models::{round_after, GameAction, GameObservation};
 
-pub(super) fn step(episode: &mut Episode, action: &GameAction, rng: &mut dyn RngCore) -> Result<GameObservation> {
+pub(super) fn step(
+    episode: &mut Episode,
+    action: &GameAction,
+    rng: &mut dyn RngCore,
+) -> Result<GameObservation> {
     match episode.phase {
         Phase::Message => {
             episode.pending_player = action.message();
@@ -35,7 +39,13 @@ pub(super) fn step(episode: &mut Episode, action: &GameAction, rng: &mut dyn Rng
             episode.phase = Phase::Message;
             let player_message = std::mem::take(&mut episode.pending_player);
             let opponent_message = std::mem::take(&mut episode.pending_opponent);
-            let result = episode.settle(&action.action, &opponent_action, player_message, opponent_message, rng)?;
+            let result = episode.settle(
+                &action.action,
+                &opponent_action,
+                player_message,
+                opponent_message,
+                rng,
+            )?;
             Ok(episode.after_round(result))
         }
     }
@@ -46,9 +56,18 @@ pub(super) fn step(episode: &mut Episode, action: &GameAction, rng: &mut dyn Rng
 fn messages_revealed(episode: &Episode) -> GameObservation {
     let mut metadata = Map::new();
     metadata.insert("free_chat".to_owned(), Value::Bool(true));
-    metadata.insert("phase".to_owned(), Value::String(Phase::Action.name().to_owned()));
-    metadata.insert("last_opp_message".to_owned(), Value::String(episode.pending_opponent.clone()));
-    metadata.insert("last_player_message".to_owned(), Value::String(episode.pending_player.clone()));
+    metadata.insert(
+        "phase".to_owned(),
+        Value::String(Phase::Action.name().to_owned()),
+    );
+    metadata.insert(
+        "last_opp_message".to_owned(),
+        Value::String(episode.pending_opponent.clone()),
+    );
+    metadata.insert(
+        "last_player_message".to_owned(),
+        Value::String(episode.pending_player.clone()),
+    );
     let mut observation = episode.observation(Default::default(), None);
     observation.current_round = round_after(episode.state.current_round);
     observation.metadata = metadata;

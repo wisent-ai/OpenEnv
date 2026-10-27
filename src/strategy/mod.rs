@@ -109,13 +109,21 @@ pub fn named(name: &str, settings: &Settings) -> Result<Box<dyn Strategy>> {
         "trust_fair" | "trust_generous" => {
             let declared = declared()?;
             Box::new(amounts::Trust {
-                name: if name == "trust_fair" { "trust_fair" } else { "trust_generous" },
+                name: if name == "trust_fair" {
+                    "trust_fair"
+                } else {
+                    "trust_generous"
+                },
                 invest: declared.whole("invest")?,
                 return_share: declared.number("return_share")?,
             })
         }
         "public_goods_fair" | "public_goods_free_rider" => Box::new(amounts::Contribute {
-            name: if name == "public_goods_fair" { "public_goods_fair" } else { "public_goods_free_rider" },
+            name: if name == "public_goods_fair" {
+                "public_goods_fair"
+            } else {
+                "public_goods_free_rider"
+            },
             amount: declared()?.whole("contribute")?,
         }),
         _ => {

@@ -39,7 +39,9 @@ impl Rule {
                 return Err(Error::Malformed {
                     scope: declared.scope().to_owned(),
                     name: other.to_owned(),
-                    expected: "one of none, equalsplit, coopbonus, defectpenalty, minguarantee, bandefect".to_owned(),
+                    expected:
+                        "one of none, equalsplit, coopbonus, defectpenalty, minguarantee, bandefect"
+                            .to_owned(),
                     found: other.to_owned(),
                 })
             }
@@ -74,9 +76,10 @@ impl Rule {
                 };
                 (earned(mine, player), earned(theirs, opponent))
             }
-            Rule::DefectionPenalty(penalty) | Rule::DefectionBan(penalty) => {
-                (charged(mine, player, penalty), charged(theirs, opponent, penalty))
-            }
+            Rule::DefectionPenalty(penalty) | Rule::DefectionBan(penalty) => (
+                charged(mine, player, penalty),
+                charged(theirs, opponent, penalty),
+            ),
             Rule::MinimumGuarantee(floor) => (mine.max(floor), theirs.max(floor)),
         }
     }

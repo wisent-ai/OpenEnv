@@ -59,7 +59,12 @@ fn serve(name: &str) -> (Served, String) {
     BufReader::new(child.stderr.take().expect("stderr"))
         .read_line(&mut announced)
         .expect("the bound address is announced");
-    let address = announced.rsplit("http://").next().expect("address").trim().to_owned();
+    let address = announced
+        .rsplit("http://")
+        .next()
+        .expect("address")
+        .trim()
+        .to_owned();
     (Served(child), address)
 }
 
@@ -74,7 +79,9 @@ fn reply(socket: &mut Socket) -> Value {
 }
 
 fn exchange(socket: &mut Socket, message: Value) -> Value {
-    socket.send(Message::Text(message.to_string())).expect("message sent");
+    socket
+        .send(Message::Text(message.to_string()))
+        .expect("message sent");
     reply(socket)
 }
 
@@ -87,30 +94,63 @@ fn declared_cell(row: &str, column: &str) -> Value {
 fn a_websocket_session_plays_a_game_and_a_second_session_is_refused() {
     let (_served, address) = serve("server-session");
     let (mut socket, _) = connect(format!("ws://{address}/ws")).expect("the session opens");
-    let reset = exchange(&mut socket, json!({ "type": "reset", "data": { "game": "prisoners_dilemma", "strategy": "tit_for_tat" } }));
+    let reset = exchange(
+        &mut socket,
+        json!({ "type": "reset", "data": { "game": "prisoners_dilemma", "strategy": "tit_for_tat" } }),
+    );
     assert_eq!(reset["type"], "observation", "{reset}");
-    assert_eq!(reset["data"]["observation"]["available_moves"], json!(["cooperate", "defect"]));
-    assert!(reset["data"]["observation"].get("your_payoff").is_none(), "no round has paid anything yet");
+    assert_eq!(
+        reset["data"]["observation"]["available_moves"],
+        json!(["cooperate", "defect"])
+    );
+    assert!(
+        reset["data"]["observation"].get("your_payoff").is_none(),
+        "no round has paid anything yet"
+    );
 
-    let first = exchange(&mut socket, json!({ "type": "step", "data": { "move": "defect" } }));
+    let first = exchange(
+        &mut socket,
+        json!({ "type": "step", "data": { "move": "defect" } }),
+    );
     let paid = declared_cell("defect", "cooperate");
     assert_eq!(first["data"]["observation"]["opponent_move"], "cooperate");
-    assert_eq!(first["data"]["reward"].as_f64(), paid.as_array().and_then(|pair| pair.first()).and_then(Value::as_f64));
+    assert_eq!(
+        first["data"]["reward"].as_f64(),
+        paid.as_array()
+            .and_then(|pair| pair.first())
+            .and_then(Value::as_f64)
+    );
     assert_eq!(first["data"]["done"], Value::Bool(false));
 
     let (mut second, _) = connect(format!("ws://{address}/ws")).expect("the second socket opens");
     let refused = reply(&mut second);
     assert_eq!(refused["data"]["code"], "CAPACITY_REACHED", "{refused}");
 
-    let invalid = exchange(&mut socket, json!({ "type": "step", "data": { "move": "betray" } }));
+    let invalid = exchange(
+        &mut socket,
+        json!({ "type": "step", "data": { "move": "betray" } }),
+    );
     assert_eq!(invalid["data"]["code"], "EXECUTION_ERROR");
-    assert!(invalid["data"]["message"].as_str().is_some_and(|said| said.contains("betray is not a move")), "{invalid}");
-
-    let last = exchange(&mut socket, json!({ "type": "step", "data": { "move": "cooperate" } }));
-    assert_eq!(last["data"]["done"], Value::Bool(true));
-    let undeclared = exchange(&mut socket, json!({ "type": "reset", "data": { "game": "stag_hunt", "strategy": "grudger" } }));
     assert!(
-        undeclared["data"]["message"].as_str().is_some_and(|said| said.contains("games declares no stag_hunt")),
+        invalid["data"]["message"]
+            .as_str()
+            .is_some_and(|said| said.contains("betray is not a move")),
+        "{invalid}"
+    );
+
+    let last = exchange(
+        &mut socket,
+        json!({ "type": "step", "data": { "move": "cooperate" } }),
+    );
+    assert_eq!(last["data"]["done"], Value::Bool(true));
+    let undeclared = exchange(
+        &mut socket,
+        json!({ "type": "reset", "data": { "game": "stag_hunt", "strategy": "grudger" } }),
+    );
+    assert!(
+        undeclared["data"]["message"]
+            .as_str()
+            .is_some_and(|said| said.contains("games declares no stag_hunt")),
         "{undeclared}"
     );
 }
@@ -118,9 +158,17 @@ fn a_websocket_session_plays_a_game_and_a_second_session_is_refused() {
 #[test]
 fn the_explorer_page_and_its_script_are_served() {
     let (_served, address) = serve("server-explorer");
-    for (path, expected) in [("/web", "KantBench explorer"), ("/explorer.js", "new WebSocket"), ("/games", "prisoners_dilemma")] {
+    for (path, expected) in [
+        ("/web", "KantBench explorer"),
+        ("/explorer.js", "new WebSocket"),
+        ("/games", "prisoners_dilemma"),
+    ] {
         let mut stream = TcpStream::connect(&address).expect("the server answers");
-        write!(stream, "GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n").expect("request");
+        write!(
+            stream,
+            "GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"
+        )
+        .expect("request");
         let mut answer = String::new();
         stream.read_to_string(&mut answer).expect("response");
         assert!(answer.contains(expected), "{path}: {answer}");

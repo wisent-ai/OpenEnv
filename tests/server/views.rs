@@ -57,7 +57,12 @@ fn serve(name: &str) -> (Served, String) {
     BufReader::new(child.stderr.take().expect("stderr"))
         .read_line(&mut announced)
         .expect("the bound address is announced");
-    let address = announced.rsplit("http://").next().expect("address").trim().to_owned();
+    let address = announced
+        .rsplit("http://")
+        .next()
+        .expect("address")
+        .trim()
+        .to_owned();
     (Served(child), address)
 }
 
@@ -76,7 +81,9 @@ fn http(address: &str, method: &str, path: &str, body: &str) -> Value {
 }
 
 fn numbers(value: &Value) -> Option<Vec<f64>> {
-    value.as_array().map(|pair| pair.iter().filter_map(Value::as_f64).collect())
+    value
+        .as_array()
+        .map(|pair| pair.iter().filter_map(Value::as_f64).collect())
 }
 
 #[test]
@@ -84,23 +91,42 @@ fn the_explorer_shows_declared_payoffs_and_runs_a_tournament() {
     let (_served, address) = serve("server-views");
     let settings: Value = serde_json::from_str(SETTINGS).expect("settings parse");
     let built = http(&address, "GET", "/game/prisoners_dilemma", "");
-    let rows: Vec<&str> = built["rows"].as_array().expect("rows").iter().filter_map(Value::as_str).collect();
-    let columns: Vec<&str> = built["columns"].as_array().expect("columns").iter().filter_map(Value::as_str).collect();
+    let rows: Vec<&str> = built["rows"]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .filter_map(Value::as_str)
+        .collect();
+    let columns: Vec<&str> = built["columns"]
+        .as_array()
+        .expect("columns")
+        .iter()
+        .filter_map(Value::as_str)
+        .collect();
     for (row_index, row) in rows.iter().enumerate() {
         for (column_index, column) in columns.iter().enumerate() {
             let declared = &settings["games"]["prisoners_dilemma"]["payoffs"][row][column];
-            assert_eq!(numbers(&built["cells"][row_index][column_index]), numbers(declared), "{row} against {column}");
+            assert_eq!(
+                numbers(&built["cells"][row_index][column_index]),
+                numbers(declared),
+                "{row} against {column}"
+            );
         }
     }
 
     let request = json!({ "games": ["prisoners_dilemma"], "strategies": ["always_defect", "tit_for_tat"], "agent_strategy": "grudger" });
     let result = http(&address, "POST", "/tournament", &request.to_string());
-    assert!(result["metrics"]["strategic_reasoning"].is_number(), "{result}");
+    assert!(
+        result["metrics"]["strategic_reasoning"].is_number(),
+        "{result}"
+    );
 
     let unnamed = json!({ "games": ["prisoners_dilemma"], "strategies": ["grudger"] });
     let refused = http(&address, "POST", "/tournament", &unnamed.to_string());
     assert!(
-        refused["detail"].as_str().is_some_and(|said| said.contains("exactly one of agent_route or agent_strategy")),
+        refused["detail"]
+            .as_str()
+            .is_some_and(|said| said.contains("exactly one of agent_route or agent_strategy")),
         "{refused}"
     );
 }

@@ -11,15 +11,24 @@ use crate::game::{amount, amounts, Entry, Game, Library, NOTHING};
 use crate::settings::Declared;
 
 pub(super) fn register(library: &mut Library) {
-    library.add(Entry::new("first_price_auction", "auction", &["value", "most", "increment"], |declared| {
-        auction(declared, Rule::FirstPrice)
-    }));
-    library.add(Entry::new("vickrey_auction", "auction", &["value", "most", "increment"], |declared| {
-        auction(declared, Rule::SecondPrice)
-    }));
-    library.add(Entry::new("allpay_auction", "auction", &["value", "most", "increment"], |declared| {
-        auction(declared, Rule::AllPay)
-    }));
+    library.add(Entry::new(
+        "first_price_auction",
+        "auction",
+        &["value", "most", "increment"],
+        |declared| auction(declared, Rule::FirstPrice),
+    ));
+    library.add(Entry::new(
+        "vickrey_auction",
+        "auction",
+        &["value", "most", "increment"],
+        |declared| auction(declared, Rule::SecondPrice),
+    ));
+    library.add(Entry::new(
+        "allpay_auction",
+        "auction",
+        &["value", "most", "increment"],
+        |declared| auction(declared, Rule::AllPay),
+    ));
     library.add(Entry::new(
         "tragedy_of_commons",
         "auction",
@@ -42,15 +51,16 @@ enum Rule {
 pub(crate) fn bids(declared: &Declared<'_>) -> Result<Vec<String>> {
     let most = declared.whole("most")?;
     let increment = declared.whole("increment")?;
-    let step = usize::try_from(increment)
-        .ok()
-        .and_then(std::num::NonZeroUsize::new)
-        .ok_or_else(|| Error::Malformed {
-            scope: declared.scope().to_owned(),
-            name: "increment".to_owned(),
-            expected: "a whole number above zero".to_owned(),
-            found: increment.to_string(),
-        })?;
+    let malformed = |found: String| Error::Malformed {
+        scope: declared.scope().to_owned(),
+        name: "increment".to_owned(),
+        expected: "a whole number above zero".to_owned(),
+        found,
+    };
+    let step = match usize::try_from(increment) {
+        Ok(width) => std::num::NonZeroUsize::new(width).ok_or_else(|| malformed(increment.to_string()))?,
+        Err(error) => return Err(malformed(format!("{increment} ({error})"))),
+    };
     Ok((NOTHING..=most)
         .step_by(step.get())
         .map(|bid| format!("bid_{bid}"))
@@ -84,7 +94,9 @@ fn auction(declared: &Declared<'_>, rule: Rule) -> Result<Game> {
         }
         Ok(match rule {
             Rule::AllPay => (value / tied - mine, value / tied - theirs),
-            Rule::FirstPrice | Rule::SecondPrice => ((value - mine) / tied, (value - theirs) / tied),
+            Rule::FirstPrice | Rule::SecondPrice => {
+                ((value - mine) / tied, (value - theirs) / tied)
+            }
         })
     });
     let (name, description) = match rule {
@@ -101,7 +113,13 @@ fn auction(declared: &Declared<'_>, rule: Rule) -> Result<Game> {
             "Two bidders submit sealed bids. Both pay their bids regardless of outcome, but only the highest bidder receives the item. Models contests, lobbying, and rent-seeking where effort is spent whether or not you win.",
         ),
     };
-    Ok(Game::new(name, description, "auction", bids(declared)?, payoff))
+    Ok(Game::new(
+        name,
+        description,
+        "auction",
+        bids(declared)?,
+        payoff,
+    ))
 }
 
 /// Each seat extracts from a shared pool; when the total passes `capacity` the

@@ -79,9 +79,9 @@ impl Seat {
             many if many.len() == others => many.iter().collect(),
             _ => {
                 return Err(Error::Usage(format!(
-                    "name one strategy for every other seat ({others}) or one for all of them, not {}",
-                    names.len()
-                )))
+                "name one strategy for every other seat ({others}) or one for all of them, not {}",
+                names.len()
+            )))
             }
         };
         names
@@ -131,7 +131,13 @@ impl GroupEnvironment {
     }
 
     /// Start an episode of `key` with `seats` holding seats one onwards.
-    pub fn reset(&mut self, key: &str, seats: Vec<Seat>, rounds: Option<usize>, episode_id: Option<String>) -> Result<GroupObservation> {
+    pub fn reset(
+        &mut self,
+        key: &str,
+        seats: Vec<Seat>,
+        rounds: Option<usize>,
+        episode_id: Option<String>,
+    ) -> Result<GroupObservation> {
         let game = self.library.build(key, &self.settings)?;
         let others = game.players.saturating_sub(AGENT_SEATS);
         if seats.len() != others {
@@ -169,11 +175,16 @@ impl GroupEnvironment {
             let number = index + AGENT_SEATS;
             let (played, said) = match seat {
                 Seat::Strategy(strategy) => {
-                    let view = GroupView { game: &game, seat: number, history: &history };
+                    let view = GroupView {
+                        game: &game,
+                        seat: number,
+                        history: &history,
+                    };
                     (strategy.choose(&view, &mut self.rng)?, String::new())
                 }
                 Seat::Agent(agent) => {
-                    let observation = Self::view(&game, &self.state, number, Default::default(), None);
+                    let observation =
+                        Self::view(&game, &self.state, number, Default::default(), None);
                     let answer = agent.act(&observation)?;
                     let message = answer.message();
                     (answer.action, message)
@@ -228,12 +239,23 @@ impl GroupEnvironment {
     }
 
     /// The episode as `seat` sees it.
-    pub fn observation(&self, seat: usize, reward: f64, last: Option<GroupRound>) -> Result<GroupObservation> {
+    pub fn observation(
+        &self,
+        seat: usize,
+        reward: f64,
+        last: Option<GroupRound>,
+    ) -> Result<GroupObservation> {
         let game = self.game.as_ref().ok_or(Error::NotStarted)?;
         Ok(Self::view(game, &self.state, seat, reward, last))
     }
 
-    fn view(game: &GroupGame, state: &GroupState, seat: usize, reward: f64, last: Option<GroupRound>) -> GroupObservation {
+    fn view(
+        game: &GroupGame,
+        state: &GroupState,
+        seat: usize,
+        reward: f64,
+        last: Option<GroupRound>,
+    ) -> GroupObservation {
         let mut metadata = Map::new();
         if game.has_variant("free_chat") {
             metadata.insert("free_chat".to_owned(), Value::Bool(true));
@@ -246,7 +268,10 @@ impl GroupEnvironment {
                 .filter(|(other, _)| *other != seat)
                 .map(|(_, said)| Value::String(said.clone()))
                 .collect();
-            if heard.iter().any(|said| said.as_str().is_some_and(|text| !text.is_empty())) {
+            if heard
+                .iter()
+                .any(|said| said.as_str().is_some_and(|text| !text.is_empty()))
+            {
                 metadata.insert("last_opp_messages".to_owned(), Value::Array(heard));
             }
             if let Some(own) = round.messages.get(seat).filter(|said| !said.is_empty()) {

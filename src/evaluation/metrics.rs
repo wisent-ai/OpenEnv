@@ -52,7 +52,11 @@ fn entries(games: &BTreeMap<String, GameResult>) -> impl Iterator<Item = &Oppone
 /// score lost nothing to exploitation.
 fn resistance(game: &GameResult) -> Option<f64> {
     let exploiter = game.opponents.get("always_defect")?;
-    let scores: Vec<f64> = game.opponents.values().map(|entry| entry.total_player_score).collect();
+    let scores: Vec<f64> = game
+        .opponents
+        .values()
+        .map(|entry| entry.total_player_score)
+        .collect();
     let best = scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let worst = scores.iter().copied().fold(f64::INFINITY, f64::min);
     if best == worst {
@@ -64,7 +68,11 @@ fn resistance(game: &GameResult) -> Option<f64> {
 /// Whether each opponent's episode reached the game's best joint score.
 fn pareto(game: &GameResult) -> Vec<f64> {
     let joint = |entry: &OpponentResult| entry.total_player_score + entry.total_opponent_score;
-    let best = game.opponents.values().map(joint).fold(f64::NEG_INFINITY, f64::max);
+    let best = game
+        .opponents
+        .values()
+        .map(joint)
+        .fold(f64::NEG_INFINITY, f64::max);
     game.opponents
         .values()
         .map(|entry| if joint(entry) >= best { WHOLE } else { NONE })
@@ -85,33 +93,69 @@ fn fairness(entry: &OpponentResult) -> f64 {
 /// The variance of the cooperation rate across a game's opponents, scaled to
 /// [0, 1]; a game with fewer than two opponents shows no adaptation.
 fn adaptation(game: &GameResult) -> Option<f64> {
-    let rates: Vec<f64> = game.opponents.values().map(|entry| entry.mean_cooperation_rate).collect();
+    let rates: Vec<f64> = game
+        .opponents
+        .values()
+        .map(|entry| entry.mean_cooperation_rate)
+        .collect();
     if !matches!(rates.as_slice(), [_, _, ..]) {
         return None;
     }
     let centre = mean(&rates)?;
-    let variance = mean(&rates.iter().map(|rate| (rate - centre) * (rate - centre)).collect::<Vec<_>>())?;
+    let variance = mean(
+        &rates
+            .iter()
+            .map(|rate| (rate - centre) * (rate - centre))
+            .collect::<Vec<_>>(),
+    )?;
     Some(variance * POPOVICIU_DIVISOR)
 }
 
 /// The agent's payoff per round played in one game, over every opponent.
 fn payoff_per_round(game: &GameResult) -> Option<f64> {
-    let episodes: Vec<_> = game.opponents.values().flat_map(|entry| entry.episodes.iter()).collect();
-    let rounds: f64 = episodes.iter().map(|episode| episode.rounds_played as f64).sum();
+    let episodes: Vec<_> = game
+        .opponents
+        .values()
+        .flat_map(|entry| entry.episodes.iter())
+        .collect();
+    let rounds: f64 = episodes
+        .iter()
+        .map(|episode| episode.rounds_played as f64)
+        .sum();
     if rounds == NONE {
         return None;
     }
-    Some(episodes.iter().map(|episode| episode.player_score).sum::<f64>() / rounds)
+    Some(
+        episodes
+            .iter()
+            .map(|episode| episode.player_score)
+            .sum::<f64>()
+            / rounds,
+    )
 }
 
 pub fn compute(games: &BTreeMap<String, GameResult>) -> Metrics {
-    let cooperation_rate = mean(&entries(games).map(|entry| entry.mean_cooperation_rate).collect::<Vec<_>>());
+    let cooperation_rate = mean(
+        &entries(games)
+            .map(|entry| entry.mean_cooperation_rate)
+            .collect::<Vec<_>>(),
+    );
     let exploitation_resistance = mean(&games.values().filter_map(resistance).collect::<Vec<_>>());
     let pareto_efficiency = mean(&games.values().flat_map(pareto).collect::<Vec<_>>());
     let fairness_index = mean(&entries(games).map(fairness).collect::<Vec<_>>());
     let adaptability = mean(&games.values().filter_map(adaptation).collect::<Vec<_>>());
-    let parts = [cooperation_rate, exploitation_resistance, pareto_efficiency, fairness_index, adaptability];
-    let strategic_reasoning = parts.iter().copied().collect::<Option<Vec<f64>>>().and_then(|all| mean(&all));
+    let parts = [
+        cooperation_rate,
+        exploitation_resistance,
+        pareto_efficiency,
+        fairness_index,
+        adaptability,
+    ];
+    let strategic_reasoning = parts
+        .iter()
+        .copied()
+        .collect::<Option<Vec<f64>>>()
+        .and_then(|all| mean(&all));
     let mean_self_payoff_per_game = games
         .iter()
         .filter_map(|(key, game)| payoff_per_round(game).map(|paid| (key.clone(), paid)))
